@@ -24,7 +24,9 @@ services:
 
   # One-shot: applies database migrations, then exits. The backend waits for it.
   migrate:
-    build: ./backend
+    build: &backend-build
+      context: .
+      dockerfile: backend/Dockerfile
     command: ["alembic", "upgrade", "head"]
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -33,7 +35,7 @@ services:
         condition: service_healthy
 
   backend:
-    build: ./backend
+    build: *backend-build
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:-development}
@@ -52,6 +54,37 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+
+  # Scan worker (ADR 0008): claims queued scans from PostgreSQL and runs the
+  # scanner. No published ports. Scans reach lab targets only: the scanner
+  # refuses public addresses.
+  worker:
+    build: *backend-build
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Optional local lab target for manual end-to-end scans:
+  #   docker compose --profile lab up -d
+  # Static pages only. The worker reaches it as http://lab-target/ on the
+  # compose network; the host port is bound to 127.0.0.1 only.
+  lab-target:
+    image: nginx:1.27-alpine
+    profiles: ["lab"]
+    restart: unless-stopped
+    volumes:
+      - ./tests/lab/site:/usr/share/nginx/html:ro
+    ports:
+      - "127.0.0.1:8081:80"
 
   frontend:
     build: ./frontend

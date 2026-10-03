@@ -8,10 +8,11 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 2 (discovery engine). Projects, targets with scope and
-> authorization, and assessments are available through the REST API. The
-> scanner package can run a passive, scope-enforced discovery scan of a lab
-> target, but is not yet wired into the API. There is no UI yet.
+> **Status:** Phase 3 (scan execution). Projects, targets with scope and
+> authorization, assessments and passive discovery scans of `local_lab`
+> targets are available through the REST API; scans are run by a worker and
+> their results (logs, assets, endpoints, cookies, redacted evidence) are
+> stored. There is no vulnerability detection and no UI yet.
 
 ## Stack
 
@@ -52,7 +53,14 @@ docker compose up --build
 - API docs (non-production): http://localhost:8000/docs
 
 Migrations run automatically: a one-shot `migrate` service applies
-`alembic upgrade head` before the backend starts.
+`alembic upgrade head` before the backend and the scan `worker` start.
+
+To try a real scan locally, start the optional static lab target and follow
+[tests/lab/README.md](tests/lab/README.md):
+
+```powershell
+docker compose --profile lab up -d
+```
 
 All ports bind to `127.0.0.1` only (see [ADR 0005](docs/adr/0005-localhost-only-until-auth.md)).
 
@@ -73,9 +81,15 @@ PowerShell's default execution policy blocking `Activate.ps1`.
 ```powershell
 cd backend
 python -m venv .venv
+# The backend imports the scanner. Install it from this repository first; it is
+# deliberately not a declared dependency, so pip never fetches a same-named
+# package from PyPI. (compat mode lets mypy see the editable install.)
+.\.venv\Scripts\python -m pip install -e ..\scanner --config-settings editable_mode=compat
 .\.venv\Scripts\python -m pip install -e ".[dev]"
 .\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m uvicorn --factory app.main:create_app --reload
+# In another terminal, the scan worker:
+.\.venv\Scripts\python -m app.worker
 ```
 
 The backend reads `DATABASE_URL` and other settings from environment variables,
@@ -157,7 +171,7 @@ them.
 | 0 ✅  | Foundation: monorepo, compose, config, tooling, docs               |
 | 1 ✅  | Core domain: projects, targets with authorization, assessments     |
 | 2 ✅  | Discovery engine: scan grants, scope guard, safe HTTP client       |
-| 3     | Scan pipeline: worker, findings, evidence, scan logs               |
+| 3 ✅  | Scan execution: worker, scan logs, assets, endpoints, evidence     |
 | 4     | Frontend MVP: target/assessment flows, live scans, triage          |
 | 5     | Reporting: HTML reports from snapshots                             |
 | 6     | Retesting: fixed / still present / new diffs                       |

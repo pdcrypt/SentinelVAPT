@@ -2,7 +2,15 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, String, Text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum_column
@@ -34,6 +42,9 @@ class Assessment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="fk_assessments_authorization",
             ondelete="RESTRICT",
         ),
+        # Referenced by scans' composite foreign key, which ties a scan to its
+        # assessment's own target and authorization record.
+        UniqueConstraint("id", "target_id", "authorization_id"),
     )
 
     target_id: Mapped[uuid.UUID] = mapped_column(

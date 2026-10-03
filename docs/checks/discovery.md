@@ -31,13 +31,22 @@ payloads are ever sent.
   size (1 MiB), per-request time (10 s, wall clock), redirects (5), depth (3),
   pages (50) and total time (5 min); configuration cannot exceed the hard caps.
 
+## How it is run
+
+Through the platform only: `POST /api/v1/assessments/{id}/scans` queues a scan
+for an in-progress assessment, and the worker builds the scanner's grant from
+the database when it claims it (ADR 0008). The only per-scan option is
+`allow_untrusted_tls` (below); limits are always the defaults listed above.
+
 ## TLS certificate verification
 
 Verification is **on by default** (`DiscoveryConfig.verify_tls = True`): the
 certificate must chain to a trusted CA and match the target's hostname, which
 is sent as SNI even though the connection is pinned to a checked IP. A lab
 target with a self-signed certificate is therefore refused (`tls_error`) unless
-the caller explicitly passes `DiscoveryConfig(verify_tls=False)`.
+the caller explicitly passes `DiscoveryConfig(verify_tls=False)`; through the
+API, that is a scan requested with `{"allow_untrusted_tls": true}`, which is
+recorded in the scan's `config`.
 
 Security implication of turning it off: the scanner can no longer tell the
 real lab target from anything else answering on that address, so a

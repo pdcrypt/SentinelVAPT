@@ -50,15 +50,28 @@ class InvalidStateTransitionError(DomainError):
     code = "invalid_state_transition"
 
 
+class ScanNotAllowedError(DomainError):
+    """A scan may not be created or run. `reason` says which rule refused it
+    (e.g. authorization_superseded, assessment_not_in_progress)."""
+
+    status_code = 409
+    code = "scan_not_allowed"
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message, field=None)
+        self.reason = reason
+
+
 def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | None]:
     return {"detail": detail, "code": code, "field": field}
 
 
 async def _domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, DomainError)  # noqa: S101  # registered for DomainError only
-    return JSONResponse(
-        status_code=exc.status_code, content=_body(exc.message, exc.code, exc.field)
-    )
+    content: dict[str, str | None] = _body(exc.message, exc.code, exc.field)
+    if isinstance(exc, ScanNotAllowedError):
+        content["reason"] = exc.reason
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 async def _integrity_error_handler(_: Request, exc: Exception) -> JSONResponse:

@@ -1,0 +1,16 @@
+# Applies to builds of backend/Dockerfile, whose context is the repository root.
+# Allowlist: only the backend and scanner sources are sent to the builder.
+*
+!backend/pyproject.toml
+!backend/alembic.ini
+!backend/alembic/
+!backend/app/
+!scanner/pyproject.toml
+!scanner/sentinel_scanner/
+
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache

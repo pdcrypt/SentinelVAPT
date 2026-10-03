@@ -9,8 +9,13 @@ from app.core.errors import (
     TargetAuthorizationError,
 )
 from app.models import Assessment, TargetAuthorization
-from app.models.enums import AssessmentStatus, AuthorizationStatus
-from app.repositories import AssessmentRepository, ProjectRepository, TargetRepository
+from app.models.enums import AssessmentStatus, AuthorizationStatus, ScanStatus
+from app.repositories import (
+    AssessmentRepository,
+    ProjectRepository,
+    ScanRepository,
+    TargetRepository,
+)
 from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
 from app.services.base import UnitOfWork
 from app.services.scope import authorization_status
@@ -23,6 +28,8 @@ ALLOWED_TRANSITIONS: dict[AssessmentStatus, frozenset[AssessmentStatus]] = {
     AssessmentStatus.COMPLETED: frozenset(),
     AssessmentStatus.CANCELLED: frozenset(),
 }
+
+ASSESSMENT_CANCELLED_REASON = "assessment_cancelled"
 
 DELETABLE_STATUSES = frozenset({AssessmentStatus.PLANNED, AssessmentStatus.CANCELLED})
 
@@ -42,12 +49,15 @@ class AssessmentService:
         projects: ProjectRepository,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        scans: ScanRepository | None = None,
     ) -> None:
         self.assessments = assessments
         self.targets = targets
         self.projects = projects
         self.uow = uow
         self.clock = clock
+        self.scans = scans or ScanRepository(assessments.session)
 
     def create(self, target_id: uuid.UUID, data: AssessmentCreate) -> Assessment:
         # Locked so the authorization recorded below cannot be superseded mid-request.
@@ -126,6 +136,10 @@ class AssessmentService:
     def complete(self, assessment_id: uuid.UUID) -> Assessment:
         assessment = self._get_for_update(assessment_id)
         ensure_transition(assessment.status, AssessmentStatus.COMPLETED)
+        if self.scans.has_active(assessment.id):
+            raise ConflictError(
+                "the assessment has a queued or running scan; wait for it or cancel it first"
+            )
         assessment.status = AssessmentStatus.COMPLETED
         assessment.completed_at = self.clock()
         return self._save(assessment)
@@ -134,6 +148,17 @@ class AssessmentService:
         assessment = self._get_for_update(assessment_id)
         ensure_transition(assessment.status, AssessmentStatus.CANCELLED)
         assessment.status = AssessmentStatus.CANCELLED
+        # Lock order assessment -> scan: stop this assessment's scans in the same
+        # transaction. Queued scans end now; running ones are asked to stop and
+        # the worker ends them at its next check.
+        now = self.clock()
+        for scan in self.scans.active_for_assessment(assessment.id):
+            if scan.cancel_requested_at is None:
+                scan.cancel_requested_at = now
+                scan.cancel_reason = ASSESSMENT_CANCELLED_REASON
+            if scan.status is ScanStatus.QUEUED:
+                scan.status = ScanStatus.CANCELLED
+                scan.finished_at = now
         return self._save(assessment)
 
     def delete(self, assessment_id: uuid.UUID) -> None:
@@ -143,6 +168,9 @@ class AssessmentService:
                 f"a {assessment.status} assessment cannot be deleted; only planned or "
                 "cancelled assessments can"
             )
+        if self.scans.has_any(assessment.id):
+            # Scans and their evidence are an audit trail; keep the assessment.
+            raise ConflictError("an assessment with scans cannot be deleted")
         self.assessments.delete(assessment)
         self.uow.commit()
 

@@ -49,6 +49,14 @@ backend starts depending on the scanner in Phase 3 (the allowed direction), the
 backend's validation will reuse the scanner's primitives so the shared logic
 lives in one place.
 
+*Update (Phase 3):* consolidation was deferred. Instead,
+`backend/tests/unit/test_scope_parity.py` runs both implementations over a
+shared corpus and requires them to agree, allowing only explicitly listed cases
+where the scanner is stricter (transition addresses for lab targets; it also
+keeps the IPv4-mapped spelling of an address distinct). The scanner never
+accepts a host the backend rejects. Scan creation runs the scanner's own grant
+validation, so any stricter scanner rule surfaces immediately as a refused scan.
+
 ## Consequences
 
 - Scope cannot be bypassed by any crawler logic: the crawler has no way to

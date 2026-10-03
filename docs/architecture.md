@@ -42,22 +42,19 @@ reports (standalone) renders persisted assessment snapshots.
 5. The scanner re-validates the grant, checks every request against scope, and
    returns redacted discovery results (and, later, finding candidates).
 
-Steps 1–2 exist (Phase 1); step 5's discovery engine exists (Phase 2); steps 3,
-4 and 6–9 are later phases.
-6. The worker upserts assets/endpoints and matches findings by `fingerprint`.
-7. Findings are triaged in the UI.
-8. Reports render from an immutable snapshot stored with a content hash.
-9. Retests are child assessments; fingerprint diffs show fixed, still present
-   and new findings.
+Steps 1–5 exist (Phases 1–3: scans are queued by the API and run by the
+worker, ADR 0008); steps 6–9 (findings, triage, reports, retests) are later
+phases.
 
 ## Domain model
 
 ```
 Project 1─N Target 1─N TargetAuthorization  (implemented, Phase 1; append-only)
 Target 1─N Assessment N─1 TargetAuthorization (implemented, Phase 1)
-Target 1─N Asset 1─N Endpoint               (planned)
-Assessment 1─N Scan 1─N ScanLog             (planned)
-Scan 1─N Finding 1─N Evidence               (planned)
+Assessment 1─N Scan (implemented, Phase 3; scan → its assessment's target + authorization)
+Scan 1─N ScanLog, Asset, Endpoint, Evidence   (implemented, Phase 3; scan-scoped)
+Endpoint 1─N EndpointCookie, Evidence         (implemented, Phase 3)
+Scan 1─N Finding                             (planned)
 Assessment 1─N Report                       (planned)
 Assessment.parent_assessment_id → retests   (planned, Phase 6)
 ```
@@ -139,6 +136,26 @@ See [ADR 0007](adr/0007-scanner-network-boundary.md) for the security
 boundary and [checks/discovery.md](checks/discovery.md) for exactly what is
 requested.
 
+## Scan execution (Phase 3)
+
+See [ADR 0008](adr/0008-scan-execution-and-worker.md). In short:
+
+- `POST /assessments/{id}/scans` checks the same rules the worker applies
+  (assessment `in_progress`, authorization current, active and `local_lab`,
+  scanner grant validation, no other active scan) and inserts a `queued` scan.
+- The worker (`python -m app.worker`, compose service `worker`) claims it under
+  locks **assessment → target → scan**, builds the `ScanGrant` from those rows,
+  records `grant_snapshot` (audit only), runs the scanner with no database
+  session open, and writes all results plus the final status in one
+  transaction.
+- States: `queued → running → completed | cancelled | failed`. A watcher
+  cancels a running scan when cancel is requested, the assessment leaves
+  `in_progress` or the target is re-authorized; a reaper fails scans whose
+  worker stopped sending heartbeats. No automatic retries.
+- Results are normalized, scan-scoped tables (`scan_logs`, `assets`,
+  `endpoints`, `endpoint_cookies`, `evidence`) with unique keys that make
+  re-persisting a no-op.
+
 ## API (v1)
 
 | Method | Path |
@@ -153,6 +170,11 @@ requested.
 | `POST`, `GET` | `/api/v1/targets/{id}/assessments` |
 | `GET`, `PATCH`, `DELETE` | `/api/v1/assessments/{id}` |
 | `POST` | `/api/v1/assessments/{id}/start`, `/complete`, `/cancel` |
+| `POST`, `GET` | `/api/v1/assessments/{id}/scans` (body: `{"allow_untrusted_tls": false}`) |
+| `GET` | `/api/v1/scans/{id}` |
+| `POST` | `/api/v1/scans/{id}/cancel` |
+| `GET` | `/api/v1/scans/{id}/logs`, `/assets`, `/endpoints` (filters: `fetched`, `skip_reason`, `source`, `method`), `/evidence` |
+| `GET` | `/api/v1/evidence/{id}` |
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,

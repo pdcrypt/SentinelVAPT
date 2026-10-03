@@ -3,11 +3,10 @@
 SentinelVAPT is an **authorized** assessment platform. It exists for local
 security labs and for targets whose owner has explicitly authorized testing.
 
-## Current state (Phase 2)
+## Current state (Phase 3)
 
-The scanner library can run a passive discovery scan, but nothing in the
-platform invokes it yet: there is no scan API endpoint or worker until Phase 3.
-What is in place today:
+Passive discovery scans of `local_lab` targets can be requested through the
+API and are run by the worker. What is in place today:
 
 - **Recorded, acknowledged authorization.** A target cannot be created without
   who authorized testing, a reference, a validity window and an explicit
@@ -45,6 +44,17 @@ What is in place today:
   size, per-request wall-clock time, redirects, depth and total time are
   capped, with hard caps that configuration cannot exceed
   ([docs/checks/discovery.md](checks/discovery.md)).
+- **Grants built from the database under locks.** A scan can only be queued
+  for an in-progress assessment whose authorization is still the target's
+  current one, active and `local_lab`. The worker re-checks all of this under
+  row locks when it claims the scan and builds the scanner's grant from those
+  rows, never from stored or client-supplied data. A running scan is stopped
+  if it is cancelled, its assessment leaves `in_progress`, or the target is
+  re-authorized ([ADR 0008](adr/0008-scan-execution-and-worker.md)).
+- **Audit trail.** Each scan keeps the exact grant the scanner was given, the
+  worker that ran it, its timeline, every scanner event (including blocked
+  requests) and the redacted evidence. Scans cannot be deleted, and an
+  assessment with scans cannot be deleted.
 - **Redaction before results leave the scanner.** Credentials, cookies,
   token-like headers, sensitive query values and secrets in body excerpts are
   masked; cookie values are never recorded.
@@ -62,17 +72,10 @@ What is in place today:
 
 ## Planned safety controls
 
-These are design commitments, marked with the phase that will implement them.
-
-1. **Grants built from the database under locks** (Phase 3). The scan endpoint
-   and worker will build the scanner's grant from the assessment and its
-   authorization record while holding the existing locks, and refuse to start a
-   scan outside the window.
-2. **Audit logging and persisted evidence** (Phase 3). Each scan will record who
-   started it, the exact grant used, every request and blocked request, and the
-   redacted evidence.
-3. **External targets** (later phase, not yet scheduled). `authorized_external`
-   targets can be created but the scanner refuses to scan them.
+1. **External targets** (later phase, not yet scheduled). `authorized_external`
+   targets can be created but scans of them are refused.
+2. **Least-privilege database role** (hardening phase). The API and worker
+   currently connect as the database owner.
 
 ## Out of scope (will not be implemented)
 

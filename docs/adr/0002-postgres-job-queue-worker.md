@@ -1,6 +1,6 @@
 # 0002: Run scans in a worker using a PostgreSQL job queue
 
-- Status: accepted
+- Status: accepted; refined by [ADR 0008](0008-scan-execution-and-worker.md)
 - Date: 2026-10-04
 
 ## Context

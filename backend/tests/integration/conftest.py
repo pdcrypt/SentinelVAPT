@@ -215,3 +215,7 @@ def create_assessment(api: TestClient, target_id: str, name: str = "Baseline") -
     assert resp.status_code == 201, resp.text
     body: dict[str, Any] = resp.json()
     return body
+
+
+# Phase 3: committed-data fixtures for scan/worker tests.
+from tests.integration.scan_support import scan_env  # noqa: E402, F401

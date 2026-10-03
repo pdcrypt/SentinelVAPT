@@ -1,0 +1,229 @@
+"""Support for worker and scan tests that need committed data.
+
+The worker opens its own sessions, so these tests cannot use the rolled-back
+per-test transaction. Each test gets a uniquely named project and everything
+under it is deleted afterwards.
+"""
+
+import uuid
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import pytest
+from sqlalchemy import Engine, text
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.api.deps import (
+    get_assessment_service,
+    get_project_service,
+    get_scan_service,
+    get_target_service,
+)
+from app.core.clock import utc_now
+from app.models import Scan
+from app.schemas.assessment import AssessmentCreate
+from app.schemas.project import ProjectCreate
+from app.schemas.scan import ScanCreate
+from app.schemas.target import TargetCreate, TargetUpdate
+from app.worker import ScannerRunner, Worker
+from sentinel_scanner import (
+    CancellationToken,
+    DiscoveryConfig,
+    DiscoveryResult,
+    ScanLimits,
+    run_discovery,
+)
+from sentinel_scanner.grant import ScanGrant
+from sentinel_scanner.models import ScanEvent
+from sentinel_scanner.resolver import StaticResolver
+from tests.integration.lab_site import LabSite
+
+RESOLVER = StaticResolver({"lab.test": ["127.0.0.1"]})
+
+
+def lab_runner(
+    *,
+    hook: Callable[[ScanGrant, DiscoveryConfig], None] | None = None,
+) -> ScannerRunner:
+    """The real scanner, resolving lab.test to 127.0.0.1. Only the request rate
+    is raised for test speed; every other limit stays at the scanner default."""
+
+    def run(
+        grant: ScanGrant,
+        config: DiscoveryConfig,
+        *,
+        cancel: CancellationToken,
+        on_event: Callable[[ScanEvent], None],
+    ) -> DiscoveryResult:
+        if hook is not None:
+            hook(grant, config)
+        fast = DiscoveryConfig(
+            limits=ScanLimits(max_requests_per_second=20),
+            crawl=config.crawl,
+            verify_tls=config.verify_tls,
+        )
+        return run_discovery(grant, fast, cancel=cancel, on_event=on_event, resolver=RESOLVER)
+
+    return run
+
+
+def authorization(**overrides: Any) -> dict[str, Any]:
+    now = datetime.now(UTC)
+    values: dict[str, Any] = {
+        "authorized_by": "Lab Owner",
+        "reference": "LAB-SCAN",
+        "valid_from": (now - timedelta(hours=1)).isoformat(),
+        "valid_until": (now + timedelta(hours=1)).isoformat(),
+        "acknowledged_by": "Tester",
+        "acknowledge": True,
+    }
+    values.update(overrides)
+    return values
+
+
+@dataclass
+class ScanEnv:
+    """Creates committed projects/targets/assessments/scans through the real
+    services, and builds workers bound to the test database."""
+
+    factory: sessionmaker[Session]
+    site: LabSite
+    project_id: uuid.UUID
+
+    def target(self, *, name: str | None = None, **auth: Any) -> uuid.UUID:
+        name = name or f"Lab {uuid.uuid4().hex[:8]}"
+        with self.factory() as s:
+            created = get_target_service(s, utc_now).create(
+                self.project_id,
+                TargetCreate.model_validate(
+                    {
+                        "name": name,
+                        "base_url": self.site.url("/"),
+                        "environment": "local_lab",
+                        "in_scope_hosts": ["lab.test"],
+                        "excluded_paths": ["/admin"],
+                        "authorization": authorization(**auth),
+                    }
+                ),
+            )
+            return created.id
+
+    def started_assessment(self, target_id: uuid.UUID) -> uuid.UUID:
+        with self.factory() as s:
+            service = get_assessment_service(s, utc_now)
+            assessment = service.create(target_id, AssessmentCreate(name="Assessment"))
+            service.start(assessment.id)
+            return assessment.id
+
+    def scan(self, assessment_id: uuid.UUID, *, allow_untrusted_tls: bool = False) -> uuid.UUID:
+        with self.factory() as s:
+            scan = get_scan_service(s, utc_now).create(
+                assessment_id, ScanCreate(allow_untrusted_tls=allow_untrusted_tls)
+            )
+            return scan.id
+
+    def queued_scan(self) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+        target_id = self.target()
+        assessment_id = self.started_assessment(target_id)
+        return target_id, assessment_id, self.scan(assessment_id)
+
+    def reauthorize(self, target_id: uuid.UUID, **auth: Any) -> None:
+        with self.factory() as s:
+            get_target_service(s, utc_now).update(
+                target_id, TargetUpdate.model_validate({"authorization": authorization(**auth)})
+            )
+
+    def cancel_assessment(self, assessment_id: uuid.UUID) -> None:
+        with self.factory() as s:
+            get_assessment_service(s, utc_now).cancel(assessment_id)
+
+    def cancel_scan(self, scan_id: uuid.UUID) -> None:
+        with self.factory() as s:
+            get_scan_service(s, utc_now).cancel(scan_id)
+
+    def get_scan(self, scan_id: uuid.UUID) -> Scan:
+        with self.factory() as s:
+            scan = s.get(Scan, scan_id)
+            assert scan is not None
+            s.expunge(scan)
+            return scan
+
+    def count(self, table: str, scan_id: uuid.UUID) -> int:
+        column = (
+            "endpoint_id IN (SELECT id FROM endpoints WHERE scan_id = :s)"
+            if (table == "endpoint_cookies")
+            else "scan_id = :s"
+        )
+        with self.factory() as s:
+            # Table names come from the tests themselves, never from input.
+            sql = f"SELECT count(*) FROM {table} WHERE {column}"  # noqa: S608
+            return int(s.scalar(text(sql), {"s": scan_id}))
+
+    def all_text(self, scan_id: uuid.UUID) -> str:
+        """Every persisted row of this scan, as JSON text (for secret checks)."""
+        queries = [
+            "SELECT row_to_json(x)::text FROM scans x WHERE id = :s",
+            "SELECT row_to_json(x)::text FROM scan_logs x WHERE scan_id = :s",
+            "SELECT row_to_json(x)::text FROM assets x WHERE scan_id = :s",
+            "SELECT row_to_json(x)::text FROM endpoints x WHERE scan_id = :s",
+            "SELECT row_to_json(x)::text FROM evidence x WHERE scan_id = :s",
+            "SELECT row_to_json(c)::text FROM endpoint_cookies c "
+            "JOIN endpoints e ON e.id = c.endpoint_id WHERE e.scan_id = :s",
+        ]
+        with self.factory() as s:
+            return "\n".join(
+                row for q in queries for row in s.scalars(text(q), {"s": scan_id}).all()
+            )
+
+    def worker(self, name: str = "worker-a", **kwargs: Any) -> Worker:
+        kwargs.setdefault("runner", lab_runner())
+        kwargs.setdefault("heartbeat_interval", 60.0)
+        return Worker(self.factory, worker_id=name, **kwargs)
+
+
+def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None:
+    with factory() as s:
+        s.execute(
+            text(
+                "DELETE FROM scans WHERE assessment_id IN (SELECT a.id FROM assessments a "
+                "JOIN targets t ON t.id = a.target_id WHERE t.project_id = :p)"
+            ),
+            {"p": project_id},
+        )
+        s.execute(
+            text(
+                "DELETE FROM assessments WHERE target_id IN "
+                "(SELECT id FROM targets WHERE project_id = :p)"
+            ),
+            {"p": project_id},
+        )
+        s.execute(text("DELETE FROM targets WHERE project_id = :p"), {"p": project_id})
+        s.execute(text("DELETE FROM projects WHERE id = :p"), {"p": project_id})
+        s.commit()
+
+
+@pytest.fixture
+def scan_env(engine: Engine) -> Iterator[ScanEnv]:
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with factory() as s:
+        project = get_project_service(s).create(ProjectCreate(name=f"scan-{uuid.uuid4()}"))
+    with LabSite() as site:
+        site.html(
+            "/",
+            '<title>Home</title><a href="/about">About</a><a href="/admin">Admin</a>'
+            '<a href="/logout">Logout</a><form action="/login" method="post"></form>',
+            headers=[
+                ("Server", "nginx/1.25"),
+                ("Set-Cookie", "SESSIONID=LAB-SESSION-SECRET; Path=/; HttpOnly"),
+            ],
+        )
+        site.html(
+            "/about",
+            '<title>About</title><input type="hidden" name="csrf_token" value="LAB-CSRF-SECRET">',
+        )
+        try:
+            yield ScanEnv(factory, site, project.id)
+        finally:
+            purge_project(factory, project.id)

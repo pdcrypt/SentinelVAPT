@@ -39,6 +39,12 @@ class Settings(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # Scan worker (python -m app.worker). WORKER_ID defaults to host:pid.
+    worker_id: str | None = None
+    worker_poll_seconds: float = Field(default=2.0, gt=0, le=60)
+    worker_heartbeat_seconds: float = Field(default=5.0, gt=0, le=60)
+    worker_stale_after_seconds: float = Field(default=60.0, gt=0, le=3600)
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
