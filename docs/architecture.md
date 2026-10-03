@@ -37,9 +37,13 @@ reports (standalone) renders persisted assessment snapshots.
 2. An assessment is created for the target.
 3. Starting a scan re-validates authorization and stores a frozen
    `scope_snapshot` on a `queued` scan row.
-4. The worker claims the scan (`FOR UPDATE SKIP LOCKED`) and calls the scanner.
-5. The scanner validates each request against scope, runs checks and returns
-   finding candidates with redacted evidence.
+4. The worker claims the scan (`FOR UPDATE SKIP LOCKED`), builds a `ScanGrant`
+   and calls the scanner.
+5. The scanner re-validates the grant, checks every request against scope, and
+   returns redacted discovery results (and, later, finding candidates).
+
+Steps 1–2 exist (Phase 1); step 5's discovery engine exists (Phase 2); steps 3,
+4 and 6–9 are later phases.
 6. The worker upserts assets/endpoints and matches findings by `fingerprint`.
 7. Findings are triaged in the UI.
 8. Reports render from an immutable snapshot stored with a content hash.
@@ -107,6 +111,33 @@ Validated in `backend/app/services/scope.py` (pure functions) and enforced by
   authorization not to have expired. Starting requires it to be active *and*
   to still be the record the assessment was planned under; after a
   re-authorization, plan a new assessment.
+
+## Scanner (Phase 2: discovery engine)
+
+A standalone package (`scanner/sentinel_scanner`) with no runtime
+dependencies. The backend will call one function:
+
+```python
+run_discovery(grant: ScanGrant, config: DiscoveryConfig | None = None, *,
+              cancel: CancellationToken | None = None,
+              on_event: Callable[[ScanEvent], None] | None = None) -> DiscoveryResult
+```
+
+| Module | Role |
+| ------ | ---- |
+| `grant.py` | `ScanGrant` contract; `validate_grant()` refuses before any I/O |
+| `scope.py` | `ScopePolicy`: URL check on the canonical path; resolved-address check |
+| `netaddr.py` | IP policy incl. IPv4 embedded in IPv6 |
+| `resolver.py` | `Resolver` protocol; system resolver with timeout; static resolver for tests |
+| `transport.py` | `SafeHttpClient`: the only module that opens connections |
+| `limits.py`, `ratelimit.py` | Limits with hard caps; request spacing |
+| `redaction.py` | Masking of headers, cookies, URLs, body excerpts |
+| `discovery/` | Link/robots/sitemap extraction, cookie flags, technology hints, crawler |
+| `models.py` | `DiscoveryResult` and its parts, `to_dict()`, `schema_version` |
+
+See [ADR 0007](adr/0007-scanner-network-boundary.md) for the security
+boundary and [checks/discovery.md](checks/discovery.md) for exactly what is
+requested.
 
 ## API (v1)
 

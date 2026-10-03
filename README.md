@@ -8,9 +8,10 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 1 (core domain). Projects, targets with scope and
-> authorization, and assessments are available through the REST API. There is
-> no scanner or UI yet.
+> **Status:** Phase 2 (discovery engine). Projects, targets with scope and
+> authorization, and assessments are available through the REST API. The
+> scanner package can run a passive, scope-enforced discovery scan of a lab
+> target, but is not yet wired into the API. There is no UI yet.
 
 ## Stack
 
@@ -155,7 +156,7 @@ them.
 | ----- | ------------------------------------------------------------------ |
 | 0 ✅  | Foundation: monorepo, compose, config, tooling, docs               |
 | 1 ✅  | Core domain: projects, targets with authorization, assessments     |
-| 2     | Scanner core: scope guard, safe HTTP client, first checks, lab     |
+| 2 ✅  | Discovery engine: scan grants, scope guard, safe HTTP client       |
 | 3     | Scan pipeline: worker, findings, evidence, scan logs               |
 | 4     | Frontend MVP: target/assessment flows, live scans, triage          |
 | 5     | Reporting: HTML reports from snapshots                             |
