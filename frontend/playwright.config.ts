@@ -10,8 +10,14 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "list",
   use: { baseURL, trace: "on-first-retry" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // Starts the dev server unless one (or the docker compose stack) is already running.
+  // Without E2E_BASE_URL, starts a production server (the CSP assertions
+  // expect production headers); the live-stack workflow tests then skip.
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : { command: "npm run dev", url: baseURL, reuseExistingServer: !process.env.CI },
+    : {
+        command: process.env.CI ? "npm run start" : "npm run build && npm run start",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 300_000,
+      },
 });

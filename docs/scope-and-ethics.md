@@ -87,6 +87,15 @@ today:
   output is checked against an HTML allowlist. Completed reports cannot be
   changed or deleted ([ADR 0010](adr/0010-evidence-backed-reporting.md)).
 - **Non-root containers** for the backend and frontend.
+- **Operator console is browser-safe** ([ADR 0013](adr/0013-frontend-architecture-and-threat-model.md)).
+  - **Browser and API:** the browser talks only to the localhost console, never to
+    the API.
+  - **Request checks:** unexpected Host headers and cross-origin writes are refused.
+  - **Hostile data:** everything captured from targets is shown as inert text, with
+    hidden characters made visible, and report previews run in a script-less sandbox.
+  - **Targets and names:** the console creates only `local_lab` targets. The
+    authorization and the names typed into forms are recorded as self-asserted: there
+    is no platform login yet.
 
 ## Planned safety controls
 

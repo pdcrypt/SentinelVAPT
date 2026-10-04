@@ -8,7 +8,7 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 7 (retest reports). Projects, targets with scope and
+> **Status:** Phase 8 (operator console). Projects, targets with scope and
 > authorization, assessments and passive discovery scans of `local_lab`
 > targets are available through the REST API. A worker runs the scans, stores
 > their redacted results, and analyses them offline with 14 passive rules into
@@ -17,7 +17,9 @@ reports. It does not perform exploitation. See
 > ([reports](docs/reports.md)), and completed assessments can be retested and
 > compared finding by finding ([retesting](docs/retesting.md)), with
 > evidence-backed retest reports ([retest reports](docs/retest-reporting.md)).
-> There are no active checks and no UI yet.
+> A localhost-only Next.js operator console drives the whole workflow
+> ([operator console](docs/frontend.md)). There are no active checks and no
+> platform login yet.
 
 ## Stack
 
@@ -34,7 +36,7 @@ reports. It does not perform exploitation. See
 ## Repository layout
 
 ```
-frontend/   Next.js app (UI only; never contacts targets)
+frontend/   Next.js operator console (talks only to the API, server-side; never contacts targets)
 backend/    FastAPI API, services, repositories, models, migrations
 scanner/    Scanner engine and checks (no API/DB dependencies)
 analysis/   Offline rule engine: stored observations -> findings (no network/DB)
@@ -71,6 +73,34 @@ docker compose --profile lab up -d
 ```
 
 All ports bind to `127.0.0.1` only (see [ADR 0005](docs/adr/0005-localhost-only-until-auth.md)).
+
+## Demo workflow (operator console)
+
+Authorized local lab use only. Open http://localhost:3000 with the lab target
+running (`docker compose --profile lab up -d`), then:
+
+1. **Projects:** create a project. **Add target:**
+   - base URL `http://lab-target/`, in-scope host `lab-target`;
+   - record the authorization and tick the acknowledgement. The platform
+     records it but cannot verify it, and there is no login yet: every name
+     you enter is shown as *self-asserted*.
+2. On the target, **plan an assessment**, **start** it and **launch a passive
+   scan**. The scan page refreshes until the scan and its analysis finish.
+3. **Findings:** open them with their evidence (shown as inert text). Record a
+   **triage** decision.
+4. **Request a scan report:** download JSON, HTML or PDF, or preview the HTML
+   in a sandboxed frame.
+5. **Complete the assessment**, **create a retest**, scan it, and **request a
+   comparison**.
+   - Every finding gets a stored comparison state (`FIXED`, `NOT_RETESTED`, …)
+     with its reasons and coverage evidence.
+   - Triage is shown separately.
+6. From the comparison, **request a retest report**.
+
+The browser talks only to the console; the API stays server-side. The
+console's design and threat model are in [docs/frontend.md](docs/frontend.md)
+and [ADR 0013](docs/adr/0013-frontend-architecture-and-threat-model.md). AI is
+not used anywhere in the deterministic pipeline.
 
 ## Local development
 
@@ -160,11 +190,15 @@ tests only: `.\.venv\Scripts\python -m pytest tests\unit`.
 npm run lint
 npm run typecheck
 npm run format:check
+npm run test:unit                 # Vitest: security guards, API client, rendering, charts
+npm run api:check                 # generated API types match the OpenAPI snapshot
 npx playwright install chromium   # once
-npm run test:e2e                  # starts a dev server automatically
+npm run test:e2e                  # builds and starts a production server; live-stack tests skip
 ```
 
-**End-to-end against the running compose stack:**
+**End-to-end against the running compose stack:** this runs the whole
+A → B → C workflow through the UI. It needs Docker, because it starts a
+temporary nginx lab target on the compose network.
 
 ```powershell
 $env:E2E_BASE_URL = "http://localhost:3000"; npm run test:e2e
@@ -193,5 +227,5 @@ them.
 | 5 ✅  | Reporting: snapshot-based JSON / HTML / PDF reports                |
 | 6 ✅  | Retesting: retest chains, evidence-backed scan comparison          |
 | 7 ✅  | Retest reports: comparison-based JSON / HTML / PDF reports         |
-| 8     | Frontend MVP                                                       |
+| 8 ✅  | Operator console: localhost-only Next.js UI for the whole workflow |
 | 9     | Hardening: platform auth, more checks, PDF export, polish          |

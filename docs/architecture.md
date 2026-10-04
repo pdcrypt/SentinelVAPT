@@ -18,7 +18,7 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 
 | Component  | Owns                                                                   | Must never                                     |
 | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
-| `frontend` | UI, triage workflow, report download                                   | Contact targets, hold secrets                  |
+| `frontend` | Operator console: whole workflow, triage, reports (server-side API client) | Contact targets, hold secrets, expose the API to the browser |
 | `backend`  | CRUD, validation, authorization/scope rules, enqueueing scans          | Perform network scanning                       |
 | worker     | Claim queued scans, call the scanner, persist results, run analysis and retest comparisons | Bypass the scanner's scope guard |
 | report-worker | Claim queued reports and retest reports, render them, store the artifacts | Reach anything but the database                |
@@ -57,7 +57,8 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 10. A retest report request freezes a snapshot of one completed comparison
     (states copied, never recomputed); the report worker renders it.
 
-Steps 1–10 exist (Phases 1–7; ADR 0008, 0009, 0010, 0011, 0012).
+Steps 1–10 exist (Phases 1–7; ADR 0008, 0009, 0010, 0011, 0012). The
+operator console (Phase 8, ADR 0013) drives all of them from the browser.
 
 ## Domain model
 
@@ -251,6 +252,28 @@ See [ADR 0012](adr/0012-retest-reporting.md) and
   their comparison, scans and one target, and evidence links to the scan of
   their role; triggers require a completed comparison and make reports
   immutable. The existing `reports` worker role renders them.
+
+## Operator console (Phase 8)
+
+See [ADR 0013](adr/0013-frontend-architecture-and-threat-model.md) and
+[frontend.md](frontend.md). In short:
+
+- **Browser and API.** The browser talks only to Next.js on 127.0.0.1:3000.
+  Server components and Server Actions call the API through a typed,
+  `server-only` client. The API address is never exposed (no `NEXT_PUBLIC_*`).
+- **Requests.** `proxy.ts` refuses unexpected `Host` headers (421) and
+  cross-origin writes (403), and sets a per-request nonce CSP without
+  `unsafe-inline`. Every Server Action repeats the Host/Origin check.
+- **Hostile data.** Every API value is untrusted and rendered as text, with
+  bidi and control characters shown as visible markers. URLs are not links.
+  Raw-HTML APIs are banned by lint.
+- **Report previews.** They run only in `<iframe sandbox="">` from an
+  `/artifacts/` route that keeps the API's sandboxing CSP; downloads are
+  attachments.
+- **Comparisons and triage.** Comparison states are shown exactly as stored;
+  triage is always a separately labelled status.
+- **No backend changes.** No backend, database or migration changes, and no
+  authentication (names are self-asserted).
 
 ## API (v1)
 

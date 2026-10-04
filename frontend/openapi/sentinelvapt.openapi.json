@@ -1,0 +1,6634 @@
+{
+ "components": {
+  "schemas": {
+   "AnalysisRunRead": {
+    "properties": {
+     "coverage_notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Coverage Notes",
+      "type": "array"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "findings_count": {
+      "title": "Findings Count",
+      "type": "integer"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "rule_errors": {
+      "items": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Rule Errors",
+      "type": "array"
+     },
+     "rules_evaluated": {
+      "title": "Rules Evaluated",
+      "type": "integer"
+     },
+     "ruleset_version": {
+      "title": "Ruleset Version",
+      "type": "string"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/AnalysisStatus"
+     }
+    },
+    "required": [
+     "id",
+     "scan_id",
+     "ruleset_version",
+     "status",
+     "coverage_notes",
+     "rule_errors",
+     "rules_evaluated",
+     "findings_count",
+     "error_code",
+     "created_at",
+     "finished_at"
+    ],
+    "title": "AnalysisRunRead",
+    "type": "object"
+   },
+   "AnalysisStatus": {
+    "enum": [
+     "queued",
+     "completed",
+     "failed"
+    ],
+    "title": "AnalysisStatus",
+    "type": "string"
+   },
+   "ArtifactRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "format": {
+      "title": "Format",
+      "type": "string"
+     },
+     "media_type": {
+      "title": "Media Type",
+      "type": "string"
+     },
+     "renderer": {
+      "title": "Renderer",
+      "type": "string"
+     },
+     "sha256": {
+      "title": "Sha256",
+      "type": "string"
+     },
+     "size_bytes": {
+      "title": "Size Bytes",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "format",
+     "media_type",
+     "size_bytes",
+     "sha256",
+     "renderer",
+     "created_at"
+    ],
+    "title": "ArtifactRead",
+    "type": "object"
+   },
+   "AssessmentCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "AssessmentCreate",
+    "type": "object"
+   },
+   "AssessmentRead": {
+    "properties": {
+     "authorization_id": {
+      "format": "uuid",
+      "title": "Authorization Id",
+      "type": "string"
+     },
+     "baseline_scan_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Baseline Scan Id"
+     },
+     "completed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Completed At"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "retest_of_assessment_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retest Of Assessment Id"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "status": {
+      "$ref": "#/components/schemas/AssessmentStatus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "target_id",
+     "authorization_id",
+     "name",
+     "description",
+     "status",
+     "started_at",
+     "completed_at",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "AssessmentRead",
+    "type": "object"
+   },
+   "AssessmentStatus": {
+    "enum": [
+     "planned",
+     "in_progress",
+     "completed",
+     "cancelled"
+    ],
+    "title": "AssessmentStatus",
+    "type": "string"
+   },
+   "AssessmentUpdate": {
+    "additionalProperties": false,
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "title": "AssessmentUpdate",
+    "type": "object"
+   },
+   "AssetRead": {
+    "properties": {
+     "host": {
+      "title": "Host",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "ip_addresses": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Ip Addresses",
+      "type": "array"
+     },
+     "port": {
+      "title": "Port",
+      "type": "integer"
+     },
+     "scheme": {
+      "title": "Scheme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "scheme",
+     "host",
+     "port",
+     "ip_addresses"
+    ],
+    "title": "AssetRead",
+    "type": "object"
+   },
+   "AuthorizationStatus": {
+    "description": "Computed from the authorization window; not stored.",
+    "enum": [
+     "pending",
+     "active",
+     "expired"
+    ],
+    "title": "AuthorizationStatus",
+    "type": "string"
+   },
+   "ComparisonCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "scan_id": {
+      "description": "A completed, analysed scan of this retest.",
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scan_id"
+    ],
+    "title": "ComparisonCreate",
+    "type": "object"
+   },
+   "ComparisonRead": {
+    "properties": {
+     "baseline_assessment_id": {
+      "format": "uuid",
+      "title": "Baseline Assessment Id",
+      "type": "string"
+     },
+     "baseline_run_id": {
+      "format": "uuid",
+      "title": "Baseline Run Id",
+      "type": "string"
+     },
+     "baseline_scan_id": {
+      "format": "uuid",
+      "title": "Baseline Scan Id",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_assessment_id": {
+      "format": "uuid",
+      "title": "Current Assessment Id",
+      "type": "string"
+     },
+     "current_run_id": {
+      "format": "uuid",
+      "title": "Current Run Id",
+      "type": "string"
+     },
+     "current_scan_id": {
+      "format": "uuid",
+      "title": "Current Scan Id",
+      "type": "string"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "policy_version": {
+      "title": "Policy Version",
+      "type": "string"
+     },
+     "previous_comparison_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Comparison Id"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ComparisonStatus"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "target_id",
+     "baseline_assessment_id",
+     "baseline_scan_id",
+     "baseline_run_id",
+     "current_assessment_id",
+     "current_scan_id",
+     "current_run_id",
+     "previous_comparison_id",
+     "policy_version",
+     "status",
+     "summary",
+     "error_code",
+     "created_at",
+     "finished_at"
+    ],
+    "title": "ComparisonRead",
+    "type": "object"
+   },
+   "ComparisonRecordRead": {
+    "properties": {
+     "baseline_evidence_ids": {
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Baseline Evidence Ids",
+      "type": "array"
+     },
+     "baseline_finding_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Baseline Finding Id"
+     },
+     "baseline_triage": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Triage status when compared.",
+      "title": "Baseline Triage"
+     },
+     "coverage_evidence_ids": {
+      "description": "Current-scan evidence proving the subject was examined (fixed/dismissed).",
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Coverage Evidence Ids",
+      "type": "array"
+     },
+     "current_evidence_ids": {
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Current Evidence Ids",
+      "type": "array"
+     },
+     "current_finding_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Finding Id"
+     },
+     "current_triage": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Triage status when compared.",
+      "title": "Current Triage"
+     },
+     "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+     },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "state": {
+      "$ref": "#/components/schemas/ComparisonState"
+     }
+    },
+    "required": [
+     "fingerprint",
+     "rule_id",
+     "state",
+     "reasons",
+     "baseline_finding_id",
+     "baseline_triage",
+     "baseline_evidence_ids",
+     "current_finding_id",
+     "current_triage",
+     "current_evidence_ids",
+     "coverage_evidence_ids"
+    ],
+    "title": "ComparisonRecordRead",
+    "type": "object"
+   },
+   "ComparisonState": {
+    "description": "Comparison policy cmp-1 states (ADR 0011). Separate from triage status.",
+    "enum": [
+     "new",
+     "reopened",
+     "unchanged",
+     "still_open",
+     "fixed",
+     "dismissed",
+     "not_retested",
+     "not_comparable"
+    ],
+    "title": "ComparisonState",
+    "type": "string"
+   },
+   "ComparisonStatus": {
+    "description": "No running state: a comparison is computed and stored in one transaction.",
+    "enum": [
+     "queued",
+     "completed",
+     "failed"
+    ],
+    "title": "ComparisonStatus",
+    "type": "string"
+   },
+   "CookieRead": {
+    "properties": {
+     "domain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Domain"
+     },
+     "has_expiry": {
+      "title": "Has Expiry",
+      "type": "boolean"
+     },
+     "http_only": {
+      "title": "Http Only",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Path"
+     },
+     "same_site": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Same Site"
+     },
+     "secure": {
+      "title": "Secure",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name",
+     "secure",
+     "http_only",
+     "same_site",
+     "domain",
+     "path",
+     "has_expiry"
+    ],
+    "title": "CookieRead",
+    "type": "object"
+   },
+   "EndpointRead": {
+    "properties": {
+     "allowed_methods": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Allowed Methods"
+     },
+     "asset_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Asset Id"
+     },
+     "body_bytes": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Body Bytes"
+     },
+     "content_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content Type"
+     },
+     "cookies": {
+      "items": {
+       "$ref": "#/components/schemas/CookieRead"
+      },
+      "title": "Cookies",
+      "type": "array"
+     },
+     "declared_length": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Declared Length"
+     },
+     "depth": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Depth"
+     },
+     "elapsed_ms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Elapsed Ms"
+     },
+     "fetched": {
+      "title": "Fetched",
+      "type": "boolean"
+     },
+     "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+     },
+     "found_on": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Found On"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "query_param_names": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Query Param Names",
+      "type": "array"
+     },
+     "redirect_location": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Redirect Location"
+     },
+     "skip_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Skip Reason"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "status_code": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Code"
+     },
+     "tech_hints": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Tech Hints",
+      "type": "array"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "truncated": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Truncated"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "asset_id",
+     "fingerprint",
+     "method",
+     "url",
+     "source",
+     "found_on",
+     "fetched",
+     "skip_reason",
+     "query_param_names",
+     "depth",
+     "status_code",
+     "content_type",
+     "declared_length",
+     "body_bytes",
+     "truncated",
+     "elapsed_ms",
+     "title",
+     "redirect_location",
+     "allowed_methods",
+     "tech_hints"
+    ],
+    "title": "EndpointRead",
+    "type": "object"
+   },
+   "EvidenceRead": {
+    "properties": {
+     "body_bytes_captured": {
+      "title": "Body Bytes Captured",
+      "type": "integer"
+     },
+     "body_excerpt": {
+      "title": "Body Excerpt",
+      "type": "string"
+     },
+     "body_sha256": {
+      "title": "Body Sha256",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "endpoint_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Endpoint Id"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "peer": {
+      "title": "Peer",
+      "type": "string"
+     },
+     "redactions": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Redactions",
+      "type": "array"
+     },
+     "request_headers": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Request Headers",
+      "type": "array"
+     },
+     "response_headers": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Response Headers",
+      "type": "array"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "status_code": {
+      "title": "Status Code",
+      "type": "integer"
+     },
+     "truncated": {
+      "title": "Truncated",
+      "type": "boolean"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "scan_id",
+     "endpoint_id",
+     "method",
+     "url",
+     "request_headers",
+     "status_code",
+     "response_headers",
+     "body_excerpt",
+     "body_sha256",
+     "body_bytes_captured",
+     "truncated",
+     "peer",
+     "redactions",
+     "created_at"
+    ],
+    "title": "EvidenceRead",
+    "type": "object"
+   },
+   "FindingDetail": {
+    "properties": {
+     "affected_count": {
+      "title": "Affected Count",
+      "type": "integer"
+     },
+     "analysis_run_id": {
+      "format": "uuid",
+      "title": "Analysis Run Id",
+      "type": "string"
+     },
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "asset_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Asset Id"
+     },
+     "category": {
+      "title": "Category",
+      "type": "string"
+     },
+     "confidence": {
+      "title": "Confidence",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "details": {
+      "additionalProperties": true,
+      "title": "Details",
+      "type": "object"
+     },
+     "detection_type": {
+      "title": "Detection Type",
+      "type": "string"
+     },
+     "discriminator": {
+      "title": "Discriminator",
+      "type": "string"
+     },
+     "endpoint_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Endpoint Id"
+     },
+     "evidence_ids": {
+      "items": {
+       "format": "uuid",
+       "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+     },
+     "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "origin": {
+      "title": "Origin",
+      "type": "string"
+     },
+     "rule": {
+      "additionalProperties": true,
+      "description": "Metadata of the rule version that produced the finding: description, what it proves and does not prove, remediation and verified taxonomy mappings.",
+      "title": "Rule",
+      "type": "object"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "rule_version": {
+      "title": "Rule Version",
+      "type": "integer"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/FindingStatus"
+     },
+     "status_changed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Changed At"
+     },
+     "status_changed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Changed By"
+     },
+     "status_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Reason"
+     },
+     "subject_key": {
+      "title": "Subject Key",
+      "type": "string"
+     },
+     "subject_type": {
+      "title": "Subject Type",
+      "type": "string"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "title": {
+      "description": "From the stored metadata of this exact rule version.",
+      "title": "Title",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "scan_id",
+     "assessment_id",
+     "target_id",
+     "analysis_run_id",
+     "rule_id",
+     "rule_version",
+     "title",
+     "origin",
+     "category",
+     "severity",
+     "confidence",
+     "detection_type",
+     "subject_type",
+     "subject_key",
+     "discriminator",
+     "asset_id",
+     "endpoint_id",
+     "fingerprint",
+     "details",
+     "affected_count",
+     "status",
+     "status_reason",
+     "status_changed_at",
+     "status_changed_by",
+     "created_at",
+     "updated_at",
+     "rule",
+     "evidence_ids"
+    ],
+    "title": "FindingDetail",
+    "type": "object"
+   },
+   "FindingRead": {
+    "properties": {
+     "affected_count": {
+      "title": "Affected Count",
+      "type": "integer"
+     },
+     "analysis_run_id": {
+      "format": "uuid",
+      "title": "Analysis Run Id",
+      "type": "string"
+     },
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "asset_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Asset Id"
+     },
+     "category": {
+      "title": "Category",
+      "type": "string"
+     },
+     "confidence": {
+      "title": "Confidence",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "details": {
+      "additionalProperties": true,
+      "title": "Details",
+      "type": "object"
+     },
+     "detection_type": {
+      "title": "Detection Type",
+      "type": "string"
+     },
+     "discriminator": {
+      "title": "Discriminator",
+      "type": "string"
+     },
+     "endpoint_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Endpoint Id"
+     },
+     "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "origin": {
+      "title": "Origin",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "rule_version": {
+      "title": "Rule Version",
+      "type": "integer"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/FindingStatus"
+     },
+     "status_changed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Changed At"
+     },
+     "status_changed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Changed By"
+     },
+     "status_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status Reason"
+     },
+     "subject_key": {
+      "title": "Subject Key",
+      "type": "string"
+     },
+     "subject_type": {
+      "title": "Subject Type",
+      "type": "string"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "title": {
+      "description": "From the stored metadata of this exact rule version.",
+      "title": "Title",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "scan_id",
+     "assessment_id",
+     "target_id",
+     "analysis_run_id",
+     "rule_id",
+     "rule_version",
+     "title",
+     "origin",
+     "category",
+     "severity",
+     "confidence",
+     "detection_type",
+     "subject_type",
+     "subject_key",
+     "discriminator",
+     "asset_id",
+     "endpoint_id",
+     "fingerprint",
+     "details",
+     "affected_count",
+     "status",
+     "status_reason",
+     "status_changed_at",
+     "status_changed_by",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "FindingRead",
+    "type": "object"
+   },
+   "FindingStatus": {
+    "description": "Phase 4 triage states. fixed / retest_required arrive with retesting.",
+    "enum": [
+     "open",
+     "confirmed",
+     "false_positive",
+     "accepted_risk"
+    ],
+    "title": "FindingStatus",
+    "type": "string"
+   },
+   "FindingStatusChangeRead": {
+    "properties": {
+     "changed_at": {
+      "format": "date-time",
+      "title": "Changed At",
+      "type": "string"
+     },
+     "changed_by": {
+      "title": "Changed By",
+      "type": "string"
+     },
+     "from_status": {
+      "title": "From Status",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "to_status": {
+      "title": "To Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "from_status",
+     "to_status",
+     "reason",
+     "changed_by",
+     "changed_at"
+    ],
+    "title": "FindingStatusChangeRead",
+    "type": "object"
+   },
+   "FindingSummary": {
+    "properties": {
+     "by_category": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "By Category",
+      "type": "object"
+     },
+     "by_confidence": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "By Confidence",
+      "type": "object"
+     },
+     "by_detection_type": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "By Detection Type",
+      "type": "object"
+     },
+     "by_severity": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "By Severity",
+      "type": "object"
+     },
+     "by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "By Status",
+      "type": "object"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total",
+     "by_severity",
+     "by_status",
+     "by_confidence",
+     "by_detection_type",
+     "by_category"
+    ],
+    "title": "FindingSummary",
+    "type": "object"
+   },
+   "FindingTriage": {
+    "additionalProperties": false,
+    "properties": {
+     "reason": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "$ref": "#/components/schemas/FindingStatus"
+     },
+     "triaged_by": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Triaged By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "triaged_by"
+    ],
+    "title": "FindingTriage",
+    "type": "object"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "title": "Detail",
+      "type": "array"
+     }
+    },
+    "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "HealthResponse": {
+    "properties": {
+     "status": {
+      "const": "ok",
+      "title": "Status",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "version"
+    ],
+    "title": "HealthResponse",
+    "type": "object"
+   },
+   "LineageComparison": {
+    "properties": {
+     "current_scan_id": {
+      "format": "uuid",
+      "title": "Current Scan Id",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "policy_version": {
+      "title": "Policy Version",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ComparisonStatus"
+     }
+    },
+    "required": [
+     "id",
+     "current_scan_id",
+     "status",
+     "policy_version"
+    ],
+    "title": "LineageComparison",
+    "type": "object"
+   },
+   "LineageEntry": {
+    "properties": {
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "authorization_id": {
+      "format": "uuid",
+      "title": "Authorization Id",
+      "type": "string"
+     },
+     "baseline_scan_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Baseline Scan Id"
+     },
+     "comparisons": {
+      "items": {
+       "$ref": "#/components/schemas/LineageComparison"
+      },
+      "title": "Comparisons",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "position": {
+      "description": "0 is the original assessment.",
+      "title": "Position",
+      "type": "integer"
+     },
+     "retest_of_assessment_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retest Of Assessment Id"
+     },
+     "status": {
+      "$ref": "#/components/schemas/AssessmentStatus"
+     }
+    },
+    "required": [
+     "position",
+     "assessment_id",
+     "name",
+     "status",
+     "authorization_id",
+     "retest_of_assessment_id",
+     "baseline_scan_id",
+     "comparisons"
+    ],
+    "title": "LineageEntry",
+    "type": "object"
+   },
+   "ProjectCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "ProjectCreate",
+    "type": "object"
+   },
+   "ProjectRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "description",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "ProjectRead",
+    "type": "object"
+   },
+   "ProjectUpdate": {
+    "additionalProperties": false,
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "title": "ProjectUpdate",
+    "type": "object"
+   },
+   "ReportClassification": {
+    "enum": [
+     "internal",
+     "confidential",
+     "restricted"
+    ],
+    "title": "ReportClassification",
+    "type": "string"
+   },
+   "ReportCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "classification": {
+      "$ref": "#/components/schemas/ReportClassification",
+      "default": "confidential"
+     },
+     "executive_summary_note": {
+      "anyOf": [
+       {
+        "maxLength": 4000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Executive Summary Note"
+     },
+     "formats": {
+      "description": "Must include json (the machine-readable record of every report).",
+      "items": {
+       "$ref": "#/components/schemas/ReportFormat"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "title": "Formats",
+      "type": "array"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/ReportKind",
+      "default": "draft",
+      "description": "final requires the assessment to be completed."
+     },
+     "prepared_by": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Prepared By",
+      "type": "string"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed By"
+     },
+     "scan_id": {
+      "description": "A completed, analysed scan of this assessment.",
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "scope_note": {
+      "anyOf": [
+       {
+        "maxLength": 4000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope Note"
+     },
+     "template": {
+      "default": "sv-standard@1",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}@[0-9]{1,4}$",
+      "title": "Template",
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scan_id",
+     "title",
+     "prepared_by"
+    ],
+    "title": "ReportCreate",
+    "type": "object"
+   },
+   "ReportFormat": {
+    "enum": [
+     "json",
+     "html",
+     "pdf"
+    ],
+    "title": "ReportFormat",
+    "type": "string"
+   },
+   "ReportKind": {
+    "enum": [
+     "draft",
+     "final"
+    ],
+    "title": "ReportKind",
+    "type": "string"
+   },
+   "ReportRead": {
+    "properties": {
+     "analysis_run_id": {
+      "format": "uuid",
+      "title": "Analysis Run Id",
+      "type": "string"
+     },
+     "artifacts": {
+      "items": {
+       "$ref": "#/components/schemas/ArtifactRead"
+      },
+      "title": "Artifacts",
+      "type": "array"
+     },
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "classification": {
+      "$ref": "#/components/schemas/ReportClassification"
+     },
+     "content_sha256": {
+      "description": "Digest of the content without report identity and request time: equal for reports of the same data.",
+      "title": "Content Sha256",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "formats": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Formats",
+      "type": "array"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/ReportKind"
+     },
+     "number": {
+      "description": "Display number, e.g. SV-R-000042.",
+      "title": "Number",
+      "type": "string"
+     },
+     "prepared_by": {
+      "title": "Prepared By",
+      "type": "string"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed By"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "snapshot_sha256": {
+      "title": "Snapshot Sha256",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReportStatus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "template_hash": {
+      "title": "Template Hash",
+      "type": "string"
+     },
+     "template_id": {
+      "title": "Template Id",
+      "type": "string"
+     },
+     "template_version": {
+      "title": "Template Version",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "number",
+     "assessment_id",
+     "target_id",
+     "scan_id",
+     "analysis_run_id",
+     "kind",
+     "status",
+     "title",
+     "prepared_by",
+     "reviewed_by",
+     "classification",
+     "formats",
+     "template_id",
+     "template_version",
+     "template_hash",
+     "schema_version",
+     "snapshot_sha256",
+     "content_sha256",
+     "error_code",
+     "created_at",
+     "finished_at"
+    ],
+    "title": "ReportRead",
+    "type": "object"
+   },
+   "ReportStatus": {
+    "enum": [
+     "queued",
+     "generating",
+     "completed",
+     "failed"
+    ],
+    "title": "ReportStatus",
+    "type": "string"
+   },
+   "ReportTemplateRead": {
+    "properties": {
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "sha256": {
+      "title": "Sha256",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "version",
+     "title",
+     "description",
+     "sha256"
+    ],
+    "title": "ReportTemplateRead",
+    "type": "object"
+   },
+   "RetestCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "baseline_scan_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "A completed, analysed scan of the parent assessment. Default: the most recently finished one.",
+      "title": "Baseline Scan Id"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "RetestCreate",
+    "type": "object"
+   },
+   "RetestReportCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "classification": {
+      "$ref": "#/components/schemas/ReportClassification",
+      "default": "confidential"
+     },
+     "executive_summary_note": {
+      "anyOf": [
+       {
+        "maxLength": 4000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Executive Summary Note"
+     },
+     "formats": {
+      "description": "Must include json.",
+      "items": {
+       "$ref": "#/components/schemas/ReportFormat"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "title": "Formats",
+      "type": "array"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/ReportKind",
+      "default": "draft",
+      "description": "final requires the retest assessment to be completed."
+     },
+     "prepared_by": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Prepared By",
+      "type": "string"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed By"
+     },
+     "scope_note": {
+      "anyOf": [
+       {
+        "maxLength": 4000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope Note"
+     },
+     "template": {
+      "default": "sv-retest@1",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}@[0-9]{1,4}$",
+      "title": "Template",
+      "type": "string"
+     },
+     "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "prepared_by"
+    ],
+    "title": "RetestReportCreate",
+    "type": "object"
+   },
+   "RetestReportRead": {
+    "properties": {
+     "artifacts": {
+      "items": {
+       "$ref": "#/components/schemas/ArtifactRead"
+      },
+      "title": "Artifacts",
+      "type": "array"
+     },
+     "baseline_assessment_id": {
+      "format": "uuid",
+      "title": "Baseline Assessment Id",
+      "type": "string"
+     },
+     "baseline_scan_id": {
+      "format": "uuid",
+      "title": "Baseline Scan Id",
+      "type": "string"
+     },
+     "classification": {
+      "$ref": "#/components/schemas/ReportClassification"
+     },
+     "comparison_id": {
+      "format": "uuid",
+      "title": "Comparison Id",
+      "type": "string"
+     },
+     "content_sha256": {
+      "title": "Content Sha256",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_assessment_id": {
+      "format": "uuid",
+      "title": "Current Assessment Id",
+      "type": "string"
+     },
+     "current_scan_id": {
+      "format": "uuid",
+      "title": "Current Scan Id",
+      "type": "string"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "formats": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Formats",
+      "type": "array"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/ReportKind"
+     },
+     "number": {
+      "description": "Display number, e.g. SV-RT-000042.",
+      "title": "Number",
+      "type": "string"
+     },
+     "prepared_by": {
+      "title": "Prepared By",
+      "type": "string"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed By"
+     },
+     "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "snapshot_sha256": {
+      "title": "Snapshot Sha256",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReportStatus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "template_hash": {
+      "title": "Template Hash",
+      "type": "string"
+     },
+     "template_id": {
+      "title": "Template Id",
+      "type": "string"
+     },
+     "template_version": {
+      "title": "Template Version",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "number",
+     "comparison_id",
+     "target_id",
+     "baseline_assessment_id",
+     "baseline_scan_id",
+     "current_assessment_id",
+     "current_scan_id",
+     "kind",
+     "status",
+     "title",
+     "prepared_by",
+     "reviewed_by",
+     "classification",
+     "formats",
+     "template_id",
+     "template_version",
+     "template_hash",
+     "schema_version",
+     "snapshot_sha256",
+     "content_sha256",
+     "error_code",
+     "created_at",
+     "finished_at"
+    ],
+    "title": "RetestReportRead",
+    "type": "object"
+   },
+   "RuleCatalog": {
+    "properties": {
+     "rules": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Rules",
+      "type": "array"
+     },
+     "ruleset_version": {
+      "title": "Ruleset Version",
+      "type": "string"
+     }
+    },
+    "required": [
+     "ruleset_version",
+     "rules"
+    ],
+    "title": "RuleCatalog",
+    "type": "object"
+   },
+   "ScanCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "allow_untrusted_tls": {
+      "default": false,
+      "description": "Accept self-signed/untrusted TLS certificates on the lab target. Gives up protection against impersonation of the target; see docs/checks/discovery.md. Limits cannot be overridden.",
+      "title": "Allow Untrusted Tls",
+      "type": "boolean"
+     }
+    },
+    "title": "ScanCreate",
+    "type": "object"
+   },
+   "ScanLogRead": {
+    "properties": {
+     "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "data": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Data"
+     },
+     "level": {
+      "title": "Level",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "sequence": {
+      "title": "Sequence",
+      "type": "integer"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     }
+    },
+    "required": [
+     "sequence",
+     "at",
+     "level",
+     "code",
+     "message",
+     "url",
+     "data"
+    ],
+    "title": "ScanLogRead",
+    "type": "object"
+   },
+   "ScanRead": {
+    "properties": {
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "authorization_id": {
+      "format": "uuid",
+      "title": "Authorization Id",
+      "type": "string"
+     },
+     "cancel_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cancel Reason"
+     },
+     "cancel_requested": {
+      "readOnly": true,
+      "title": "Cancel Requested",
+      "type": "boolean"
+     },
+     "cancel_requested_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cancel Requested At"
+     },
+     "config": {
+      "additionalProperties": true,
+      "title": "Config",
+      "type": "object"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "endpoints_count": {
+      "title": "Endpoints Count",
+      "type": "integer"
+     },
+     "error_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Code"
+     },
+     "error_message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error Message"
+     },
+     "events_count": {
+      "title": "Events Count",
+      "type": "integer"
+     },
+     "evidence_count": {
+      "title": "Evidence Count",
+      "type": "integer"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "grant_snapshot": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Audit record of the grant the scanner was given. Not authorization state.",
+      "title": "Grant Snapshot"
+     },
+     "heartbeat_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Heartbeat At"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "pages_count": {
+      "title": "Pages Count",
+      "type": "integer"
+     },
+     "requests_sent": {
+      "title": "Requests Sent",
+      "type": "integer"
+     },
+     "scanner_version": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scanner Version"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ScanStatus"
+     },
+     "stop_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stop Reason"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "assessment_id",
+     "target_id",
+     "authorization_id",
+     "status",
+     "stop_reason",
+     "cancel_requested_at",
+     "cancel_reason",
+     "started_at",
+     "finished_at",
+     "heartbeat_at",
+     "error_code",
+     "error_message",
+     "scanner_version",
+     "config",
+     "grant_snapshot",
+     "requests_sent",
+     "pages_count",
+     "endpoints_count",
+     "events_count",
+     "evidence_count",
+     "created_at",
+     "updated_at",
+     "cancel_requested"
+    ],
+    "title": "ScanRead",
+    "type": "object"
+   },
+   "ScanStatus": {
+    "enum": [
+     "queued",
+     "running",
+     "completed",
+     "failed",
+     "cancelled"
+    ],
+    "title": "ScanStatus",
+    "type": "string"
+   },
+   "TargetAuthorizationIn": {
+    "additionalProperties": false,
+    "properties": {
+     "acknowledge": {
+      "description": "Must be true: confirms testing this target's scope is explicitly authorized by its owner.",
+      "title": "Acknowledge",
+      "type": "boolean"
+     },
+     "acknowledged_by": {
+      "description": "Person confirming the authorization.",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Acknowledged By",
+      "type": "string"
+     },
+     "authorized_by": {
+      "description": "Person or organization granting permission.",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Authorized By",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "maxLength": 5000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "reference": {
+      "description": "Ticket, engagement letter or lab name.",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Reference",
+      "type": "string"
+     },
+     "valid_from": {
+      "format": "date-time",
+      "title": "Valid From",
+      "type": "string"
+     },
+     "valid_until": {
+      "format": "date-time",
+      "title": "Valid Until",
+      "type": "string"
+     }
+    },
+    "required": [
+     "authorized_by",
+     "reference",
+     "valid_from",
+     "valid_until",
+     "acknowledged_by",
+     "acknowledge"
+    ],
+    "title": "TargetAuthorizationIn",
+    "type": "object"
+   },
+   "TargetAuthorizationRead": {
+    "description": "A full historical authorization record: what was acknowledged, for which scope.",
+    "properties": {
+     "acknowledged_at": {
+      "format": "date-time",
+      "title": "Acknowledged At",
+      "type": "string"
+     },
+     "acknowledged_by": {
+      "title": "Acknowledged By",
+      "type": "string"
+     },
+     "allowed_ports": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Allowed Ports",
+      "type": "array"
+     },
+     "authorized_by": {
+      "title": "Authorized By",
+      "type": "string"
+     },
+     "base_url": {
+      "title": "Base Url",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "environment": {
+      "$ref": "#/components/schemas/TargetEnvironment"
+     },
+     "excluded_paths": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Excluded Paths",
+      "type": "array"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "in_scope_hosts": {
+      "items": {
+       "type": "string"
+      },
+      "title": "In Scope Hosts",
+      "type": "array"
+     },
+     "in_scope_path_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "In Scope Path Prefixes",
+      "type": "array"
+     },
+     "is_current": {
+      "title": "Is Current",
+      "type": "boolean"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "reference": {
+      "title": "Reference",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/AuthorizationStatus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "valid_from": {
+      "format": "date-time",
+      "title": "Valid From",
+      "type": "string"
+     },
+     "valid_until": {
+      "format": "date-time",
+      "title": "Valid Until",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "target_id",
+     "version",
+     "is_current",
+     "status",
+     "base_url",
+     "environment",
+     "in_scope_hosts",
+     "allowed_ports",
+     "in_scope_path_prefixes",
+     "excluded_paths",
+     "authorized_by",
+     "reference",
+     "notes",
+     "valid_from",
+     "valid_until",
+     "acknowledged_by",
+     "acknowledged_at",
+     "created_at"
+    ],
+    "title": "TargetAuthorizationRead",
+    "type": "object"
+   },
+   "TargetAuthorizationSummary": {
+    "description": "The authorization part of a target's current state.",
+    "properties": {
+     "acknowledged_at": {
+      "format": "date-time",
+      "title": "Acknowledged At",
+      "type": "string"
+     },
+     "acknowledged_by": {
+      "title": "Acknowledged By",
+      "type": "string"
+     },
+     "authorized_by": {
+      "title": "Authorized By",
+      "type": "string"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "reference": {
+      "title": "Reference",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/AuthorizationStatus"
+     },
+     "valid_from": {
+      "format": "date-time",
+      "title": "Valid From",
+      "type": "string"
+     },
+     "valid_until": {
+      "format": "date-time",
+      "title": "Valid Until",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "version",
+     "authorized_by",
+     "reference",
+     "notes",
+     "valid_from",
+     "valid_until",
+     "acknowledged_by",
+     "acknowledged_at",
+     "status"
+    ],
+    "title": "TargetAuthorizationSummary",
+    "type": "object"
+   },
+   "TargetCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "allowed_ports": {
+      "anyOf": [
+       {
+        "items": {
+         "maximum": 65535.0,
+         "minimum": 1.0,
+         "type": "integer"
+        },
+        "maxItems": 20,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Defaults to the base_url port only.",
+      "title": "Allowed Ports"
+     },
+     "authorization": {
+      "$ref": "#/components/schemas/TargetAuthorizationIn"
+     },
+     "base_url": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Base Url",
+      "type": "string"
+     },
+     "environment": {
+      "$ref": "#/components/schemas/TargetEnvironment"
+     },
+     "excluded_paths": {
+      "items": {
+       "maxLength": 2048,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 100,
+      "title": "Excluded Paths",
+      "type": "array"
+     },
+     "in_scope_hosts": {
+      "items": {
+       "maxLength": 255,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "In Scope Hosts",
+      "type": "array"
+     },
+     "in_scope_path_prefixes": {
+      "items": {
+       "maxLength": 2048,
+       "minLength": 1,
+       "type": "string"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "In Scope Path Prefixes",
+      "type": "array"
+     },
+     "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "base_url",
+     "environment",
+     "in_scope_hosts",
+     "authorization"
+    ],
+    "title": "TargetCreate",
+    "type": "object"
+   },
+   "TargetEnvironment": {
+    "description": "Where a target lives. Lab targets are restricted to private/lab addresses.",
+    "enum": [
+     "local_lab",
+     "authorized_external"
+    ],
+    "title": "TargetEnvironment",
+    "type": "string"
+   },
+   "TargetRead": {
+    "properties": {
+     "allowed_ports": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Allowed Ports",
+      "type": "array"
+     },
+     "authorization": {
+      "$ref": "#/components/schemas/TargetAuthorizationSummary"
+     },
+     "base_url": {
+      "title": "Base Url",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "environment": {
+      "$ref": "#/components/schemas/TargetEnvironment"
+     },
+     "excluded_paths": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Excluded Paths",
+      "type": "array"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "in_scope_hosts": {
+      "items": {
+       "type": "string"
+      },
+      "title": "In Scope Hosts",
+      "type": "array"
+     },
+     "in_scope_path_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "In Scope Path Prefixes",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "project_id",
+     "name",
+     "base_url",
+     "environment",
+     "in_scope_hosts",
+     "allowed_ports",
+     "in_scope_path_prefixes",
+     "excluded_paths",
+     "authorization",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "TargetRead",
+    "type": "object"
+   },
+   "TargetUpdate": {
+    "additionalProperties": false,
+    "description": "Renaming is a plain update. Any scope change or new `authorization`\ncreates a new authorization record; scope changes require one.",
+    "properties": {
+     "allowed_ports": {
+      "anyOf": [
+       {
+        "items": {
+         "maximum": 65535.0,
+         "minimum": 1.0,
+         "type": "integer"
+        },
+        "maxItems": 20,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Allowed Ports"
+     },
+     "authorization": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TargetAuthorizationIn"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "base_url": {
+      "anyOf": [
+       {
+        "maxLength": 2048,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Url"
+     },
+     "environment": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TargetEnvironment"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "excluded_paths": {
+      "anyOf": [
+       {
+        "items": {
+         "maxLength": 2048,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Excluded Paths"
+     },
+     "in_scope_hosts": {
+      "anyOf": [
+       {
+        "items": {
+         "maxLength": 255,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 50,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "In Scope Hosts"
+     },
+     "in_scope_path_prefixes": {
+      "anyOf": [
+       {
+        "items": {
+         "maxLength": 2048,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 50,
+        "minItems": 1,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "In Scope Path Prefixes"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "title": "TargetUpdate",
+    "type": "object"
+   },
+   "ValidationError": {
+    "properties": {
+     "ctx": {
+      "title": "Context",
+      "type": "object"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "title": "Location",
+      "type": "array"
+     },
+     "msg": {
+      "title": "Message",
+      "type": "string"
+     },
+     "type": {
+      "title": "Error Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError",
+    "type": "object"
+   }
+  }
+ },
+ "info": {
+  "title": "SentinelVAPT API",
+  "version": "0.1.0"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/api/v1/assessments/{assessment_id}": {
+   "delete": {
+    "operationId": "delete_assessment_api_v1_assessments__assessment_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Assessment",
+    "tags": [
+     "assessments"
+    ]
+   },
+   "get": {
+    "operationId": "get_assessment_api_v1_assessments__assessment_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Assessment",
+    "tags": [
+     "assessments"
+    ]
+   },
+   "patch": {
+    "operationId": "update_assessment_api_v1_assessments__assessment_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssessmentUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Update Assessment",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/cancel": {
+   "post": {
+    "operationId": "cancel_assessment_api_v1_assessments__assessment_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Cancel Assessment",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/comparisons": {
+   "get": {
+    "operationId": "list_comparisons_api_v1_assessments__assessment_id__comparisons_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ComparisonRead"
+         },
+         "title": "Response List Comparisons Api V1 Assessments  Assessment Id  Comparisons Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Comparisons",
+    "tags": [
+     "retests"
+    ]
+   },
+   "post": {
+    "description": "Queue the comparison of a retest scan with its baseline (computed by the\nworker, offline, from persisted data). Idempotent per scan and policy.",
+    "operationId": "request_comparison_api_v1_assessments__assessment_id__comparisons_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ComparisonCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "The comparison already exists for this scan and policy."
+     },
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ComparisonRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Request Comparison",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/comparisons/{comparison_id}/reports": {
+   "post": {
+    "description": "Freeze a snapshot of a completed comparison and queue its report. An\nidentical request returns the existing report (200).",
+    "operationId": "create_retest_report_api_v1_assessments__assessment_id__comparisons__comparison_id__reports_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "comparison_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Comparison Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RetestReportCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "An identical report already exists."
+     },
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RetestReportRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Retest Report",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/complete": {
+   "post": {
+    "operationId": "complete_assessment_api_v1_assessments__assessment_id__complete_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Complete Assessment",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/findings/summary": {
+   "get": {
+    "operationId": "assessment_findings_summary_api_v1_assessments__assessment_id__findings_summary_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingSummary"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Assessment Findings Summary",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/lineage": {
+   "get": {
+    "operationId": "get_lineage_api_v1_assessments__assessment_id__lineage_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/LineageEntry"
+         },
+         "title": "Response Get Lineage Api V1 Assessments  Assessment Id  Lineage Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Lineage",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/reports": {
+   "get": {
+    "operationId": "list_reports_api_v1_assessments__assessment_id__reports_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ReportRead"
+         },
+         "title": "Response List Reports Api V1 Assessments  Assessment Id  Reports Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Reports",
+    "tags": [
+     "reports"
+    ]
+   },
+   "post": {
+    "description": "Freeze a snapshot of the scan's findings and evidence and queue the\nreport. It is rendered by the report worker, not in this request.",
+    "operationId": "create_report_api_v1_assessments__assessment_id__reports_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReportCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Report",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/retest-reports": {
+   "get": {
+    "operationId": "list_retest_reports_api_v1_assessments__assessment_id__retest_reports_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RetestReportRead"
+         },
+         "title": "Response List Retest Reports Api V1 Assessments  Assessment Id  Retest Reports Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Retest Reports",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/retests": {
+   "get": {
+    "operationId": "list_retests_api_v1_assessments__assessment_id__retests_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AssessmentRead"
+         },
+         "title": "Response List Retests Api V1 Assessments  Assessment Id  Retests Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Retests",
+    "tags": [
+     "retests"
+    ]
+   },
+   "post": {
+    "description": "Plan a retest of a completed assessment, measured against one of its\nanalysed scans. It then follows the normal assessment lifecycle.",
+    "operationId": "create_retest_api_v1_assessments__assessment_id__retests_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RetestCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Retest",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/scans": {
+   "get": {
+    "operationId": "list_scans_api_v1_assessments__assessment_id__scans_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ScanRead"
+         },
+         "title": "Response List Scans Api V1 Assessments  Assessment Id  Scans Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scans",
+    "tags": [
+     "scans"
+    ]
+   },
+   "post": {
+    "description": "Queue a discovery scan. It is executed by the worker, not in this request.",
+    "operationId": "create_scan_api_v1_assessments__assessment_id__scans_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/ScanCreate"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Data"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Scan",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/assessments/{assessment_id}/start": {
+   "post": {
+    "operationId": "start_assessment_api_v1_assessments__assessment_id__start_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "assessment_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Assessment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Assessment",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/comparisons/{comparison_id}": {
+   "get": {
+    "operationId": "get_comparison_api_v1_comparisons__comparison_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "comparison_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Comparison Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ComparisonRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Comparison",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/comparisons/{comparison_id}/records": {
+   "get": {
+    "operationId": "list_comparison_records_api_v1_comparisons__comparison_id__records_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "comparison_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Comparison Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "state",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ComparisonState"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "State"
+      }
+     },
+     {
+      "in": "query",
+      "name": "rule_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^SV-[A-Z]{3}-\\d{3}$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Rule Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ComparisonRecordRead"
+         },
+         "title": "Response List Comparison Records Api V1 Comparisons  Comparison Id  Records Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Comparison Records",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/comparisons/{comparison_id}/records/{fingerprint}": {
+   "get": {
+    "operationId": "get_comparison_record_api_v1_comparisons__comparison_id__records__fingerprint__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "comparison_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Comparison Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "fingerprint",
+      "required": true,
+      "schema": {
+       "pattern": "^[0-9a-f]{64}$",
+       "title": "Fingerprint",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ComparisonRecordRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Comparison Record",
+    "tags": [
+     "retests"
+    ]
+   }
+  },
+  "/api/v1/evidence/{evidence_id}": {
+   "get": {
+    "operationId": "get_evidence_api_v1_evidence__evidence_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "evidence_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Evidence Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EvidenceRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Evidence",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/findings/{finding_id}": {
+   "get": {
+    "operationId": "get_finding_api_v1_findings__finding_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Finding Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Finding",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/findings/{finding_id}/evidence": {
+   "get": {
+    "operationId": "list_finding_evidence_api_v1_findings__finding_id__evidence_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Finding Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EvidenceRead"
+         },
+         "title": "Response List Finding Evidence Api V1 Findings  Finding Id  Evidence Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Finding Evidence",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/findings/{finding_id}/history": {
+   "get": {
+    "operationId": "list_finding_history_api_v1_findings__finding_id__history_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Finding Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FindingStatusChangeRead"
+         },
+         "title": "Response List Finding History Api V1 Findings  Finding Id  History Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Finding History",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/findings/{finding_id}/triage": {
+   "post": {
+    "operationId": "triage_finding_api_v1_findings__finding_id__triage_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Finding Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FindingTriage"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Triage Finding",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/health": {
+   "get": {
+    "description": "The process is up. Does not touch dependencies.",
+    "operationId": "liveness_api_v1_health_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HealthResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Liveness",
+    "tags": [
+     "health"
+    ]
+   }
+  },
+  "/api/v1/health/ready": {
+   "get": {
+    "description": "The API can serve traffic: the database is reachable.",
+    "operationId": "readiness_api_v1_health_ready_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HealthResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Readiness",
+    "tags": [
+     "health"
+    ]
+   }
+  },
+  "/api/v1/projects": {
+   "get": {
+    "operationId": "list_projects_api_v1_projects_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ProjectRead"
+         },
+         "title": "Response List Projects Api V1 Projects Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Projects",
+    "tags": [
+     "projects"
+    ]
+   },
+   "post": {
+    "operationId": "create_project_api_v1_projects_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Project",
+    "tags": [
+     "projects"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}": {
+   "delete": {
+    "operationId": "delete_project_api_v1_projects__project_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Project",
+    "tags": [
+     "projects"
+    ]
+   },
+   "get": {
+    "operationId": "get_project_api_v1_projects__project_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Project",
+    "tags": [
+     "projects"
+    ]
+   },
+   "patch": {
+    "operationId": "update_project_api_v1_projects__project_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Update Project",
+    "tags": [
+     "projects"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/assessments": {
+   "get": {
+    "operationId": "list_project_assessments_api_v1_projects__project_id__assessments_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AssessmentRead"
+         },
+         "title": "Response List Project Assessments Api V1 Projects  Project Id  Assessments Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Project Assessments",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/targets": {
+   "get": {
+    "operationId": "list_targets_api_v1_projects__project_id__targets_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TargetRead"
+         },
+         "title": "Response List Targets Api V1 Projects  Project Id  Targets Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Targets",
+    "tags": [
+     "targets"
+    ]
+   },
+   "post": {
+    "operationId": "create_target_api_v1_projects__project_id__targets_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TargetCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TargetRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Target",
+    "tags": [
+     "targets"
+    ]
+   }
+  },
+  "/api/v1/report-templates": {
+   "get": {
+    "operationId": "list_report_templates_api_v1_report_templates_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ReportTemplateRead"
+         },
+         "title": "Response List Report Templates Api V1 Report Templates Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Report Templates",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/reports/{report_id}": {
+   "get": {
+    "operationId": "get_report_api_v1_reports__report_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReportRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Report",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/reports/{report_id}/artifacts": {
+   "get": {
+    "operationId": "list_artifacts_api_v1_reports__report_id__artifacts_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ArtifactRead"
+         },
+         "title": "Response List Artifacts Api V1 Reports  Report Id  Artifacts Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Artifacts",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/reports/{report_id}/artifacts/{fmt}": {
+   "get": {
+    "operationId": "download_artifact_api_v1_reports__report_id__artifacts__fmt__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "fmt",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/ReportFormat"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Download Artifact",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/reports/{report_id}/preview": {
+   "get": {
+    "description": "The HTML artifact, inline, under a sandboxing Content-Security-Policy.",
+    "operationId": "preview_report_api_v1_reports__report_id__preview_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Preview Report",
+    "tags": [
+     "reports"
+    ]
+   }
+  },
+  "/api/v1/retest-report-templates": {
+   "get": {
+    "operationId": "list_retest_report_templates_api_v1_retest_report_templates_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ReportTemplateRead"
+         },
+         "title": "Response List Retest Report Templates Api V1 Retest Report Templates Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Retest Report Templates",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/retest-reports/{report_id}": {
+   "get": {
+    "operationId": "get_retest_report_api_v1_retest_reports__report_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RetestReportRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Retest Report",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/retest-reports/{report_id}/artifacts": {
+   "get": {
+    "operationId": "list_retest_artifacts_api_v1_retest_reports__report_id__artifacts_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ArtifactRead"
+         },
+         "title": "Response List Retest Artifacts Api V1 Retest Reports  Report Id  Artifacts Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Retest Artifacts",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/retest-reports/{report_id}/artifacts/{fmt}": {
+   "get": {
+    "operationId": "download_retest_artifact_api_v1_retest_reports__report_id__artifacts__fmt__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "fmt",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/ReportFormat"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Download Retest Artifact",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/retest-reports/{report_id}/preview": {
+   "get": {
+    "operationId": "preview_retest_report_api_v1_retest_reports__report_id__preview_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Preview Retest Report",
+    "tags": [
+     "retest-reports"
+    ]
+   }
+  },
+  "/api/v1/rules": {
+   "get": {
+    "description": "The rules this deployment evaluates (static; no database access).",
+    "operationId": "list_rules_api_v1_rules_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RuleCatalog"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Rules",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}": {
+   "get": {
+    "operationId": "get_scan_api_v1_scans__scan_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Scan",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/analysis": {
+   "get": {
+    "operationId": "list_analysis_runs_api_v1_scans__scan_id__analysis_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AnalysisRunRead"
+         },
+         "title": "Response List Analysis Runs Api V1 Scans  Scan Id  Analysis Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Analysis Runs",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/assets": {
+   "get": {
+    "operationId": "list_scan_assets_api_v1_scans__scan_id__assets_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AssetRead"
+         },
+         "title": "Response List Scan Assets Api V1 Scans  Scan Id  Assets Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scan Assets",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/cancel": {
+   "post": {
+    "operationId": "cancel_scan_api_v1_scans__scan_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ScanRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Cancel Scan",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/endpoints": {
+   "get": {
+    "operationId": "list_scan_endpoints_api_v1_scans__scan_id__endpoints_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "fetched",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Fetched"
+      }
+     },
+     {
+      "in": "query",
+      "name": "skip_reason",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Skip Reason"
+      }
+     },
+     {
+      "in": "query",
+      "name": "source",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Source"
+      }
+     },
+     {
+      "in": "query",
+      "name": "method",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 16,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Method"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EndpointRead"
+         },
+         "title": "Response List Scan Endpoints Api V1 Scans  Scan Id  Endpoints Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scan Endpoints",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/evidence": {
+   "get": {
+    "operationId": "list_scan_evidence_api_v1_scans__scan_id__evidence_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EvidenceRead"
+         },
+         "title": "Response List Scan Evidence Api V1 Scans  Scan Id  Evidence Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scan Evidence",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/findings": {
+   "get": {
+    "operationId": "list_scan_findings_api_v1_scans__scan_id__findings_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "severity",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "critical",
+          "high",
+          "medium",
+          "low",
+          "informational"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Severity"
+      }
+     },
+     {
+      "in": "query",
+      "name": "confidence",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "high",
+          "medium",
+          "low"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Confidence"
+      }
+     },
+     {
+      "in": "query",
+      "name": "detection_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "automated_detection",
+          "manual_verification_required"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Detection Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "category",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "transport",
+          "headers",
+          "cookies",
+          "disclosure",
+          "cors",
+          "http_methods"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Category"
+      }
+     },
+     {
+      "in": "query",
+      "name": "rule_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^SV-[A-Z]{3}-\\d{3}$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Rule Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/FindingStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FindingRead"
+         },
+         "title": "Response List Scan Findings Api V1 Scans  Scan Id  Findings Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scan Findings",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/findings/summary": {
+   "get": {
+    "operationId": "scan_findings_summary_api_v1_scans__scan_id__findings_summary_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingSummary"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Scan Findings Summary",
+    "tags": [
+     "findings"
+    ]
+   }
+  },
+  "/api/v1/scans/{scan_id}/logs": {
+   "get": {
+    "operationId": "list_scan_logs_api_v1_scans__scan_id__logs_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "scan_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Scan Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ScanLogRead"
+         },
+         "title": "Response List Scan Logs Api V1 Scans  Scan Id  Logs Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Scan Logs",
+    "tags": [
+     "scans"
+    ]
+   }
+  },
+  "/api/v1/targets/{target_id}": {
+   "delete": {
+    "operationId": "delete_target_api_v1_targets__target_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Target",
+    "tags": [
+     "targets"
+    ]
+   },
+   "get": {
+    "operationId": "get_target_api_v1_targets__target_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TargetRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Target",
+    "tags": [
+     "targets"
+    ]
+   },
+   "patch": {
+    "operationId": "update_target_api_v1_targets__target_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TargetUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TargetRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Update Target",
+    "tags": [
+     "targets"
+    ]
+   }
+  },
+  "/api/v1/targets/{target_id}/assessments": {
+   "get": {
+    "operationId": "list_target_assessments_api_v1_targets__target_id__assessments_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AssessmentRead"
+         },
+         "title": "Response List Target Assessments Api V1 Targets  Target Id  Assessments Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Target Assessments",
+    "tags": [
+     "assessments"
+    ]
+   },
+   "post": {
+    "operationId": "create_assessment_api_v1_targets__target_id__assessments_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssessmentCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssessmentRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Assessment",
+    "tags": [
+     "assessments"
+    ]
+   }
+  },
+  "/api/v1/targets/{target_id}/authorizations": {
+   "get": {
+    "description": "Append-only authorization history, newest first. Read-only by design.",
+    "operationId": "list_target_authorizations_api_v1_targets__target_id__authorizations_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "target_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Target Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TargetAuthorizationRead"
+         },
+         "title": "Response List Target Authorizations Api V1 Targets  Target Id  Authorizations Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Target Authorizations",
+    "tags": [
+     "targets"
+    ]
+   }
+  }
+ }
+}
