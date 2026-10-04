@@ -15,6 +15,24 @@ jobs:
       fail-fast: false
       matrix:
         package: [backend, scanner, reports]
+    # Backend integration tests run against a real PostgreSQL. Credentials here
+    # are throwaway values for an ephemeral CI container, not secrets.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sentinel_vapt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://ci:ci@127.0.0.1:5432/sentinel_vapt_test
     defaults:
       run:
         working-directory: ${{ matrix.package }}

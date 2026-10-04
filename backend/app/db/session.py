@@ -1,30 +1,34 @@
 """Engine and session wiring.
 
-The engine is created from settings rather than at import time, so tests can
-build their own engine against a test database and inject it.
+create_app() builds one engine and session factory from the Settings it is
+given and stores them on app.state, so the app and its tests always agree on
+which database is used. Dependencies read them from there.
 """
 
 from collections.abc import Iterator
-from functools import lru_cache
 
+from fastapi import Request
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
-
-from app.core.config import get_settings
 
 
 def make_engine(database_url: str) -> Engine:
     return create_engine(database_url, pool_pre_ping=True)
 
 
-@lru_cache
-def get_engine() -> Engine:
-    return make_engine(get_settings().database_url.get_secret_value())
+def make_session_factory(engine: Engine) -> sessionmaker[Session]:
+    return sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def get_session() -> Iterator[Session]:
-    """FastAPI dependency: one session per request."""
-    factory = sessionmaker(bind=get_engine(), expire_on_commit=False)
+def get_engine(request: Request) -> Engine:
+    engine: Engine = request.app.state.engine
+    return engine
+
+
+def get_session(request: Request) -> Iterator[Session]:
+    """FastAPI dependency: one session per request. Uncommitted work is rolled
+    back when the session closes."""
+    factory: sessionmaker[Session] = request.app.state.session_factory
     with factory() as session:
         yield session
 

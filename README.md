@@ -8,8 +8,9 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 0 (foundation). The stack boots and reports health; domain
-> features arrive in later phases.
+> **Status:** Phase 1 (core domain). Projects, targets with scope and
+> authorization, and assessments are available through the REST API. There is
+> no scanner or UI yet.
 
 ## Stack
 
@@ -49,6 +50,9 @@ docker compose up --build
 - API health: http://localhost:8000/api/v1/health
 - API docs (non-production): http://localhost:8000/docs
 
+Migrations run automatically: a one-shot `migrate` service applies
+`alembic upgrade head` before the backend starts.
+
 All ports bind to `127.0.0.1` only (see [ADR 0005](docs/adr/0005-localhost-only-until-auth.md)).
 
 ## Local development
@@ -69,12 +73,19 @@ PowerShell's default execution policy blocking `Activate.ps1`.
 cd backend
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev]"
+.\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m uvicorn --factory app.main:create_app --reload
 ```
 
 The backend reads `DATABASE_URL` and other settings from environment variables,
-falling back to the repo-root `.env`. Use the `localhost` form of
-`DATABASE_URL` from `.env.example` when running outside Docker.
+falling back to the repo-root `.env`. Outside Docker, use the `127.0.0.1` form
+of `DATABASE_URL` from `.env.example`.
+
+After changing models, generate a migration and review it before applying:
+
+```powershell
+.\.venv\Scripts\python -m alembic revision --autogenerate -m "describe the change"
+```
 
 **Scanner / reports** (same steps in `scanner\` or `reports\`):
 
@@ -104,6 +115,12 @@ On macOS/Linux, use `.venv/bin/python` instead of `.\.venv\Scripts\python`.
 .\.venv\Scripts\python -m mypy .
 .\.venv\Scripts\python -m pytest
 ```
+
+Backend integration tests need PostgreSQL (`docker compose up -d db`). They use
+a separate database, `DATABASE_URL`'s name plus `_test` (or `TEST_DATABASE_URL`),
+build it with the real migrations and roll back after every test. They are
+skipped locally if PostgreSQL is unreachable, and fail in CI. For the fast unit
+tests only: `.\.venv\Scripts\python -m pytest tests\unit`.
 
 **Frontend** (in `frontend\`):
 
@@ -137,7 +154,7 @@ them.
 | Phase | Scope                                                              |
 | ----- | ------------------------------------------------------------------ |
 | 0 ✅  | Foundation: monorepo, compose, config, tooling, docs               |
-| 1     | Core domain: projects, targets with authorization, assessments     |
+| 1 ✅  | Core domain: projects, targets with authorization, assessments     |
 | 2     | Scanner core: scope guard, safe HTTP client, first checks, lab     |
 | 3     | Scan pipeline: worker, findings, evidence, scan logs               |
 | 4     | Frontend MVP: target/assessment flows, live scans, triage          |
