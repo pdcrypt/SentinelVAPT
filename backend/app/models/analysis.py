@@ -60,6 +60,9 @@ class AnalysisRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     rules_evaluated: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     findings_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     error_code: Mapped[str | None] = mapped_column(String(64))
+    # Rule versions this run evaluated, [{"rule_id", "version"}] (ADR 0011).
+    # Null for runs recorded before Phase 6.
+    rule_versions: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -84,6 +87,9 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("scan_id", "fingerprint"),
         UniqueConstraint("id", "scan_id"),  # target of finding_evidence's composite key
+        # Target of comparison records' keys: a record's finding must be of the
+        # record's scan and carry the record's fingerprint.
+        UniqueConstraint("id", "scan_id", "fingerprint"),
         ForeignKeyConstraint(
             ["scan_id", "assessment_id", "target_id"],
             ["scans.id", "scans.assessment_id", "scans.target_id"],

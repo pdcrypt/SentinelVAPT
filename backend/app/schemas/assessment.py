@@ -28,5 +28,8 @@ class AssessmentRead(ReadModel):
     status: AssessmentStatus
     started_at: datetime | None
     completed_at: datetime | None
+    # Retests (ADR 0011): the assessment retested and the scan measured against.
+    retest_of_assessment_id: uuid.UUID | None = None
+    baseline_scan_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime

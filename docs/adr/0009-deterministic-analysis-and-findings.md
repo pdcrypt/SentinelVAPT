@@ -135,7 +135,9 @@ or `accepted_risk`, with `triaged_by` and a reason where required.
 - It runs under the finding's row lock, so concurrent triage serializes, and
   setting the current status again is refused with 409.
 - Every change appends to `finding_status_changes`.
-- `fixed` and `retest_required` belong to Phase 6.
+- `fixed` and `retest_required` belong to Phase 6. *(Superseded by
+  [ADR 0011](0011-retesting-and-scan-comparison.md): retest outcomes are
+  comparison states, kept separate from triage status, which is unchanged.)*
 
 Phase 4 adds neither re-analysis nor manual finding creation.
 

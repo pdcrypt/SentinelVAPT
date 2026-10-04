@@ -8,13 +8,15 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 5 (reporting). Projects, targets with scope and
+> **Status:** Phase 6 (retesting). Projects, targets with scope and
 > authorization, assessments and passive discovery scans of `local_lab`
 > targets are available through the REST API. A worker runs the scans, stores
 > their redacted results, and analyses them offline with 14 passive rules into
 > findings that can be triaged ([rule catalog](docs/rules.md)). Analysed scans
 > can be turned into evidence-backed JSON, HTML and PDF reports
-> ([reports](docs/reports.md)). There are no active checks and no UI yet.
+> ([reports](docs/reports.md)), and completed assessments can be retested and
+> compared finding by finding ([retesting](docs/retesting.md)). Retest-specific
+> reports are Phase 7. There are no active checks and no UI yet.
 
 ## Stack
 
@@ -188,6 +190,6 @@ them.
 | 3 ✅  | Scan execution: worker, scan logs, assets, endpoints, evidence     |
 | 4 ✅  | Analysis: offline rule engine, findings, triage API                |
 | 5 ✅  | Reporting: snapshot-based JSON / HTML / PDF reports                |
-| 6     | Retesting: fixed / still present / new diffs                       |
-| 7     | Frontend MVP: target/assessment flows, live scans, triage          |
+| 6 ✅  | Retesting: retest chains, evidence-backed scan comparison          |
+| 7     | Frontend MVP and retest reports                                    |
 | 8     | Hardening: platform auth, more checks, PDF export, polish          |

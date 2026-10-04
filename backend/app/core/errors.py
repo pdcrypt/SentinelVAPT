@@ -74,6 +74,28 @@ class ReportNotAllowedError(DomainError):
         self.reason = reason
 
 
+class RetestNotAllowedError(DomainError):
+    """A retest may not be created (e.g. parent_not_completed, scope_expanded)."""
+
+    status_code = 409
+    code = "retest_not_allowed"
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message, field=None)
+        self.reason = reason
+
+
+class ComparisonNotAllowedError(DomainError):
+    """A comparison may not be requested (e.g. not_a_retest, analysis_not_completed)."""
+
+    status_code = 409
+    code = "comparison_not_allowed"
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message, field=None)
+        self.reason = reason
+
+
 def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | None]:
     return {"detail": detail, "code": code, "field": field}
 
@@ -81,7 +103,13 @@ def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | N
 async def _domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, DomainError)  # noqa: S101  # registered for DomainError only
     content: dict[str, str | None] = _body(exc.message, exc.code, exc.field)
-    if isinstance(exc, ScanNotAllowedError | ReportNotAllowedError):
+    if isinstance(
+        exc,
+        ScanNotAllowedError
+        | ReportNotAllowedError
+        | RetestNotAllowedError
+        | ComparisonNotAllowedError,
+    ):
         content["reason"] = exc.reason
     return JSONResponse(status_code=exc.status_code, content=content)
 

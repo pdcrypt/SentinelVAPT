@@ -155,6 +155,14 @@ def execute_run(
     result = analyze(build_observations(repo, scan))
     run.findings_count = persist_result(repo, scan, run, result)
     run.rules_evaluated = len(result.rules_evaluated)
+    # The exact rule versions evaluated, so a later comparison can tell whether
+    # an absent finding was looked for by the same rule version (ADR 0011).
+    versions = {rule.meta.id: rule.meta.version for rule in REGISTRY}
+    run.rule_versions = [
+        {"rule_id": rule_id, "version": versions[rule_id]}
+        for rule_id in sorted(result.rules_evaluated)
+        if rule_id in versions
+    ]
     run.coverage_notes = list(result.coverage_notes)
     run.rule_errors = [{"rule_id": e.rule_id, "error": e.error} for e in result.rule_errors]
     run.status = AnalysisStatus.COMPLETED

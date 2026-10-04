@@ -39,6 +39,8 @@ ALLOWED_SCANNER_IMPORTERS = {
 ALLOWED_ANALYSIS_IMPORTERS = {
     "api/v1/routers/findings.py",  # the static rule catalog (GET /rules)
     "services/analysis.py",
+    # Builds coverage and classifies findings for retest comparisons (ADR 0011).
+    "services/comparisons.py",
     # Resolves display titles of verified taxonomy ids into the frozen report
     # snapshot, so the report renderer never needs the rule engine.
     "services/report_snapshot.py",

@@ -20,9 +20,10 @@ Per scan, three phases with strictly separated database access:
              scan's analysis run (completed / cancelled scans); otherwise drop
              the results (e.g. the scan was reaped).
 
-Analysis runs (ADR 0009) are claimed with SKIP LOCKED and executed entirely in
-one transaction: a crash rolls it back and the run stays queued; an error
-raised while analysing marks the run failed. Analysis never contacts the target.
+Analysis runs (ADR 0009) and retest comparisons (ADR 0011) are claimed with
+SKIP LOCKED and executed entirely in one transaction: a crash rolls it back and
+the job stays queued; an error raised while computing marks it failed (code
+only). Neither has a running state, and neither contacts the target.
 
 Reports (ADR 0010), in three phases like scans:
 
@@ -54,10 +55,17 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.clock import Clock, utc_now
 from app.core.errors import ScanNotAllowedError
 from app.models import Assessment, ReportArtifact, Target
-from app.models.enums import AnalysisStatus, AssessmentStatus, ReportStatus, ScanStatus
+from app.models.enums import (
+    AnalysisStatus,
+    AssessmentStatus,
+    ComparisonStatus,
+    ReportStatus,
+    ScanStatus,
+)
 from app.repositories import (
     AnalysisRepository,
     AssessmentRepository,
+    ComparisonRepository,
     QueuedCandidate,
     ReportRepository,
     ScanRepository,
@@ -65,6 +73,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.services.analysis import AnalysisError, execute_run, fail_run
+from app.services.comparisons import ComparisonError, execute_comparison, fail_comparison
 from app.services.scan_grants import build_scan_grant, discovery_config, grant_snapshot
 from app.services.scan_results import (
     LogEntry,
@@ -207,6 +216,8 @@ class Worker:
         if self.runs_reports:
             self.reap_stale_reports()
         if self.runs_scans and self.analyze_once():
+            return True
+        if self.runs_scans and self.compare_once():
             return True
         if self.runs_reports and self.report_once():
             return True
@@ -482,6 +493,36 @@ class Worker:
                 fail_run(run, code, now)
             session.commit()
             logger.info("analysis run %s finished: %s", run_id, run.status)
+            return True
+
+    # --- comparisons -----------------------------------------------------------------
+
+    def compare_once(self) -> bool:
+        """Compute at most one queued comparison. Returns True if one was processed."""
+        with self.session_factory() as session:
+            ids = ComparisonRepository(session).queued_ids(self.candidate_batch)
+        return any(self._try_compare(comparison_id) for comparison_id in ids)
+
+    def _try_compare(self, comparison_id: uuid.UUID) -> bool:
+        with self.session_factory() as session:
+            repo = ComparisonRepository(session)
+            comparison = repo.get_for_update(comparison_id, skip_locked=True)
+            if comparison is None or comparison.status is not ComparisonStatus.QUEUED:
+                return False  # another worker has it, or it is already done
+            now = self.clock()
+            try:
+                with session.begin_nested():
+                    execute_comparison(session, comparison, now)
+            except Exception as exc:
+                # Everything it wrote is rolled back to the savepoint. Only a
+                # code is stored: exception text may contain target data.
+                code = exc.code if isinstance(exc, ComparisonError) else "comparison_error"
+                if not isinstance(exc, ComparisonError):
+                    logger.exception("comparison %s failed", comparison_id)
+                session.refresh(comparison)
+                fail_comparison(comparison, code, now)
+            session.commit()
+            logger.info("comparison %s finished: %s", comparison_id, comparison.status)
             return True
 
     # --- reports ------------------------------------------------------------------

@@ -193,12 +193,13 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
         "JOIN targets t ON t.id = a.target_id WHERE t.project_id = :p"
     )
     with factory() as s:
-        # Reports and their artifacts and links are permanent records: the
-        # database refuses to delete them (ADR 0010). Test cleanup alone
-        # bypasses those triggers, for this transaction only and only for these
-        # four tables, with the superuser-only replication role; production code
-        # has no such path. The role is reset before anything that relies on
-        # ON DELETE CASCADE (which replica mode would also skip).
+        # Reports, comparisons and their links are permanent records, and a
+        # retest's links to its parent are immutable: the database refuses to
+        # delete or clear them (ADR 0010, 0011). Test cleanup alone bypasses
+        # those triggers, for this transaction only, with the superuser-only
+        # replication role; production code has no such path. The role is reset
+        # before anything that relies on ON DELETE CASCADE (which replica mode
+        # would also skip).
         s.execute(text("SET LOCAL session_replication_role = replica"))
         for table in ("report_artifacts", "report_findings", "report_evidence"):
             s.execute(
@@ -209,6 +210,20 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
                 {"p": project_id},
             )
         s.execute(text(f"DELETE FROM reports WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL
+        comparisons = f"SELECT id FROM comparisons WHERE current_scan_id IN ({scans})"  # noqa: S608
+        for table in ("comparison_coverage_evidence", "comparison_records"):
+            s.execute(
+                text(f"DELETE FROM {table} WHERE comparison_id IN ({comparisons})"),  # noqa: S608
+                {"p": project_id},
+            )
+        s.execute(text(f"DELETE FROM comparisons WHERE id IN ({comparisons})"), {"p": project_id})  # noqa: S608  # constant SQL
+        s.execute(
+            text(
+                "UPDATE assessments SET retest_of_assessment_id = NULL, baseline_scan_id = NULL "
+                "WHERE target_id IN (SELECT id FROM targets WHERE project_id = :p)"
+            ),
+            {"p": project_id},
+        )
         s.execute(text("SET LOCAL session_replication_role = origin"))
         # Findings and analysis runs RESTRICT scan deletion (ADR 0009); rule
         # versions are global and immutable, so they stay.

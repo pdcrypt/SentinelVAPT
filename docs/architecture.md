@@ -20,7 +20,7 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
 | `frontend` | UI, triage workflow, report download                                   | Contact targets, hold secrets                  |
 | `backend`  | CRUD, validation, authorization/scope rules, enqueueing scans          | Perform network scanning                       |
-| worker     | Claim queued scans, call the scanner, persist results, run analysis    | Bypass the scanner's scope guard               |
+| worker     | Claim queued scans, call the scanner, persist results, run analysis and retest comparisons | Bypass the scanner's scope guard |
 | report-worker | Claim queued reports, render them, store the artifacts              | Reach anything but the database                |
 | `scanner`  | Discovery, scope enforcement, safe HTTP client, redaction              | Import backend code, touch the DB, read env    |
 | `analysis` | Deterministic rules: stored observations → finding candidates          | Make network requests, touch the DB, use AI    |
@@ -51,8 +51,12 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 7. Findings are triaged through the API.
 8. A report request freezes a snapshot of one analysed scan; the report worker
    renders it into JSON, HTML and PDF artifacts.
+9. A retest (a new assessment linked to a completed one and one of its analysed
+   scans) is scanned like any assessment; a comparison classifies its findings
+   against that baseline from persisted data.
 
-Steps 1–8 exist (Phases 1–5; ADR 0008, 0009, 0010). Retests are a later phase.
+Steps 1–9 exist (Phases 1–6; ADR 0008, 0009, 0010, 0011). Retest-specific
+reports are Phase 7.
 
 ## Domain model
 
@@ -69,7 +73,10 @@ RuleVersion 1─N Finding                      (implemented, Phase 4; immutable 
 Assessment 1─N Report N─1 Scan, AnalysisRun  (implemented, Phase 5; immutable snapshot)
 Report 1─N ReportArtifact                    (implemented, Phase 5; json/html/pdf, hashed)
 Report N─M Finding, Evidence (same scan)     (implemented, Phase 5; report_findings/_evidence)
-Assessment.parent_assessment_id → retests   (planned, Phase 6)
+Assessment.retest_of_assessment_id → parent  (implemented, Phase 6; same target, immutable)
+Assessment.baseline_scan_id → parent's scan  (implemented, Phase 6; immutable)
+Assessment(retest) 1─N Comparison            (implemented, Phase 6; one per scan and policy)
+Comparison 1─N ComparisonRecord 1─N coverage evidence (current scan only)
 ```
 
 An assessment reaches its project through its target; there is no separate
@@ -203,6 +210,25 @@ See [ADR 0010](adr/0010-evidence-backed-reporting.md) and
   session, and stores hashed artifacts (≤ 25 MB) in PostgreSQL. Triggers make
   reports, artifacts and their links immutable.
 
+## Retests and comparisons (Phase 6)
+
+See [ADR 0011](adr/0011-retesting-and-scan-comparison.md) and
+[retesting.md](retesting.md). In short:
+
+- A retest is an assessment of the same target with immutable links to a
+  completed parent and one of its analysed scans; its scope must be contained
+  in the parent's. One live retest per assessment; retests chain A → B → C.
+- `sentinel_analysis.coverage` says, per rule version, which subjects a scan
+  provably examined; `sentinel_analysis.comparison.classify` (policy `cmp-1`)
+  turns baseline and current findings into new / reopened / unchanged /
+  still_open / fixed / dismissed / not_retested / not_comparable records.
+  FIXED requires same-version coverage evidence; a false positive is never
+  FIXED.
+- Comparisons are queued by the API and computed by the scans/analysis worker
+  in one transaction (SKIP LOCKED, findings share-locked, no running state).
+  Composite foreign keys and triggers keep them same-target, same-scan,
+  same-identity and immutable. Triage status is never changed by comparison.
+
 ## API (v1)
 
 | Method | Path |
@@ -230,6 +256,10 @@ See [ADR 0010](adr/0010-evidence-backed-reporting.md) and
 | `POST`, `GET` | `/api/v1/assessments/{id}/reports` (body: `scan_id`, `kind`, `formats`, `title`, `prepared_by`, …) |
 | `GET` | `/api/v1/reports/{id}`, `/artifacts`, `/artifacts/{json,html,pdf}`, `/preview` |
 | `GET` | `/api/v1/report-templates` |
+| `POST`, `GET` | `/api/v1/assessments/{id}/retests` |
+| `GET` | `/api/v1/assessments/{id}/lineage` |
+| `POST`, `GET` | `/api/v1/assessments/{id}/comparisons` (body: `scan_id`; 202 new, 200 existing) |
+| `GET` | `/api/v1/comparisons/{id}`, `/records` (filters: `state`, `rule_id`), `/records/{fingerprint}` |
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,

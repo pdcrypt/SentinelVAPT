@@ -10,6 +10,7 @@ import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from app.core.errors import DomainValidationError
@@ -250,3 +251,35 @@ def authorization_status(
     if now >= valid_until:
         return AuthorizationStatus.EXPIRED
     return AuthorizationStatus.ACTIVE
+
+
+def scope_expansion(inner: Any, outer: Any) -> str | None:
+    """Why the scope of authorization record `inner` is not contained in that
+    of `outer` (ADR 0011), or None if it is. A retest may narrow its parent's
+    scope but never widen it:
+
+    - same environment; hosts and ports are subsets;
+    - every in-scope path prefix lies within a parent prefix and not inside a
+      path the parent excluded;
+    - every path the parent excluded that the retest's prefixes still reach is
+      excluded by the retest too.
+    """
+    if inner.environment != outer.environment:
+        return "environment differs from the parent assessment's"
+    extra_hosts = {h.lower() for h in inner.in_scope_hosts} - {
+        h.lower() for h in outer.in_scope_hosts
+    }
+    if extra_hosts:
+        return "in-scope hosts are not a subset of the parent assessment's"
+    if set(inner.allowed_ports) - set(outer.allowed_ports):
+        return "allowed ports are not a subset of the parent assessment's"
+    for prefix in inner.in_scope_path_prefixes:
+        if not any(path_matches(prefix, parent) for parent in outer.in_scope_path_prefixes):
+            return "an in-scope path prefix lies outside the parent assessment's prefixes"
+        if any(path_matches(prefix, excluded) for excluded in outer.excluded_paths):
+            return "an in-scope path prefix lies inside a path the parent assessment excluded"
+    for excluded in outer.excluded_paths:
+        reachable = any(path_matches(excluded, p) for p in inner.in_scope_path_prefixes)
+        if reachable and not any(path_matches(excluded, x) for x in inner.excluded_paths):
+            return "a path the parent assessment excluded is no longer excluded"
+    return None

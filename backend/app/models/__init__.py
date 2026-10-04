@@ -8,6 +8,7 @@ from app.models.analysis import (
     RuleVersion,
 )
 from app.models.assessment import Assessment
+from app.models.comparison import Comparison, ComparisonCoverageEvidence, ComparisonRecord
 from app.models.project import Project
 from app.models.report import Report, ReportArtifact, ReportEvidence, ReportFinding
 from app.models.scan import Scan
@@ -19,6 +20,9 @@ __all__ = [
     "AnalysisRun",
     "Assessment",
     "Asset",
+    "Comparison",
+    "ComparisonCoverageEvidence",
+    "ComparisonRecord",
     "Endpoint",
     "EndpointCookie",
     "Evidence",

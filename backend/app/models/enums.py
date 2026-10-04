@@ -75,3 +75,24 @@ class ReportFormat(StrEnum):
     JSON = "json"
     HTML = "html"
     PDF = "pdf"
+
+
+class ComparisonStatus(StrEnum):
+    """No running state: a comparison is computed and stored in one transaction."""
+
+    QUEUED = "queued"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ComparisonState(StrEnum):
+    """Comparison policy cmp-1 states (ADR 0011). Separate from triage status."""
+
+    NEW = "new"
+    REOPENED = "reopened"
+    UNCHANGED = "unchanged"
+    STILL_OPEN = "still_open"
+    FIXED = "fixed"
+    DISMISSED = "dismissed"
+    NOT_RETESTED = "not_retested"
+    NOT_COMPARABLE = "not_comparable"
