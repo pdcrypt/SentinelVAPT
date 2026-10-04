@@ -37,6 +37,9 @@ Reports (ADR 0010), in three phases like scans:
 
 A reaper fails reports left generating by a worker that stopped.
 
+Retest reports (ADR 0012) use the same three phases and reaper, in the same
+reports role, from their own table; Phase 5 reports are polled first.
+
 No automatic retries: a failed scan or report stays failed.
 """
 
@@ -54,7 +57,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.clock import Clock, utc_now
 from app.core.errors import ScanNotAllowedError
-from app.models import Assessment, ReportArtifact, Target
+from app.models import Assessment, ReportArtifact, RetestReportArtifact, Target
 from app.models.enums import (
     AnalysisStatus,
     AssessmentStatus,
@@ -68,6 +71,7 @@ from app.repositories import (
     ComparisonRepository,
     QueuedCandidate,
     ReportRepository,
+    RetestReportRepository,
     ScanRepository,
     ScanResultRepository,
     TargetRepository,
@@ -81,6 +85,7 @@ from app.services.scan_results import (
     persist_logs,
 )
 from sentinel_reports import Artifact, ReportError, render_report
+from sentinel_reports.retest import render_retest_report
 from sentinel_scanner import CancellationToken, DiscoveryConfig, DiscoveryResult, run_discovery
 from sentinel_scanner.errors import GrantRejected
 from sentinel_scanner.grant import ScanGrant
@@ -173,11 +178,13 @@ class Worker:
         role: WorkerRole = WorkerRole.ALL,
         report_renderer: ReportRenderer = render_report,
         report_stale_after: float = 600.0,
+        retest_report_renderer: ReportRenderer = render_retest_report,
     ) -> None:
         self.session_factory = session_factory
         self.role = role
         self.report_renderer = report_renderer
         self.report_stale_after = report_stale_after
+        self.retest_report_renderer = retest_report_renderer
         self.worker_id = worker_id
         self.runner = runner
         self.clock = clock
@@ -215,11 +222,14 @@ class Worker:
             self.reap_stale()
         if self.runs_reports:
             self.reap_stale_reports()
+            self.reap_stale_retest_reports()
         if self.runs_scans and self.analyze_once():
             return True
         if self.runs_scans and self.compare_once():
             return True
         if self.runs_reports and self.report_once():
+            return True
+        if self.runs_reports and self.retest_report_once():
             return True
         if not self.runs_scans:
             return False
@@ -619,6 +629,100 @@ class Worker:
             session.commit()
         for report_id in reaped:
             logger.warning("report %s failed: worker_lost", report_id)
+        return len(reaped)
+
+    # --- retest reports (ADR 0012) --------------------------------------------------------
+
+    def retest_report_once(self) -> bool:
+        """Generate at most one queued retest report."""
+        with self.session_factory() as session:
+            report_ids = RetestReportRepository(session).queued_ids(self.candidate_batch)
+        for report_id in report_ids:
+            claimed = self.claim_retest_report(report_id)
+            if claimed is not None:
+                self.generate_retest_report(claimed)
+                return True
+        return False
+
+    def claim_retest_report(self, report_id: uuid.UUID) -> ClaimedReport | None:
+        with self.session_factory() as session:
+            report = RetestReportRepository(session).get_for_update(report_id, skip_locked=True)
+            if report is None or report.status is not ReportStatus.QUEUED:
+                return None
+            report.status = ReportStatus.GENERATING
+            report.claimed_by = self.worker_id
+            report.claimed_at = func.now()  # database clock, as the reaper uses
+            claimed = ClaimedReport(report.id, dict(report.snapshot), tuple(report.formats))
+            session.commit()
+            logger.info("retest report %s claimed by %s", report_id, self.worker_id)
+            return claimed
+
+    def generate_retest_report(self, claimed: ClaimedReport) -> None:
+        artifacts: tuple[Artifact, ...] = ()
+        error: str | None = None
+        try:
+            # No session or transaction exists here: rendering reads only the
+            # frozen snapshot.
+            artifacts = self.retest_report_renderer(claimed.snapshot, claimed.formats)
+        except ReportError as exc:
+            error = exc.code
+        except Exception:
+            logger.exception("retest report %s failed to render", claimed.report_id)
+            error = "render_error"
+        if error is None and sorted(a.format for a in artifacts) != sorted(claimed.formats):
+            error = "render_error"
+        self.finalize_retest_report(claimed, artifacts, error)
+
+    def finalize_retest_report(
+        self, claimed: ClaimedReport, artifacts: tuple[Artifact, ...], error: str | None
+    ) -> bool:
+        """Write the artifacts and the final status in one transaction. Returns
+        False (and writes nothing) if this worker no longer owns the report."""
+        with self.session_factory() as session:
+            repo = RetestReportRepository(session)
+            report = repo.get_for_update(claimed.report_id)
+            if (
+                report is None
+                or report.status is not ReportStatus.GENERATING
+                or report.claimed_by != self.worker_id
+            ):
+                logger.warning(
+                    "discarding output for retest report %s: no longer owned by %s",
+                    claimed.report_id,
+                    self.worker_id,
+                )
+                return False
+            now = self.clock()
+            if error is None:
+                for artifact in artifacts:
+                    repo.add_artifact(
+                        RetestReportArtifact(
+                            report_id=report.id,
+                            format=artifact.format,
+                            media_type=artifact.media_type,
+                            content=artifact.content,
+                            size_bytes=artifact.size,
+                            sha256=artifact.sha256,
+                            renderer=artifact.renderer[:200],
+                        )
+                    )
+                report.status = ReportStatus.COMPLETED
+            else:
+                report.status = ReportStatus.FAILED
+                report.error_code = error[:64]
+            report.finished_at = now
+            session.commit()
+            logger.info("retest report %s finished: %s", claimed.report_id, report.status)
+            return True
+
+    def reap_stale_retest_reports(self) -> int:
+        with self.session_factory() as session:
+            reaped = RetestReportRepository(session).reap_stale(
+                self.report_stale_after, self.clock()
+            )
+            session.commit()
+        for report_id in reaped:
+            logger.warning("retest report %s failed: worker_lost", report_id)
         return len(reaped)
 
     # --- reaper ---------------------------------------------------------------------

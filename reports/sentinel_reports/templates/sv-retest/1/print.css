@@ -1,0 +1,211 @@
+@page {
+  size: A4;
+  margin: 18mm 16mm 20mm 16mm;
+  @bottom-left {
+    content: string(docnumber) " - " string(classification);
+    font-size: 8pt;
+    color: #555;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 8pt;
+    color: #555;
+  }
+}
+
+html {
+  font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.45;
+  color: #1b1f24;
+  background: #ffffff;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 190mm;
+  padding: 0 4mm;
+}
+
+h1 {
+  font-size: 22pt;
+  margin: 0 0 4mm 0;
+}
+
+h2 {
+  font-size: 15pt;
+  border-bottom: 2px solid #1f3a5f;
+  padding-bottom: 1mm;
+  margin-top: 9mm;
+  break-after: avoid;
+}
+
+h3 {
+  font-size: 12pt;
+  margin-top: 6mm;
+  break-after: avoid;
+}
+
+h4 {
+  font-size: 10.5pt;
+  margin: 4mm 0 1mm 0;
+  break-after: avoid;
+}
+
+.docnumber {
+  string-set: docnumber content();
+}
+
+.classification-label {
+  string-set: classification content();
+}
+
+.cover {
+  break-after: page;
+  padding-top: 30mm;
+}
+
+.cover .subtitle {
+  font-size: 13pt;
+  color: #39424e;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.5mm 2mm;
+  border-radius: 2mm;
+  font-size: 8.5pt;
+  font-weight: bold;
+  border: 1px solid #888;
+}
+
+.kind-draft {
+  background: #fff3cd;
+  border-color: #b58900;
+}
+
+.kind-final {
+  background: #d4edda;
+  border-color: #2e7d32;
+}
+
+.watermark {
+  position: fixed;
+  top: 110mm;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 90pt;
+  font-weight: bold;
+  color: #e8e8e8;
+  transform: rotate(-30deg);
+  z-index: -1;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2mm 0 4mm 0;
+  font-size: 9pt;
+}
+
+th,
+td {
+  border: 1px solid #c9ced6;
+  padding: 1.2mm 1.8mm;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #eef1f5;
+}
+
+table.kv th {
+  width: 32%;
+}
+
+tr {
+  break-inside: avoid;
+}
+
+code,
+pre,
+.mono {
+  font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+  font-size: 8.5pt;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+pre {
+  white-space: pre-wrap;
+  background: #f6f8fa;
+  border: 1px solid #d8dde3;
+  padding: 2mm;
+}
+
+.sev {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 8pt;
+}
+
+.sev-critical {
+  color: #8b0000;
+}
+
+.sev-high {
+  color: #c0392b;
+}
+
+.sev-medium {
+  color: #b9770e;
+}
+
+.sev-low {
+  color: #1f618d;
+}
+
+.sev-informational {
+  color: #5d6d7e;
+}
+
+.issue {
+  border-left: 3px solid #1f3a5f;
+  padding-left: 4mm;
+  margin-bottom: 6mm;
+}
+
+.callout {
+  border: 1px solid #b58900;
+  background: #fffaf0;
+  padding: 2mm 3mm;
+  margin: 3mm 0;
+}
+
+.muted {
+  color: #5d6d7e;
+}
+
+.toc li {
+  margin: 0.5mm 0;
+}
+
+.toc a {
+  color: #1f3a5f;
+  text-decoration: none;
+}
+
+a {
+  color: #1f3a5f;
+}
+
+.evidence {
+  break-inside: avoid-page;
+  margin-bottom: 4mm;
+}
+
+.chart text {
+  font-size: 9px;
+}

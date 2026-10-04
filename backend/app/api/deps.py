@@ -13,6 +13,7 @@ from app.repositories import (
     ComparisonRepository,
     ProjectRepository,
     ReportRepository,
+    RetestReportRepository,
     ScanRepository,
     ScanResultRepository,
     TargetAuthorizationRepository,
@@ -23,6 +24,7 @@ from app.services.comparisons import ComparisonService
 from app.services.findings import FindingService
 from app.services.projects import ProjectService
 from app.services.reports import ReportService
+from app.services.retest_reports import RetestReportService
 from app.services.retests import RetestService
 from app.services.scans import ScanService
 from app.services.targets import TargetService
@@ -114,6 +116,12 @@ def get_comparison_service(session: SessionDep) -> ComparisonService:
     )
 
 
+def get_retest_report_service(session: SessionDep, clock: ClockDep) -> RetestReportService:
+    return RetestReportService(
+        RetestReportRepository(session), AssessmentRepository(session), session, session, clock
+    )
+
+
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TargetServiceDep = Annotated[TargetService, Depends(get_target_service)]
 AssessmentServiceDep = Annotated[AssessmentService, Depends(get_assessment_service)]
@@ -122,6 +130,7 @@ FindingServiceDep = Annotated[FindingService, Depends(get_finding_service)]
 ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
 RetestServiceDep = Annotated[RetestService, Depends(get_retest_service)]
 ComparisonServiceDep = Annotated[ComparisonService, Depends(get_comparison_service)]
+RetestReportServiceDep = Annotated[RetestReportService, Depends(get_retest_report_service)]
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]

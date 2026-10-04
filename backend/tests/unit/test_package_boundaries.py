@@ -44,12 +44,16 @@ ALLOWED_ANALYSIS_IMPORTERS = {
     # Resolves display titles of verified taxonomy ids into the frozen report
     # snapshot, so the report renderer never needs the rule engine.
     "services/report_snapshot.py",
+    # Taxonomy editions for the retest report snapshot (ADR 0012).
+    "services/retest_report_snapshot.py",
     "worker/core.py",
 }
 
 ALLOWED_REPORTS_IMPORTERS = {
     "services/report_snapshot.py",
     "services/reports.py",
+    "services/retest_report_snapshot.py",
+    "services/retest_reports.py",
     "worker/core.py",
 }
 

@@ -1,0 +1,466 @@
+{#- SentinelVAPT retest report, template version 1.
+    Values come from the snapshot (r), derived figures (d) or the integrity
+    block. Comparison states are shown exactly as persisted; triage status is
+    labelled separately and never presented as a comparison state.
+    Autoescaping is always on; nothing here marks data safe. -#}
+{% set doc = r.document %}
+{% set eng = r.engagement %}
+{% set auth = r.authorization.retest %}
+{% set state_titles = {
+  "new": "New findings",
+  "reopened": "Reopened findings",
+  "still_open": "Still-open findings",
+  "unchanged": "Unchanged findings",
+  "fixed": "Fixed findings",
+  "dismissed": "Dismissed findings",
+  "not_retested": "Not retested",
+  "not_comparable": "Not comparable"
+} %}
+{% set state_intro = {
+  "new": "Findings present in the retest scan with no finding of the same identity in the baseline scan.",
+  "reopened": "Findings present again after an earlier comparison in this retest chain recorded them as fixed.",
+  "still_open": "Findings present in both scans with a meaningful difference, shown for each finding.",
+  "unchanged": "Findings present in both scans with no meaningful difference.",
+  "fixed": "Baseline findings absent from the retest scan where the same rule version examined the subject and found the condition absent. The retest evidence that shows the examination is listed with each finding.",
+  "dismissed": "Baseline findings that had been triaged as false positives and are absent from the retest scan. This is not a remediation claim.",
+  "not_retested": "Baseline findings absent from the retest scan because the retest did not examine the subject. This is NOT evidence of remediation: the issue may still exist.",
+  "not_comparable": "Baseline findings absent from the retest scan where the analysis context does not allow a safe comparison. This is NOT evidence of remediation: the issue may still exist."
+} %}
+{% set reason_text = {
+  "first_observed": "Not seen earlier in this retest chain.",
+  "previously_fixed": "Recorded as fixed by an earlier comparison in this retest chain.",
+  "previously_dismissed": "Previously dismissed (triaged as a false positive) in this retest chain.",
+  "previously_not_retested": "Previously not retested in this retest chain.",
+  "previously_not_comparable": "Previously not comparable in this retest chain.",
+  "previously_observed": "Previously observed in this retest chain.",
+  "rule_version_changed": "The rule version differs between the baseline and the retest analysis.",
+  "severity_changed": "The severity changed.",
+  "confidence_changed": "The confidence changed.",
+  "detection_type_changed": "The detection type changed.",
+  "details_changed": "Meaningful finding details changed.",
+  "baseline_false_positive": "The baseline finding was triaged as a false positive when compared.",
+  "examined_condition_absent": "The retest examined the subject with the same rule version and found the condition absent.",
+  "subject_not_observed": "The retest scan did not examine this subject.",
+  "out_of_scope": "The subject lies outside the retest's authorized scope.",
+  "rule_not_evaluated": "The rule was not evaluated (or its evaluation cannot be established) in the retest analysis.",
+  "rule_error": "The rule failed during the retest analysis.",
+  "coverage_unavailable": "No coverage definition exists for the rule version used in the retest.",
+  "partial_scan": "The retest scan stopped before completing its crawl.",
+  "tls_trust_not_evaluated": "The retest accepted untrusted TLS, so certificate trust was not evaluated.",
+  "observations_truncated": "The retest produced more observations than the analysis limits allow."
+} %}
+{% set limitation_text = {
+  "scope_narrowed": "The retest scope is narrower than the baseline scope. Baseline findings outside the retest scope are reported as not retested; that is not remediation.",
+  "partial_scan": "The retest scan stopped before completing its crawl; unreached subjects are reported as not retested.",
+  "tls_trust_not_evaluated": "The retest accepted untrusted TLS certificates, so certificate trust could not be compared.",
+  "observations_truncated": "The retest produced more observations than the analysis limits allow; analysis used a bounded subset.",
+  "rule_errors": "One or more rules failed during the retest analysis; their baseline findings are not comparable.",
+  "rule_versions_unknown": "The rule versions of at least one analysis run were not recorded (analysed before retest support); comparability is limited.",
+  "rule_versions_differ": "Some rule versions differ between the baseline and retest analysis; affected findings are not comparable or listed as still open.",
+  "no_fuzzy_matching": "Findings are matched by exact identity (rule, subject, discriminator). A moved or renamed endpoint appears as a new finding plus an old finding that was not retested.",
+  "passive_testing_only": "Both scans were passive: no exploitation, credential testing, form submission or other active testing was performed."
+} %}
+{% macro triage(pair) %}{% if pair.baseline is not none %}baseline: {{ pair.baseline | label }}{% endif %}{% if pair.baseline is not none and pair.current is not none %}; {% endif %}{% if pair.current is not none %}retest: {{ pair.current | label }}{% endif %}{% endmacro %}
+{% macro evidence_refs(role, ids) %}{% for evidence_id in ids %}<a href="#ev-{{ role }}-{{ evidence_id }}">E-{{ evidence_id | short }}</a>{% if not loop.last %}, {% endif %}{% else %}-{% endfor %}{% endmacro %}
+{% macro view_table(rec) %}
+<table>
+  <thead><tr><th scope="col">Attribute</th><th scope="col">Baseline</th><th scope="col">Retest</th></tr></thead>
+  <tbody>
+    {% for attr in ["rule_version", "severity", "confidence", "detection_type", "affected_count"] %}
+    <tr>
+      <td>{{ attr | label }}</td>
+      <td>{{ rec.baseline[attr] if rec.baseline is not none else "-" }}</td>
+      <td>{{ rec.current[attr] if rec.current is not none else "-" }}</td>
+    </tr>
+    {% endfor %}
+    <tr>
+      <td>Details</td>
+      <td>{% if rec.baseline is not none %}{% for k, v in rec.baseline.details | dictsort %}<div><span class="muted">{{ k | label }}:</span> <span class="mono">{{ "-" if v is none else v }}</span></div>{% else %}-{% endfor %}{% else %}-{% endif %}</td>
+      <td>{% if rec.current is not none %}{% for k, v in rec.current.details | dictsort %}<div><span class="muted">{{ k | label }}:</span> <span class="mono">{{ "-" if v is none else v }}</span></div>{% else %}-{% endfor %}{% else %}-{% endif %}</td>
+    </tr>
+    <tr>
+      <td>Evidence</td>
+      <td class="mono">{{ evidence_refs("baseline", rec.baseline.evidence_ids) if rec.baseline is not none else "-" }}</td>
+      <td class="mono">{{ evidence_refs("current", rec.current.evidence_ids) if rec.current is not none else "-" }}</td>
+    </tr>
+  </tbody>
+</table>
+{% endmacro %}
+{% macro record_block(rec) %}
+{% set view = rec.current if rec.current is not none else rec.baseline %}
+{% set rule = rules[rec.rule_id ~ "@" ~ view.rule_version] %}
+<article class="issue" id="rec-{{ rec.fingerprint }}">
+  <h3>{{ rec.rule_id }}: {{ rule.title }}</h3>
+  <table class="kv">
+    <tr><th scope="row">Comparison state</th><td><strong class="mono">{{ rec.state | upper }}</strong></td></tr>
+    <tr><th scope="row">Affected</th><td class="mono">{{ view.subject_key }}{% if view.discriminator %}<br>{{ view.discriminator }}{% endif %}</td></tr>
+    <tr><th scope="row">Severity</th><td><span class="sev sev-{{ view.severity }}">{{ view.severity }}</span></td></tr>
+    <tr><th scope="row">Reasons</th><td>{% for reason in rec.reasons %}<div>{{ reason_text[reason] if reason in reason_text else reason }}</div>{% else %}-{% endfor %}</td></tr>
+    <tr><th scope="row">Triage status (when compared)</th><td>{{ triage(rec.triage_when_compared) }}</td></tr>
+    <tr><th scope="row">Triage status (when reported)</th><td>{{ triage(rec.triage_when_reported) }}</td></tr>
+    <tr><th scope="row">Identity</th><td class="mono">{{ rec.fingerprint }}</td></tr>
+  </table>
+  {% if rec.history is not none %}
+  <p class="muted">History: {{ rec.history.state | label }} in comparison <code>{{ rec.history.comparison_id }}</code> ({{ rec.history.assessment_name }}).</p>
+  {% endif %}
+  {% if rec.state == "still_open" %}
+  <h4>What changed</h4>
+  <table>
+    <thead><tr><th scope="col">Attribute</th><th scope="col">Baseline</th><th scope="col">Retest</th></tr></thead>
+    <tbody>
+    {% for change in d.differences[rec.fingerprint] %}
+      <tr><td>{{ change.attribute | label }}</td><td class="mono">{{ "-" if change.baseline is none else change.baseline }}</td><td class="mono">{{ "-" if change.current is none else change.current }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {{ view_table(rec) }}
+  {% if rec.coverage_evidence_ids %}
+  <h4>Retest evidence showing the subject was examined</h4>
+  {% for evidence_id in rec.coverage_evidence_ids %}
+  {% set e = evidence_by_id[("current", evidence_id)] %}
+  <div><a href="#ev-current-{{ evidence_id }}">E-{{ evidence_id | short }}</a> <span class="mono">{{ e.method }} {{ e.url }}</span> ({{ e.status_code }})</div>
+  {% endfor %}
+  {% endif %}
+  {% if rec.state in ["not_retested", "not_comparable"] %}
+  <p class="callout">Unverified, not a remediation result: the retest could not confirm whether this issue was fixed, so it may still exist.</p>
+  {% endif %}
+  {% if rec.state == "dismissed" %}
+  <p class="callout">Dismissed is not fixed: the baseline finding had been triaged as a false positive.</p>
+  {% endif %}
+</article>
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="generator" content="SentinelVAPT {{ integrity.renderer_version }}">
+<meta name="dcterms.created" content="{{ doc.created_at | w3c }}">
+<meta name="dcterms.modified" content="{{ doc.created_at | w3c }}">
+<title>{{ doc.number }} - {{ doc.title }}</title>
+<style>
+{% include "print.css" %}
+</style>
+</head>
+<body>
+{% if doc.kind == "draft" %}
+<div class="watermark" aria-hidden="true">DRAFT</div>
+{% endif %}
+
+<section class="cover" id="cover">
+  <p class="muted">SentinelVAPT retest report</p>
+  <h1>{{ doc.title }}</h1>
+  <p class="subtitle">{{ eng.target.name }} &middot; {{ eng.baseline.assessment.name }} &rarr; {{ eng.retest.assessment.name }}</p>
+  <p>
+    <span class="badge kind-{{ doc.kind }}">{{ doc.kind | upper }}</span>
+    <span class="badge classification-label">{{ doc.classification | upper }}</span>
+  </p>
+  <table class="kv">
+    <tr><th scope="row">Report number</th><td class="docnumber">{{ doc.number }}</td></tr>
+    <tr><th scope="row">Report requested</th><td>{{ doc.created_at | dt }}</td></tr>
+    <tr><th scope="row">Prepared by</th><td>{{ doc.prepared_by }}</td></tr>
+    <tr><th scope="row">Reviewed by</th><td>{{ doc.reviewed_by if doc.reviewed_by is not none else "Not reviewed" }}</td></tr>
+    <tr><th scope="row">Comparison</th><td class="mono">{{ r.comparison.id }} (policy {{ r.comparison.policy_version }})</td></tr>
+    <tr><th scope="row">Template</th><td>{{ integrity.template.id }} v{{ integrity.template.version }}</td></tr>
+  </table>
+  {% if doc.kind == "draft" %}
+  <p class="callout">This is a draft. The retest assessment may still be in progress.</p>
+  {% endif %}
+  <nav class="toc" aria-label="Contents">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#executive-summary">Executive summary</a></li>
+      <li><a href="#scope">Retest scope and authorization</a></li>
+      <li><a href="#overview">Baseline vs retest overview</a></li>
+      <li><a href="#remediation-summary">Remediation summary</a></li>
+      {% for state in states %}
+      <li><a href="#state-{{ state }}">{{ state_titles[state] }}</a></li>
+      {% endfor %}
+      <li><a href="#evidence">Evidence</a></li>
+      <li><a href="#rule-versions">Rule and version differences</a></li>
+      <li><a href="#limitations">Limitations and interpretation</a></li>
+      <li><a href="#lineage">Retest lineage</a></li>
+      <li><a href="#methodology">Methodology</a></li>
+    </ol>
+  </nav>
+</section>
+
+<section id="executive-summary">
+  <h2>1. Executive summary</h2>
+  <p>
+    This report compares the retest <strong>{{ eng.retest.assessment.name }}</strong> of
+    <strong>{{ eng.target.name }}</strong> with its baseline <strong>{{ eng.baseline.assessment.name }}</strong>,
+    using comparison policy {{ r.comparison.policy_version }}. It covers {{ d.total_records }}
+    finding identit{{ "y" if d.total_records == 1 else "ies" }} seen in either scan.
+  </p>
+  <table>
+    <thead><tr><th scope="col">Comparison state</th><th scope="col">Findings</th></tr></thead>
+    <tbody>
+    {% for state in states %}
+      <tr><td><a href="#state-{{ state }}">{{ state_titles[state] }}</a></td><td>{{ d.counts[state] }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p>
+    {{ d.counts.fixed }} baseline finding{{ "" if d.counts.fixed == 1 else "s" }} {{ "was" if d.counts.fixed == 1 else "were" }}
+    verified as fixed, each backed by retest evidence that the subject was examined.
+  </p>
+  {% if d.counts.not_retested or d.counts.not_comparable %}
+  <p class="callout">
+    {{ d.counts.not_retested }} finding{{ "" if d.counts.not_retested == 1 else "s" }} could not be retested and
+    {{ d.counts.not_comparable }} could not be compared. These are not remediation results; the issues may still exist.
+  </p>
+  {% endif %}
+  {% if r.scope_change.narrower %}
+  <p class="callout">The retest scope is narrower than the baseline scope (section 2).</p>
+  {% endif %}
+  {% if r.inputs.executive_summary_note is not none %}
+  <h3>Assessor's note</h3>
+  <pre>{{ r.inputs.executive_summary_note }}</pre>
+  {% endif %}
+</section>
+
+<section id="scope">
+  <h2>2. Retest scope and authorization</h2>
+  <p>The retest ran under its own authorization record, shown here. It is authoritative for this report.</p>
+  <table class="kv">
+    <tr><th scope="row">Authorized by</th><td>{{ auth.authorized_by }}</td></tr>
+    <tr><th scope="row">Reference</th><td>{{ auth.reference }}</td></tr>
+    <tr><th scope="row">Authorization record</th><td>Version {{ auth.version }} (<code>{{ auth.id }}</code>)</td></tr>
+    <tr><th scope="row">Valid</th><td>{{ auth.valid_from | dt }} to {{ auth.valid_until | dt }}</td></tr>
+    <tr><th scope="row">Acknowledged by</th><td>{{ auth.acknowledged_by }}, {{ auth.acknowledged_at | dt }}</td></tr>
+  </table>
+  <table>
+    <thead><tr><th scope="col">Scope</th><th scope="col">Retest (authoritative)</th><th scope="col">Baseline</th></tr></thead>
+    <tbody>
+      {% set bscope = r.authorization.baseline.scope %}
+      <tr><td>Base URL</td><td class="mono">{{ auth.scope.base_url }}</td><td class="mono">{{ bscope.base_url }}</td></tr>
+      <tr><td>Environment</td><td>{{ auth.scope.environment | label }}</td><td>{{ bscope.environment | label }}</td></tr>
+      <tr><td>In-scope hosts</td><td class="mono">{{ auth.scope.in_scope_hosts | join(", ") }}</td><td class="mono">{{ bscope.in_scope_hosts | join(", ") }}</td></tr>
+      <tr><td>Allowed ports</td><td class="mono">{{ auth.scope.allowed_ports | join(", ") }}</td><td class="mono">{{ bscope.allowed_ports | join(", ") }}</td></tr>
+      <tr><td>Path prefixes</td><td class="mono">{{ auth.scope.in_scope_path_prefixes | join(", ") }}</td><td class="mono">{{ bscope.in_scope_path_prefixes | join(", ") }}</td></tr>
+      <tr><td>Excluded paths</td><td class="mono">{{ auth.scope.excluded_paths | join(", ") if auth.scope.excluded_paths else "None" }}</td><td class="mono">{{ bscope.excluded_paths | join(", ") if bscope.excluded_paths else "None" }}</td></tr>
+    </tbody>
+  </table>
+  {% if r.scope_change.narrower %}
+  <p class="callout">
+    The retest scope is narrower than the baseline scope.
+    {% if r.scope_change.hosts_removed %}Hosts removed: {{ r.scope_change.hosts_removed | join(", ") }}. {% endif %}
+    {% if r.scope_change.ports_removed %}Ports removed: {{ r.scope_change.ports_removed | join(", ") }}. {% endif %}
+    {% if r.scope_change.path_prefixes_removed %}Path prefixes removed: {{ r.scope_change.path_prefixes_removed | join(", ") }}. {% endif %}
+    {% if r.scope_change.path_prefixes_added %}Narrower path prefixes: {{ r.scope_change.path_prefixes_added | join(", ") }}. {% endif %}
+    {% if r.scope_change.exclusions_added %}Paths newly excluded: {{ r.scope_change.exclusions_added | join(", ") }}. {% endif %}
+    Baseline findings outside the retest scope are reported as not retested. That is not remediation.
+  </p>
+  {% else %}
+  <p>The retest scope is the same as the baseline scope.</p>
+  {% endif %}
+  {% if r.inputs.scope_note is not none %}
+  <h3>Assessor's scope note</h3>
+  <pre>{{ r.inputs.scope_note }}</pre>
+  {% endif %}
+</section>
+
+<section id="overview">
+  <h2>3. Baseline vs retest overview</h2>
+  <table>
+    <thead><tr><th scope="col"></th><th scope="col">Baseline</th><th scope="col">Retest</th></tr></thead>
+    <tbody>
+      {% set b = eng.baseline %}{% set t = eng.retest %}
+      <tr><td>Assessment</td><td>{{ b.assessment.name }}<br><small class="mono">{{ b.assessment.id }}</small></td><td>{{ t.assessment.name }}<br><small class="mono">{{ t.assessment.id }}</small></td></tr>
+      <tr><td>Assessment status</td><td>{{ b.assessment.status | label }}</td><td>{{ t.assessment.status | label }}</td></tr>
+      <tr><td>Scan</td><td class="mono">{{ b.scan.id }}</td><td class="mono">{{ t.scan.id }}</td></tr>
+      <tr><td>Scan window</td><td>{{ b.scan.started_at | dt }} to {{ b.scan.finished_at | dt }}</td><td>{{ t.scan.started_at | dt }} to {{ t.scan.finished_at | dt }}</td></tr>
+      <tr><td>Scanner stop reason</td><td>{{ b.scan.stop_reason | label if b.scan.stop_reason is not none else "-" }}</td><td>{{ t.scan.stop_reason | label if t.scan.stop_reason is not none else "-" }}</td></tr>
+      <tr><td>TLS certificate verification</td><td>{{ "Enabled" if b.scan.verify_tls else "Disabled" }}</td><td>{{ "Enabled" if t.scan.verify_tls else "Disabled" }}</td></tr>
+      <tr><td>Requests / pages / evidence</td><td>{{ b.scan.requests_sent }} / {{ b.scan.pages_count }} / {{ b.scan.evidence_count }}</td><td>{{ t.scan.requests_sent }} / {{ t.scan.pages_count }} / {{ t.scan.evidence_count }}</td></tr>
+      <tr><td>Analysis run</td><td class="mono">{{ b.run.id }}</td><td class="mono">{{ t.run.id }}</td></tr>
+      <tr><td>Ruleset</td><td class="mono">{{ b.run.ruleset_version }}</td><td class="mono">{{ t.run.ruleset_version }}</td></tr>
+      <tr><td>Coverage notes</td><td>{{ b.run.coverage_notes | join(", ") if b.run.coverage_notes else "None" }}</td><td>{{ t.run.coverage_notes | join(", ") if t.run.coverage_notes else "None" }}</td></tr>
+      <tr><td>Rule errors</td><td>{{ b.run.rule_errors | length }}</td><td>{{ t.run.rule_errors | length }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="remediation-summary">
+  <h2>4. Remediation summary</h2>
+  <table>
+    <thead><tr><th scope="col">Comparison state</th><th scope="col">Findings</th></tr></thead>
+    <tbody>
+    {% for state in states %}
+      <tr><td>{{ state_titles[state] }}</td><td>{{ d.counts[state] }}</td></tr>
+    {% endfor %}
+      <tr><td><strong>Total comparison records</strong></td><td><strong>{{ d.total_records }}</strong></td></tr>
+    </tbody>
+  </table>
+  <p>
+    <strong>baseline_active</strong> = baseline findings not triaged as false positive when compared:
+    <strong>{{ d.baseline_active }}</strong>.
+  </p>
+  <p class="muted">The two shares below are SentinelVAPT-specific measures, not industry metrics.</p>
+  <table>
+    <thead><tr><th scope="col">SentinelVAPT-specific measure</th><th scope="col">Formula</th><th scope="col">Value</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Verified-fixed share</td>
+        <td class="mono">fixed / baseline_active = {{ d.metrics.verified_fixed_share.numerator }} / {{ d.metrics.verified_fixed_share.denominator }}</td>
+        <td>{{ d.metrics.verified_fixed_share.value }}</td>
+      </tr>
+      <tr>
+        <td>Unverified share</td>
+        <td class="mono">(not_retested + not_comparable among baseline_active) / baseline_active = {{ d.metrics.unverified_share.numerator }} / {{ d.metrics.unverified_share.denominator }}</td>
+        <td>{{ d.metrics.unverified_share.value }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="muted">Dismissed findings are not fixed. Not retested and not comparable findings are not remediated; they are unverified.</p>
+</section>
+
+{% for section in d.sections %}
+<section id="state-{{ section.state }}">
+  <h2>{{ loop.index + 4 }}. {{ state_titles[section.state] }}</h2>
+  <p>{{ state_intro[section.state] }}</p>
+  {% for rec in section.records %}
+  {{ record_block(rec) }}
+  {% else %}
+  <p>None.</p>
+  {% endfor %}
+</section>
+{% endfor %}
+
+<section id="evidence">
+  <h2>13. Evidence</h2>
+  <p>
+    Each record is a single HTTP exchange as recorded by the scanner, redacted before storage, and bound to
+    its scan. Response bodies are not reproduced; short redacted excerpts appear only where an issue depends
+    on body content. Each entry's digest lets it be checked against the stored record.
+  </p>
+  {% for role in ["baseline", "current"] %}
+  <h3>{{ "Baseline scan evidence" if role == "baseline" else "Retest scan evidence" }}</h3>
+  {% set entries = r.evidence | selectattr("role", "equalto", role) | list %}
+  {% for e in entries %}
+  <div class="evidence" id="ev-{{ role }}-{{ e.id }}">
+    <h4>E-{{ e.id | short }}: {{ e.method }} {{ e.status_code }}</h4>
+    <table class="kv">
+      <tr><th scope="row">Evidence ID</th><td class="mono">{{ e.id }}</td></tr>
+      <tr><th scope="row">Scan</th><td class="mono">{{ e.scan_id }}</td></tr>
+      <tr><th scope="row">Request</th><td class="mono">{{ e.method }} {{ e.url }}</td></tr>
+      <tr><th scope="row">Peer address</th><td class="mono">{{ e.peer }}</td></tr>
+      <tr><th scope="row">Body bytes captured</th><td>{{ e.body_bytes_captured }}{% if e.truncated %} (truncated at the scanner's size limit){% endif %}</td></tr>
+      <tr><th scope="row">Body hash</th><td><span class="mono">{{ e.body_sha256 if e.body_sha256 is not none else "Not recorded" }}</span><br><small>{{ e.body_sha256_label }}</small></td></tr>
+      <tr><th scope="row">Entry digest</th><td class="mono">{{ e.entry_sha256 }}</td></tr>
+    </table>
+    <table>
+      <thead><tr><th scope="col">Response header</th><th scope="col">Value (redacted)</th></tr></thead>
+      <tbody>
+      {% for header in e.headers %}
+        <tr><td class="mono">{{ header[0] }}</td><td class="mono">{{ header[1] }}</td></tr>
+      {% else %}
+        <tr><td colspan="2">No headers recorded.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if e.headers_truncated %}<p class="muted">Further headers omitted.</p>{% endif %}
+    {% if e.excerpt is not none %}
+    <p class="muted">Redacted body excerpt{% if e.excerpt_truncated %} (shortened){% endif %}:</p>
+    <pre>{{ e.excerpt }}</pre>
+    {% endif %}
+  </div>
+  {% else %}
+  <p>None.</p>
+  {% endfor %}
+  {% endfor %}
+</section>
+
+<section id="rule-versions">
+  <h2>14. Rule and version differences</h2>
+  {% set rv = d.rule_versions %}
+  {% if not rv.known %}
+  <p class="callout">
+    The rule versions of the {{ "baseline" if not rv.baseline_known else "" }}{{ " and " if not rv.baseline_known and not rv.retest_known else "" }}{{ "retest" if not rv.retest_known else "" }}
+    analysis were not recorded (analysed before retest support). Differences cannot be listed in full.
+  </p>
+  {% elif rv.rows %}
+  <table>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Baseline version</th><th scope="col">Retest version</th></tr></thead>
+    <tbody>
+    {% for row in rv.rows %}
+      <tr><td class="mono">{{ row.rule_id }}</td><td>{{ row.baseline if row.baseline is not none else "not evaluated" }}</td><td>{{ row.retest if row.retest is not none else "not evaluated" }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>None. Both analyses evaluated the same rule versions.</p>
+  {% endif %}
+  <h3>Findings affected by a rule-version change</h3>
+  {% for rec in rv.affected %}
+  <div><a href="#rec-{{ rec.fingerprint }}">{{ rec.rule_id }}</a> ({{ state_titles[rec.state] }}): <span class="mono">{{ (rec.current if rec.current is not none else rec.baseline).subject_key }}</span></div>
+  {% else %}
+  <p>None.</p>
+  {% endfor %}
+</section>
+
+<section id="limitations">
+  <h2>15. Limitations and interpretation</h2>
+  <ul>
+    {% for code in r.limitations %}
+    <li>{{ limitation_text[code] }}</li>
+    {% endfor %}
+    <li>Comparison states describe what the two scans' recorded evidence shows. They are separate from triage status, which is shown for each finding as it was when compared (“when compared”) and when this report was requested (“when reported”).</li>
+    <li>A fixed result means the same rule version examined the subject in the retest and did not find the condition; it is limited to what the rule checks.</li>
+  </ul>
+  <h3>What to verify manually</h3>
+  <ul>
+    <li>Not retested findings: retest the listed subjects (for example by restoring scope or reaching the pages) before treating them as resolved.</li>
+    <li>Not comparable findings: re-run the comparison once the analysis context matches (same rule versions, no rule errors).</li>
+    <li>New and reopened findings: confirm and triage them.</li>
+    <li>Findings whose rule requires manual verification: confirm the context the evidence cannot show (each rule's "does not prove" statement below).</li>
+  </ul>
+  {% set manual = rules | dictsort | selectattr("1.detection_type", "equalto", "manual_verification_required") | list %}
+  {% for key, rule in manual %}
+  <div><span class="mono">{{ key }}</span> {{ rule.title }}: {{ rule.does_not_prove }}</div>
+  {% endfor %}
+</section>
+
+<section id="lineage">
+  <h2>16. Retest lineage</h2>
+  <p>This report covers only the comparison of the retest with its immediate baseline. Earlier steps are listed for context.</p>
+  <table>
+    <thead><tr><th scope="col">#</th><th scope="col">Assessment</th><th scope="col">Status</th><th scope="col">Comparison</th><th scope="col">Fixed / reopened / not retested</th></tr></thead>
+    <tbody>
+    {% for entry in r.lineage %}
+      <tr>
+        <td>{{ entry.position }}</td>
+        <td>{{ entry.assessment.name }}</td>
+        <td>{{ entry.assessment.status | label }}</td>
+        <td class="mono">{{ entry.comparison.id | short if entry.comparison is not none else "-" }}</td>
+        <td>{% if entry.comparison is not none %}{{ entry.comparison.summary.fixed }} / {{ entry.comparison.summary.reopened }} / {{ entry.comparison.summary.not_retested }}{% else %}-{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section id="methodology">
+  <h2>17. Methodology</h2>
+  <p>
+    Both scans were passive discovery scans of the authorized target, analysed offline by deterministic rules.
+    The comparison matched findings by exact identity (rule, subject, discriminator) and classified each one
+    under policy {{ r.comparison.policy_version }}. A finding is fixed only when it is absent from the retest and
+    the same rule version demonstrably examined the subject; absence alone never counts as fixed. The comparison
+    and this report were produced from stored data only; nothing was reclassified when this report was rendered.
+  </p>
+  <h3>Report integrity</h3>
+  <table class="kv">
+    <tr><th scope="row">Snapshot SHA-256</th><td class="mono">{{ integrity.snapshot_sha256 }}</td></tr>
+    <tr><th scope="row">Content SHA-256</th><td class="mono">{{ integrity.content_sha256 }}</td></tr>
+    <tr><th scope="row">Records SHA-256</th><td class="mono">{{ integrity.records_sha256 }}</td></tr>
+    <tr><th scope="row">Template</th><td class="mono">{{ integrity.template.id }} v{{ integrity.template.version }} ({{ integrity.template.sha256 }})</td></tr>
+    <tr><th scope="row">Renderer</th><td class="mono">sentinel-reports {{ integrity.renderer_version }}</td></tr>
+    <tr><th scope="row">Snapshot schema</th><td class="mono">{{ r.schema_version }}</td></tr>
+    <tr><th scope="row">Report ID</th><td class="mono">{{ doc.report_id }}</td></tr>
+  </table>
+</section>
+</body>
+</html>

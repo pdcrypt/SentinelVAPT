@@ -35,6 +35,7 @@ sentinel_reports = [
   "py.typed",
   "schema/*.json",
   "templates.lock.json",
+  "retest-templates.lock.json",
   "templates/*/*/*",
 ]
 

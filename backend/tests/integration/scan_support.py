@@ -210,6 +210,16 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
                 {"p": project_id},
             )
         s.execute(text(f"DELETE FROM reports WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL
+        retest_reports = f"SELECT id FROM retest_reports WHERE current_scan_id IN ({scans})"  # noqa: S608
+        for table in ("retest_report_artifacts", "retest_report_evidence"):
+            s.execute(
+                text(f"DELETE FROM {table} WHERE report_id IN ({retest_reports})"),  # noqa: S608
+                {"p": project_id},
+            )
+        s.execute(
+            text(f"DELETE FROM retest_reports WHERE id IN ({retest_reports})"),  # noqa: S608
+            {"p": project_id},
+        )
         comparisons = f"SELECT id FROM comparisons WHERE current_scan_id IN ({scans})"  # noqa: S608
         for table in ("comparison_coverage_evidence", "comparison_records"):
             s.execute(

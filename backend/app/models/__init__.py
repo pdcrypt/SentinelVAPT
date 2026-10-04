@@ -11,6 +11,7 @@ from app.models.assessment import Assessment
 from app.models.comparison import Comparison, ComparisonCoverageEvidence, ComparisonRecord
 from app.models.project import Project
 from app.models.report import Report, ReportArtifact, ReportEvidence, ReportFinding
+from app.models.retest_report import RetestReport, RetestReportArtifact, RetestReportEvidence
 from app.models.scan import Scan
 from app.models.scan_results import Asset, Endpoint, EndpointCookie, Evidence, ScanLog
 from app.models.target import Target
@@ -34,6 +35,9 @@ __all__ = [
     "ReportArtifact",
     "ReportEvidence",
     "ReportFinding",
+    "RetestReport",
+    "RetestReportArtifact",
+    "RetestReportEvidence",
     "RuleVersion",
     "Scan",
     "ScanLog",

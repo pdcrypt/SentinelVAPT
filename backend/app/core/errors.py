@@ -96,6 +96,17 @@ class ComparisonNotAllowedError(DomainError):
         self.reason = reason
 
 
+class RetestReportNotAllowedError(DomainError):
+    """A retest report may not be created (e.g. comparison_not_completed)."""
+
+    status_code = 409
+    code = "retest_report_not_allowed"
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message, field=None)
+        self.reason = reason
+
+
 def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | None]:
     return {"detail": detail, "code": code, "field": field}
 
@@ -108,7 +119,8 @@ async def _domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
         ScanNotAllowedError
         | ReportNotAllowedError
         | RetestNotAllowedError
-        | ComparisonNotAllowedError,
+        | ComparisonNotAllowedError
+        | RetestReportNotAllowedError,
     ):
         content["reason"] = exc.reason
     return JSONResponse(status_code=exc.status_code, content=content)

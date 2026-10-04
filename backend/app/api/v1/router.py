@@ -6,6 +6,7 @@ from app.api.v1.routers import (
     health,
     projects,
     reports,
+    retest_reports,
     retests,
     scans,
     targets,
@@ -20,3 +21,4 @@ api_router.include_router(scans.router)
 api_router.include_router(findings.router)
 api_router.include_router(reports.router)
 api_router.include_router(retests.router)
+api_router.include_router(retest_reports.router)

@@ -4,9 +4,9 @@ How to retest a target and compare the results with an earlier assessment.
 The design and its reasoning are in
 [ADR 0011](adr/0011-retesting-and-scan-comparison.md).
 
-> Retest-specific **reports** (comparison sections in PDF/HTML/JSON reports)
-> are deferred to Phase 7. In Phase 6, comparison results are available
-> through the API. Phase 5 reports are unchanged.
+> Comparison results are available through the API and as retest reports
+> ([retest-reporting.md](retest-reporting.md)). Scan reports (Phase 5) are
+> unchanged.
 
 ## 1. Create a retest
 
@@ -79,3 +79,8 @@ C can be compared; REOPENED depends on it.
 
 Each record also shows the triage status of both findings at comparison
 time. Comparison never changes a finding's triage status or its history.
+
+## 4. Report
+
+A completed comparison can be turned into an evidence-backed retest report
+(JSON, HTML, PDF); see [retest-reporting.md](retest-reporting.md).

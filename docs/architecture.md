@@ -21,7 +21,7 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 | `frontend` | UI, triage workflow, report download                                   | Contact targets, hold secrets                  |
 | `backend`  | CRUD, validation, authorization/scope rules, enqueueing scans          | Perform network scanning                       |
 | worker     | Claim queued scans, call the scanner, persist results, run analysis and retest comparisons | Bypass the scanner's scope guard |
-| report-worker | Claim queued reports, render them, store the artifacts              | Reach anything but the database                |
+| report-worker | Claim queued reports and retest reports, render them, store the artifacts | Reach anything but the database                |
 | `scanner`  | Discovery, scope enforcement, safe HTTP client, redaction              | Import backend code, touch the DB, read env    |
 | `analysis` | Deterministic rules: stored observations → finding candidates          | Make network requests, touch the DB, use AI    |
 | `reports`  | Validate snapshots, render JSON / HTML / PDF from them                 | Fetch resources, touch the DB, import backend/scanner/analysis |
@@ -54,9 +54,10 @@ report-worker (backend package, role "reports") ──frozen snapshot──▶ r
 9. A retest (a new assessment linked to a completed one and one of its analysed
    scans) is scanned like any assessment; a comparison classifies its findings
    against that baseline from persisted data.
+10. A retest report request freezes a snapshot of one completed comparison
+    (states copied, never recomputed); the report worker renders it.
 
-Steps 1–9 exist (Phases 1–6; ADR 0008, 0009, 0010, 0011). Retest-specific
-reports are Phase 7.
+Steps 1–10 exist (Phases 1–7; ADR 0008, 0009, 0010, 0011, 0012).
 
 ## Domain model
 
@@ -229,6 +230,28 @@ See [ADR 0011](adr/0011-retesting-and-scan-comparison.md) and
   Composite foreign keys and triggers keep them same-target, same-scan,
   same-identity and immutable. Triage status is never changed by comparison.
 
+## Retest reports (Phase 7)
+
+See [ADR 0012](adr/0012-retest-reporting.md) and
+[retest-reporting.md](retest-reporting.md). In short:
+
+- A retest report covers one completed comparison (`final` also requires a
+  completed retest assessment). Its snapshot (`sentinelvapt.retest-report/1`)
+  copies the comparison's records, states, reasons, coverage and history
+  exactly, freezes triage status twice (when compared, when reported), and
+  carries deduplicated evidence entries with per-entry SHA-256, both
+  authorizations with the scope change, the lineage and limitation codes.
+  Caps reject rather than truncate.
+- It is a separate report type: own tables (`retest_reports`,
+  `retest_report_artifacts`, `retest_report_evidence`), sequence (`SV-RT-…`),
+  template `sv-retest@1` with its own registry and lockfile. Phase 5 reports,
+  `sv-standard@1` and its lock are unchanged and byte-identical.
+- Identical requests return the existing report (partial unique index on
+  comparison, kind and content digest). Composite foreign keys bind reports to
+  their comparison, scans and one target, and evidence links to the scan of
+  their role; triggers require a completed comparison and make reports
+  immutable. The existing `reports` worker role renders them.
+
 ## API (v1)
 
 | Method | Path |
@@ -260,10 +283,14 @@ See [ADR 0011](adr/0011-retesting-and-scan-comparison.md) and
 | `GET` | `/api/v1/assessments/{id}/lineage` |
 | `POST`, `GET` | `/api/v1/assessments/{id}/comparisons` (body: `scan_id`; 202 new, 200 existing) |
 | `GET` | `/api/v1/comparisons/{id}`, `/records` (filters: `state`, `rule_id`), `/records/{fingerprint}` |
+| `POST` | `/api/v1/assessments/{id}/comparisons/{comparison_id}/reports` (202 new, 200 identical existing) |
+| `GET` | `/api/v1/assessments/{id}/retest-reports` |
+| `GET` | `/api/v1/retest-reports/{id}`, `/artifacts`, `/artifacts/{json,html,pdf}`, `/preview` |
+| `GET` | `/api/v1/retest-report-templates` |
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,
-`target_authorization_invalid`) or 422 (`validation_error`). Interactive docs
+`target_authorization_invalid`, `retest_report_not_allowed`) or 422 (`validation_error`). Interactive docs
 are at `/docs` outside production.
 
 See [`adr/`](adr/) for the reasoning behind key decisions and
