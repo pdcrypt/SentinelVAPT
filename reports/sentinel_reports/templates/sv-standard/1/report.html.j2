@@ -1,0 +1,466 @@
+{#- SentinelVAPT standard report, template version 1.
+    Every value comes from the snapshot (r), the derived figures (d) or the
+    integrity block. Autoescaping is always on; nothing here marks data safe. -#}
+{% set doc = r.document %}
+{% set eng = r.engagement %}
+{% set notes_text = {
+  "partial_scan": "The scan stopped before completing its crawl (scanner stop reason shown above). Pages that were not reached were not analysed.",
+  "tls_trust_not_evaluated": "The scan accepted untrusted TLS certificates at the operator's request, so certificate trust was not evaluated and no certificate finding could be raised.",
+  "observations_truncated": "The scan produced more observations than the analysis limits allow; analysis used a bounded, deterministic subset."
+} %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="generator" content="SentinelVAPT {{ integrity.renderer_version }}">
+<meta name="dcterms.created" content="{{ doc.created_at | w3c }}">
+<meta name="dcterms.modified" content="{{ doc.created_at | w3c }}">
+<title>{{ doc.number }} - {{ doc.title }}</title>
+<style>
+{% include "print.css" %}
+</style>
+</head>
+<body>
+{% if doc.kind == "draft" %}
+<div class="watermark" aria-hidden="true">DRAFT</div>
+{% endif %}
+
+<section class="cover" id="cover">
+  <p class="muted">SentinelVAPT security assessment report</p>
+  <h1>{{ doc.title }}</h1>
+  <p class="subtitle">{{ eng.target.name }} &middot; {{ eng.assessment.name }}</p>
+  <p>
+    <span class="badge kind-{{ doc.kind }}">{{ doc.kind | upper }}</span>
+    <span class="badge classification-label">{{ doc.classification | upper }}</span>
+  </p>
+  <table class="kv">
+    <tr><th scope="row">Report number</th><td class="docnumber">{{ doc.number }}</td></tr>
+    <tr><th scope="row">Report requested</th><td>{{ doc.created_at | dt }}</td></tr>
+    <tr><th scope="row">Prepared by</th><td>{{ doc.prepared_by }}</td></tr>
+    <tr><th scope="row">Reviewed by</th><td>{{ doc.reviewed_by if doc.reviewed_by is not none else "Not reviewed" }}</td></tr>
+    <tr><th scope="row">Project</th><td>{{ eng.project.name }}</td></tr>
+    <tr><th scope="row">Assessment status</th><td>{{ eng.assessment.status | label }}</td></tr>
+    <tr><th scope="row">Template</th><td>{{ integrity.template.id }} v{{ integrity.template.version }}</td></tr>
+  </table>
+  {% if doc.kind == "draft" %}
+  <p class="callout">This is a draft. The assessment may still be in progress and findings may change.</p>
+  {% endif %}
+
+  <nav class="toc" aria-label="Contents">
+    <h3>Contents</h3>
+    <ol>
+      <li><a href="#executive-summary">Executive summary</a></li>
+      <li><a href="#engagement">Engagement and authorization</a></li>
+      <li><a href="#scope">Scope</a></li>
+      <li><a href="#methodology">Methodology</a></li>
+      <li><a href="#scan-summary">Scan summary and coverage</a></li>
+      <li><a href="#findings-summary">Findings summary</a></li>
+      <li><a href="#findings">Detailed findings</a></li>
+      <li><a href="#false-positives">Findings marked as false positives</a></li>
+      <li><a href="#evidence">Evidence appendix</a></li>
+      <li><a href="#timeline">Assessment timeline</a></li>
+      <li><a href="#limitations">Limitations</a></li>
+      <li><a href="#integrity">Report integrity</a></li>
+    </ol>
+  </nav>
+</section>
+
+<section id="executive-summary">
+  <h2>1. Executive summary</h2>
+  <p>
+    SentinelVAPT performed a passive, non-intrusive discovery scan of the authorized target
+    <strong>{{ eng.target.name }}</strong> ({{ r.scope.base_url }}) and analysed the recorded
+    responses with {{ r.methodology.rules_evaluated }} deterministic detection rules.
+    No exploitation, credential testing, form submission or other active testing was performed.
+  </p>
+  {% if d.totals.active_findings == 0 %}
+  <p>
+    No findings were identified by the rules that were evaluated. This does not mean the
+    application is secure: see the coverage notes and limitations below.
+  </p>
+  {% else %}
+  <p>
+    The analysis identified <strong>{{ d.totals.active_findings }}</strong>
+    finding{{ "" if d.totals.active_findings == 1 else "s" }} across
+    <strong>{{ d.totals.issues }}</strong> issue{{ "" if d.totals.issues == 1 else "s" }}.
+    The highest severity among them is
+    <span class="sev sev-{{ d.highest_active_severity }}">{{ d.highest_active_severity }}</span>.
+    Severities are SentinelVAPT's own ratings of what passive evidence shows; they are not CVSS scores.
+  </p>
+  {% if d.totals.open_requiring_verification %}
+  <p class="callout">
+    {{ d.totals.open_requiring_verification }}
+    finding{{ "" if d.totals.open_requiring_verification == 1 else "s" }} still
+    require{{ "s" if d.totals.open_requiring_verification == 1 else "" }} manual verification
+    and {{ "has" if d.totals.open_requiring_verification == 1 else "have" }} not been confirmed.
+  </p>
+  {% endif %}
+  {% endif %}
+  {% if r.scan.coverage_notes %}
+  <p class="callout">Coverage was limited for this scan; see section 5.</p>
+  {% endif %}
+  {% if r.inputs.executive_summary_note is not none %}
+  <h3>Assessor's note</h3>
+  <pre>{{ r.inputs.executive_summary_note }}</pre>
+  {% endif %}
+</section>
+
+<section id="engagement">
+  <h2>2. Engagement and authorization</h2>
+  <table class="kv">
+    <tr><th scope="row">Project</th><td>{{ eng.project.name }}</td></tr>
+    <tr><th scope="row">Target</th><td>{{ eng.target.name }}</td></tr>
+    <tr><th scope="row">Assessment</th><td>{{ eng.assessment.name }}</td></tr>
+    {% if eng.assessment.description is not none %}
+    <tr><th scope="row">Assessment description</th><td>{{ eng.assessment.description }}</td></tr>
+    {% endif %}
+    <tr><th scope="row">Assessment started</th><td>{{ eng.assessment.started_at | dt }}</td></tr>
+    <tr><th scope="row">Assessment completed</th><td>{{ eng.assessment.completed_at | dt }}</td></tr>
+  </table>
+  <h3>Authorization in force for this scan</h3>
+  <table class="kv">
+    <tr><th scope="row">Authorized by</th><td>{{ eng.authorization.authorized_by }}</td></tr>
+    <tr><th scope="row">Reference</th><td>{{ eng.authorization.reference }}</td></tr>
+    <tr><th scope="row">Authorization record</th><td>Version {{ eng.authorization.version }} (<code>{{ eng.authorization.id }}</code>)</td></tr>
+    <tr><th scope="row">Valid from</th><td>{{ eng.authorization.valid_from | dt }}</td></tr>
+    <tr><th scope="row">Valid until</th><td>{{ eng.authorization.valid_until | dt }}</td></tr>
+    <tr><th scope="row">Acknowledged by</th><td>{{ eng.authorization.acknowledged_by }}, {{ eng.authorization.acknowledged_at | dt }}</td></tr>
+  </table>
+</section>
+
+<section id="scope">
+  <h2>3. Scope</h2>
+  <p>The scope below is the acknowledged scope of the authorization record the scan ran under.</p>
+  <table class="kv">
+    <tr><th scope="row">Base URL</th><td class="mono">{{ r.scope.base_url }}</td></tr>
+    <tr><th scope="row">Environment</th><td>{{ r.scope.environment | label }}</td></tr>
+    <tr><th scope="row">In-scope hosts</th><td class="mono">{{ r.scope.in_scope_hosts | join(", ") }}</td></tr>
+    <tr><th scope="row">Allowed ports</th><td class="mono">{{ r.scope.allowed_ports | join(", ") }}</td></tr>
+    <tr><th scope="row">In-scope path prefixes</th><td class="mono">{{ r.scope.in_scope_path_prefixes | join(", ") }}</td></tr>
+    <tr><th scope="row">Excluded paths</th><td class="mono">{{ r.scope.excluded_paths | join(", ") if r.scope.excluded_paths else "None" }}</td></tr>
+  </table>
+  {% if r.inputs.scope_note is not none %}
+  <h3>Assessor's scope note</h3>
+  <pre>{{ r.inputs.scope_note }}</pre>
+  {% endif %}
+</section>
+
+<section id="methodology">
+  <h2>4. Methodology</h2>
+  <p>
+    Testing consisted of passive discovery followed by offline analysis. The scanner sent only
+    GET, HEAD and OPTIONS requests to in-scope URLs, never submitted forms or sent credentials,
+    checked every request and redirect against the scope above, and recorded redacted evidence.
+    Detection rules then analysed only that recorded evidence, without contacting the target again.
+  </p>
+  <table class="kv">
+    <tr><th scope="row">Scanner version</th><td>{{ r.methodology.scanner_version if r.methodology.scanner_version is not none else "Unknown" }}</td></tr>
+    <tr><th scope="row">TLS certificate verification</th><td>{{ "Enabled" if r.methodology.verify_tls else "Disabled at the operator's request" }}</td></tr>
+    <tr><th scope="row">Ruleset</th><td class="mono">{{ r.methodology.ruleset_version }}</td></tr>
+    <tr><th scope="row">Rules evaluated</th><td>{{ r.methodology.rules_evaluated }}</td></tr>
+    <tr><th scope="row">Analysis completed</th><td>{{ r.methodology.analysis_finished_at | dt }}</td></tr>
+  </table>
+  <h3>Scan limits</h3>
+  <table>
+    <thead><tr><th scope="col">Limit</th><th scope="col">Value</th></tr></thead>
+    <tbody>
+    {% for name, value in r.methodology.limits | dictsort %}
+      <tr><td>{{ name | label }}</td><td class="mono">{{ value }}</td></tr>
+    {% endfor %}
+    {% for name, value in r.methodology.crawl | dictsort %}
+      <tr><td>{{ name | label }}</td><td class="mono">{{ value }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <h3>Rule coverage</h3>
+  {% if r.methodology.rules_available %}
+  <table>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Title</th><th scope="col">Category</th><th scope="col">WSTG v4.2</th></tr></thead>
+    <tbody>
+    {% for rule in r.methodology.rules %}
+      <tr>
+        <td class="mono">{{ rule.id }} v{{ rule.version }}</td>
+        <td>{{ rule.title }}</td>
+        <td>{{ rule.category | label }}</td>
+        <td class="mono">{{ rule.wstg | join(", ") if rule.wstg else "-" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">
+    Only the conditions these rules check were assessed. Every other OWASP WSTG test, including all
+    authentication, authorization, session-handling, input-validation and business-logic testing,
+    was not performed.
+  </p>
+  {% else %}
+  <p class="muted">The rule list for ruleset {{ r.methodology.ruleset_version }} is not available to this report; only the rules that produced findings are described below.</p>
+  {% endif %}
+</section>
+
+<section id="scan-summary">
+  <h2>5. Scan summary and coverage</h2>
+  <table class="kv">
+    <tr><th scope="row">Scan</th><td class="mono">{{ r.scan.id }}</td></tr>
+    <tr><th scope="row">Started</th><td>{{ r.scan.started_at | dt }}</td></tr>
+    <tr><th scope="row">Finished</th><td>{{ r.scan.finished_at | dt }}</td></tr>
+    <tr><th scope="row">Scanner stop reason</th><td>{{ r.scan.stop_reason | label if r.scan.stop_reason is not none else "-" }}</td></tr>
+    <tr><th scope="row">Requests sent</th><td>{{ r.scan.requests_sent }}</td></tr>
+    <tr><th scope="row">Pages fetched</th><td>{{ r.scan.pages_count }}</td></tr>
+    <tr><th scope="row">Endpoints discovered</th><td>{{ r.scan.endpoints_count }}</td></tr>
+    <tr><th scope="row">Evidence records</th><td>{{ r.scan.evidence_count }}</td></tr>
+    <tr><th scope="row">Events logged</th><td>{{ r.scan.events_count }}</td></tr>
+  </table>
+  <h3>Coverage notes</h3>
+  {% if r.scan.coverage_notes %}
+  <ul>
+    {% for note in r.scan.coverage_notes %}
+    <li><code>{{ note }}</code>: {{ notes_text[note] if note in notes_text else "See the analysis run record." }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>None. The scan completed its crawl within its limits.</p>
+  {% endif %}
+  {% if r.scan.rule_errors %}
+  <h3>Rule errors</h3>
+  <p class="callout">These rules failed during analysis; the conditions they check were not assessed.</p>
+  <ul>
+    {% for error in r.scan.rule_errors %}
+    <li><code>{{ error.rule_id }}</code>: {{ error.error }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<section id="findings-summary">
+  <h2>6. Findings summary</h2>
+  <figure>
+    <svg class="chart" xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" role="img" aria-label="Findings by severity">
+      {% for bar in chart %}
+      <g>
+        <text x="0" y="{{ 18 + loop.index0 * 24 }}" dominant-baseline="middle">{{ bar.severity | label }}</text>
+        <rect x="130" y="{{ 10 + loop.index0 * 24 }}" width="{{ bar.width }}" height="16" rx="2" fill="#1f3a5f"></rect>
+        <text x="{{ 136 + bar.width }}" y="{{ 18 + loop.index0 * 24 }}" dominant-baseline="middle">{{ bar.count }}</text>
+      </g>
+      {% endfor %}
+    </svg>
+    <figcaption class="muted">Findings by severity (excluding false positives).</figcaption>
+  </figure>
+  <table>
+    <thead><tr><th scope="col">Severity</th><th scope="col">Findings</th></tr></thead>
+    <tbody>
+    {% for severity in severity_order %}
+      <tr><td><span class="sev sev-{{ severity }}">{{ severity }}</span></td><td>{{ d.by_severity[severity] }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th scope="col">Triage status</th><th scope="col">Findings</th></tr></thead>
+    <tbody>
+    {% for status, count in d.by_status.items() %}
+      <tr><td>{{ status | label }}</td><td>{{ count }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th scope="col">Issue</th><th scope="col">Severity</th><th scope="col">Detection</th><th scope="col">Instances</th></tr></thead>
+    <tbody>
+    {% for issue in r.issues %}
+      {% set active = issue.instances | rejectattr("status", "equalto", "false_positive") | list %}
+      {% if active %}
+      <tr>
+        <td><a href="#issue-{{ issue.rule.id }}">{{ issue.rule.id }}</a> {{ issue.rule.title }}</td>
+        <td><span class="sev sev-{{ issue.rule.severity }}">{{ issue.rule.severity }}</span></td>
+        <td>{{ issue.rule.detection_type | label }}</td>
+        <td>{{ active | length }}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% macro instance_table(instances) %}
+<table>
+  <thead><tr><th scope="col">Affected</th><th scope="col">Status</th><th scope="col">Confidence</th><th scope="col">Details</th><th scope="col">Evidence</th></tr></thead>
+  <tbody>
+  {% for i in instances %}
+    <tr>
+      <td class="mono">{{ i.subject_key }}{% if i.discriminator %}<br>{{ i.discriminator }}{% endif %}</td>
+      <td>
+        {{ i.status | label }}
+        {% if i.status == "open" and i.detection_type == "manual_verification_required" %}<br><small>Requires verification</small>{% endif %}
+        {% if i.status_reason is not none %}<br><small>Reason: {{ i.status_reason }}</small>{% endif %}
+        {% if i.status_changed_by is not none %}<br><small>By {{ i.status_changed_by }}, {{ i.status_changed_at | dt }}</small>{% endif %}
+      </td>
+      <td>{{ i.confidence | label }}</td>
+      <td>
+        {% for key, value in i.details | dictsort %}
+        <div><span class="muted">{{ key | label }}:</span> <span class="mono">{{ "-" if value is none else value }}</span></div>
+        {% else %}-{% endfor %}
+        {% if i.affected_count > 1 %}<div><span class="muted">Affected responses:</span> {{ i.affected_count }}</div>{% endif %}
+      </td>
+      <td class="mono">
+        {% for evidence_id in i.evidence_ids %}<a href="#ev-{{ evidence_id }}">E-{{ evidence_id | short }}</a>{% if not loop.last %}, {% endif %}{% else %}-{% endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+<section id="findings">
+  <h2>7. Detailed findings</h2>
+  {% set ns = namespace(shown=0) %}
+  {% for issue in r.issues %}
+  {% set active = issue.instances | rejectattr("status", "equalto", "false_positive") | list %}
+  {% if active %}
+  {% set ns.shown = ns.shown + 1 %}
+  {% set rule = issue.rule %}
+  <article class="issue" id="issue-{{ rule.id }}">
+    <h3>{{ rule.id }}: {{ rule.title }}</h3>
+    <table class="kv">
+      <tr><th scope="row">Severity</th><td><span class="sev sev-{{ rule.severity }}">{{ rule.severity }}</span></td></tr>
+      <tr><th scope="row">Rule confidence</th><td>{{ rule.confidence | label }}</td></tr>
+      <tr><th scope="row">Detection type</th><td>{{ rule.detection_type | label }}</td></tr>
+      <tr><th scope="row">Category</th><td>{{ rule.category | label }}</td></tr>
+      <tr><th scope="row">Rule version</th><td>{{ rule.version }}</td></tr>
+      <tr>
+        <th scope="row">{{ r.taxonomy_editions.owasp_top10 }}</th>
+        <td>{% for t in rule.owasp_top10 %}{{ t.id }}{% if t.title is not none %} {{ t.title }}{% endif %}{% if not loop.last %}; {% endif %}{% else %}Not mapped{% endfor %}</td>
+      </tr>
+      <tr>
+        <th scope="row">{{ r.taxonomy_editions.wstg }}</th>
+        <td>{% for t in rule.wstg %}{% if t.url is allowed_link %}<a href="{{ t.url }}">{{ t.id }}</a>{% else %}{{ t.id }}{% endif %}{% if t.title is not none %} {{ t.title }}{% endif %}{% if not loop.last %}; {% endif %}{% else %}Not mapped{% endfor %}</td>
+      </tr>
+      <tr>
+        <th scope="row">{{ r.taxonomy_editions.cwe }}</th>
+        <td>{% for t in rule.cwe %}{% if t.url is allowed_link %}<a href="{{ t.url }}">CWE-{{ t.id }}</a>{% else %}CWE-{{ t.id }}{% endif %}{% if t.title is not none %} {{ t.title }}{% endif %}{% if not loop.last %}; {% endif %}{% else %}Not mapped{% endfor %}</td>
+      </tr>
+    </table>
+    <h4>Description</h4>
+    <p>{{ rule.description }}</p>
+    <h4>What the evidence proves</h4>
+    <p>{{ rule.proves }}</p>
+    <h4>What the evidence does not prove</h4>
+    <p>{{ rule.does_not_prove }}</p>
+    <h4>Remediation</h4>
+    <p>{{ rule.remediation }}</p>
+    <h4>Affected instances ({{ active | length }})</h4>
+    {{ instance_table(active) }}
+    {% if rule.references %}
+    <h4>References</h4>
+    <ul>
+      {% for ref in rule.references %}
+      <li class="mono">{% if ref is allowed_link %}<a href="{{ ref }}">{{ ref }}</a>{% else %}{{ ref }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endif %}
+  {% endfor %}
+  {% if ns.shown == 0 %}
+  <p>No findings.</p>
+  {% endif %}
+</section>
+
+<section id="false-positives">
+  <h2>8. Findings marked as false positives</h2>
+  {% set fp = namespace(any=false) %}
+  {% for issue in r.issues %}
+  {% set dismissed = issue.instances | selectattr("status", "equalto", "false_positive") | list %}
+  {% if dismissed %}
+  {% set fp.any = true %}
+  <h3>{{ issue.rule.id }}: {{ issue.rule.title }}</h3>
+  {{ instance_table(dismissed) }}
+  {% endif %}
+  {% endfor %}
+  {% if not fp.any %}
+  <p>None.</p>
+  {% endif %}
+</section>
+
+<section id="evidence">
+  <h2>9. Evidence appendix</h2>
+  <p>
+    Each record is a single HTTP exchange as recorded by the scanner, with credentials, cookie
+    values, tokens and other secrets redacted before storage. Response bodies are not reproduced;
+    short redacted excerpts are included only where an issue depends on body content.
+  </p>
+  {% for e in r.evidence %}
+  <div class="evidence" id="ev-{{ e.id }}">
+    <h4>E-{{ e.id | short }}: {{ e.method }} {{ e.status_code }}</h4>
+    <table class="kv">
+      <tr><th scope="row">Evidence ID</th><td class="mono">{{ e.id }}</td></tr>
+      <tr><th scope="row">Request</th><td class="mono">{{ e.method }} {{ e.url }}</td></tr>
+      <tr><th scope="row">Response status</th><td>{{ e.status_code }}</td></tr>
+      <tr><th scope="row">Peer address</th><td class="mono">{{ e.peer }}</td></tr>
+      <tr><th scope="row">Body bytes captured</th><td>{{ e.body_bytes_captured }}{% if e.truncated %} (truncated at the scanner's size limit){% endif %}</td></tr>
+      <tr><th scope="row">Body hash</th><td><span class="mono">{{ e.body_sha256 if e.body_sha256 is not none else "Not recorded" }}</span><br><small>{{ e.body_sha256_label }}</small></td></tr>
+    </table>
+    <table>
+      <thead><tr><th scope="col">Response header</th><th scope="col">Value (redacted)</th></tr></thead>
+      <tbody>
+      {% for header in e.headers %}
+        <tr><td class="mono">{{ header[0] }}</td><td class="mono">{{ header[1] }}</td></tr>
+      {% else %}
+        <tr><td colspan="2">No headers recorded.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if e.headers_truncated %}<p class="muted">Further headers omitted.</p>{% endif %}
+    {% if e.excerpt is not none %}
+    <p class="muted">Redacted body excerpt{% if e.excerpt_truncated %} (shortened){% endif %}:</p>
+    <pre>{{ e.excerpt }}</pre>
+    {% endif %}
+  </div>
+  {% else %}
+  <p>No evidence is referenced by the findings in this report.</p>
+  {% endfor %}
+</section>
+
+<section id="timeline">
+  <h2>10. Assessment timeline</h2>
+  <table>
+    <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Detail</th></tr></thead>
+    <tbody>
+    {% for entry in r.timeline.entries %}
+      <tr><td>{{ entry.at | dt }}</td><td>{{ entry.kind | label }}</td><td>{{ entry.detail }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if r.timeline.truncated %}<p class="muted">Older triage entries are omitted.</p>{% endif %}
+</section>
+
+<section id="limitations">
+  <h2>11. Limitations</h2>
+  <ul>
+    <li>Testing was passive. No exploitation, injection, fuzzing, authentication or authorization testing, credential testing or form submission was performed.</li>
+    <li>Only pages the crawler reached within its limits and scope were analysed. Content behind authentication, outside the scope, or not linked from reached pages was not assessed.</li>
+    <li>Findings describe what the recorded evidence shows. Each issue states what its evidence proves and what it does not prove; findings marked "requires verification" have not been confirmed by a person.</li>
+    <li>Severities are SentinelVAPT's own ratings for passive observations and are not CVSS scores. Their real-world impact depends on the application's context.</li>
+    <li>The absence of a finding does not show the absence of a vulnerability.</li>
+    <li>Lab and development targets commonly lack production hardening (HTTPS, security headers); such findings should be read in that context.</li>
+    {% if r.scan.coverage_notes %}<li>This scan has coverage notes (section 5) that further limit its results.</li>{% endif %}
+  </ul>
+</section>
+
+<section id="integrity">
+  <h2>12. Report integrity</h2>
+  <p>
+    This report was rendered offline from an immutable snapshot of the assessment's recorded data,
+    frozen when the report was requested. Rendering the same snapshot with the same template and
+    renderer versions produces the same report.
+  </p>
+  <table class="kv">
+    <tr><th scope="row">Snapshot SHA-256</th><td class="mono">{{ integrity.snapshot_sha256 }}</td></tr>
+    <tr><th scope="row">Content SHA-256</th><td class="mono">{{ integrity.content_sha256 }}</td></tr>
+    <tr><th scope="row">Template</th><td class="mono">{{ integrity.template.id }} v{{ integrity.template.version }} ({{ integrity.template.sha256 }})</td></tr>
+    <tr><th scope="row">Renderer</th><td class="mono">sentinel-reports {{ integrity.renderer_version }}</td></tr>
+    <tr><th scope="row">Snapshot schema</th><td class="mono">{{ r.schema_version }}</td></tr>
+    <tr><th scope="row">Report ID</th><td class="mono">{{ doc.report_id }}</td></tr>
+  </table>
+  <p class="muted">The SHA-256 of each artifact (JSON, HTML, PDF) is recorded by SentinelVAPT alongside the report.</p>
+</section>
+</body>
+</html>

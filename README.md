@@ -8,13 +8,13 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 4 (deterministic analysis). Projects, targets with scope
-> and authorization, assessments and passive discovery scans of `local_lab`
+> **Status:** Phase 5 (reporting). Projects, targets with scope and
+> authorization, assessments and passive discovery scans of `local_lab`
 > targets are available through the REST API. A worker runs the scans, stores
 > their redacted results, and analyses them offline with 14 passive rules into
-> findings that can be triaged through the API
-> ([rule catalog](docs/rules.md)). There are no active checks, no reports and
-> no UI yet.
+> findings that can be triaged ([rule catalog](docs/rules.md)). Analysed scans
+> can be turned into evidence-backed JSON, HTML and PDF reports
+> ([reports](docs/reports.md)). There are no active checks and no UI yet.
 
 ## Stack
 
@@ -24,7 +24,7 @@ reports. It does not perform exploitation. See
 | Backend   | Python, FastAPI, SQLAlchemy 2, Alembic, pytest |
 | Scanner   | Standalone Python package                    |
 | Analysis  | Standalone Python package (offline rules)    |
-| Reports   | Standalone Python package                    |
+| Reports   | Standalone Python package (Jinja2, WeasyPrint) |
 | Database  | PostgreSQL 17                                |
 | Runtime   | Docker Compose                               |
 
@@ -57,7 +57,8 @@ docker compose up --build
 - API docs (non-production): http://localhost:8000/docs
 
 Migrations run automatically: a one-shot `migrate` service applies
-`alembic upgrade head` before the backend and the scan `worker` start.
+`alembic upgrade head` before the backend, the scan `worker` and the
+`report-worker` start.
 
 To try a real scan locally, start the optional static lab target and follow
 [tests/lab/README.md](tests/lab/README.md):
@@ -85,18 +86,25 @@ PowerShell's default execution policy blocking `Activate.ps1`.
 ```powershell
 cd backend
 python -m venv .venv
-# The backend imports the scanner and the rule engine. Install them from this
-# repository first; they are deliberately not declared dependencies, so pip
-# never fetches a same-named package from PyPI. (compat mode lets mypy see the
-# editable installs.)
+# The backend imports the scanner, the rule engine and the report renderer.
+# Install them from this repository first; they are deliberately not declared
+# dependencies, so pip never fetches a same-named package from PyPI. (compat
+# mode lets mypy see the editable installs.)
 .\.venv\Scripts\python -m pip install -e ..\scanner --config-settings editable_mode=compat
 .\.venv\Scripts\python -m pip install -e ..\analysis --config-settings editable_mode=compat
+.\.venv\Scripts\python -m pip install -e ..\reports --config-settings editable_mode=compat
 .\.venv\Scripts\python -m pip install -e ".[dev]"
 .\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m uvicorn --factory app.main:create_app --reload
-# In another terminal, the scan worker:
+# In another terminal, the worker (scans, analysis and reports; use
+# --role scans / --role reports to split them as compose does):
 .\.venv\Scripts\python -m app.worker
 ```
+
+PDF reports need WeasyPrint's system libraries (Pango, HarfBuzz). They are in
+the Docker image and installed in CI; on Windows, install them separately (see
+the WeasyPrint documentation) or generate PDFs through `docker compose`. Without
+them, JSON and HTML reports still work and PDF tests are skipped locally.
 
 The backend reads `DATABASE_URL` and other settings from environment variables,
 falling back to the repo-root `.env`. Outside Docker, use the `127.0.0.1` form
@@ -179,7 +187,7 @@ them.
 | 2 ✅  | Discovery engine: scan grants, scope guard, safe HTTP client       |
 | 3 ✅  | Scan execution: worker, scan logs, assets, endpoints, evidence     |
 | 4 ✅  | Analysis: offline rule engine, findings, triage API                |
-| 5     | Reporting: HTML reports from snapshots                             |
+| 5 ✅  | Reporting: snapshot-based JSON / HTML / PDF reports                |
 | 6     | Retesting: fixed / still present / new diffs                       |
 | 7     | Frontend MVP: target/assessment flows, live scans, triage          |
 | 8     | Hardening: platform auth, more checks, PDF export, polish          |

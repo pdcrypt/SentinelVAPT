@@ -1,5 +1,6 @@
 # Applies to builds of backend/Dockerfile, whose context is the repository root.
-# Allowlist: only the backend, scanner and analysis sources are sent to the builder.
+# Allowlist: only the backend, scanner, analysis and reports sources are sent to
+# the builder.
 *
 !backend/pyproject.toml
 !backend/alembic.ini
@@ -9,6 +10,8 @@
 !scanner/sentinel_scanner/
 !analysis/pyproject.toml
 !analysis/sentinel_analysis/
+!reports/pyproject.toml
+!reports/sentinel_reports/
 
 **/__pycache__
 **/*.pyc

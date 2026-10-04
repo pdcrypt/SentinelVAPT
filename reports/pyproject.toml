@@ -1,16 +1,26 @@
 [project]
 name = "sentinel-reports"
-version = "0.1.0"
+version = "0.2.0"
 description = "SentinelVAPT report generation from persisted assessment snapshots"
 requires-python = ">=3.12"
-# Jinja2 (HTML) and an optional PDF renderer are added in Phase 5.
-dependencies = []
+# Rendering is offline and side-effect free: Jinja2 (HTML), jsonschema (snapshot
+# validation against the committed schema) and WeasyPrint (PDF from the same
+# HTML). WeasyPrint needs the Pango system libraries (see README).
+dependencies = [
+  "jinja2>=3.1.4",
+  "jsonschema>=4.23",
+  # Pinned to one series: the deny-all fetcher subclasses its URLFetcher API,
+  # and PDF output is reproducible per renderer version.
+  "weasyprint>=70,<71",
+]
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
   "ruff>=0.6",
   "mypy>=1.11",
+  "pypdf>=5",
+  "types-jsonschema",
 ]
 
 [build-system]
@@ -20,9 +30,24 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["sentinel_reports*"]
 
+[tool.setuptools.package-data]
+sentinel_reports = [
+  "py.typed",
+  "schema/*.json",
+  "templates.lock.json",
+  "templates/*/*/*",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "pdf: needs WeasyPrint's system libraries (skipped locally if missing; required in CI)",
+]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["weasyprint", "weasyprint.*", "pypdf", "pypdf.*"]
+ignore_missing_imports = true

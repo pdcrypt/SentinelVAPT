@@ -20,6 +20,8 @@ dev = [
   "mypy>=1.11",
   # Generates a throwaway self-signed certificate for the local TLS contract test.
   "cryptography>=43",
+  # Reads generated PDFs in the report tests.
+  "pypdf>=5",
 ]
 
 [build-system]
@@ -33,6 +35,7 @@ include = ["app*"]
 testpaths = ["tests"]
 markers = [
   "integration: needs a running PostgreSQL (DATABASE_URL)",
+  "pdf: needs WeasyPrint's system libraries (skipped locally if missing; required in CI)",
 ]
 
 [tool.mypy]

@@ -1,4 +1,9 @@
-"""The scan worker (ADR 0008).
+"""The worker (ADR 0008, 0009, 0010).
+
+Roles: `scans` runs scans and their analysis, `reports` renders reports, `all`
+does both (local development). Compose runs one process per role, so a long
+scan never delays a report and the PDF engine never runs in the scanning
+process.
 
 Per scan, three phases with strictly separated database access:
 
@@ -19,15 +24,28 @@ Analysis runs (ADR 0009) are claimed with SKIP LOCKED and executed entirely in
 one transaction: a crash rolls it back and the run stays queued; an error
 raised while analysing marks the run failed. Analysis never contacts the target.
 
-No automatic retries: a failed scan stays failed.
+Reports (ADR 0010), in three phases like scans:
+
+1. claim     short transaction: lock a queued report (SKIP LOCKED), mark it
+             generating and read its frozen snapshot.
+2. render    with NO session open: a pure function of the snapshot, the
+             template version and the renderer version. No network.
+3. finalize  one transaction: lock the report; if this worker still owns it,
+             write the artifacts and complete it (or fail it with an error
+             code only); otherwise discard the output (e.g. it was reaped).
+
+A reaper fails reports left generating by a worker that stopped.
+
+No automatic retries: a failed scan or report stays failed.
 """
 
 import logging
 import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Protocol
+from enum import StrEnum
+from typing import Any, Protocol
 
 from sentinel_analysis import RULESET_VERSION
 from sqlalchemy import func
@@ -35,12 +53,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.clock import Clock, utc_now
 from app.core.errors import ScanNotAllowedError
-from app.models import Assessment, Target
-from app.models.enums import AnalysisStatus, AssessmentStatus, ScanStatus
+from app.models import Assessment, ReportArtifact, Target
+from app.models.enums import AnalysisStatus, AssessmentStatus, ReportStatus, ScanStatus
 from app.repositories import (
     AnalysisRepository,
     AssessmentRepository,
     QueuedCandidate,
+    ReportRepository,
     ScanRepository,
     ScanResultRepository,
     TargetRepository,
@@ -52,6 +71,7 @@ from app.services.scan_results import (
     persist_discovery_result,
     persist_logs,
 )
+from sentinel_reports import Artifact, ReportError, render_report
 from sentinel_scanner import CancellationToken, DiscoveryConfig, DiscoveryResult, run_discovery
 from sentinel_scanner.errors import GrantRejected
 from sentinel_scanner.grant import ScanGrant
@@ -61,6 +81,25 @@ from sentinel_scanner.version import __version__ as scanner_version
 logger = logging.getLogger(__name__)
 
 MAX_ERROR_MESSAGE = 1000
+
+
+class WorkerRole(StrEnum):
+    SCANS = "scans"  # scans and their analysis
+    REPORTS = "reports"
+    ALL = "all"  # local development
+
+
+class ReportRenderer(Protocol):
+    def __call__(
+        self, snapshot: Mapping[str, Any], formats: Iterable[str]
+    ) -> tuple[Artifact, ...]: ...
+
+
+@dataclass(frozen=True)
+class ClaimedReport:
+    report_id: uuid.UUID
+    snapshot: dict[str, Any]
+    formats: tuple[str, ...]
 
 
 class ScannerRunner(Protocol):
@@ -122,8 +161,14 @@ class Worker:
         heartbeat_interval: float = 5.0,
         stale_after: float = 60.0,
         candidate_batch: int = 10,
+        role: WorkerRole = WorkerRole.ALL,
+        report_renderer: ReportRenderer = render_report,
+        report_stale_after: float = 600.0,
     ) -> None:
         self.session_factory = session_factory
+        self.role = role
+        self.report_renderer = report_renderer
+        self.report_stale_after = report_stale_after
         self.worker_id = worker_id
         self.runner = runner
         self.clock = clock
@@ -146,12 +191,27 @@ class Worker:
                 stop.wait(poll_interval)
         logger.info("worker %s stopped", self.worker_id)
 
+    @property
+    def runs_scans(self) -> bool:
+        return self.role in (WorkerRole.SCANS, WorkerRole.ALL)
+
+    @property
+    def runs_reports(self) -> bool:
+        return self.role in (WorkerRole.REPORTS, WorkerRole.ALL)
+
     def run_once(self) -> bool:
-        """Reap stale scans, then run at most one queued analysis or, if there
-        is none, claim and execute at most one scan."""
-        self.reap_stale()
-        if self.analyze_once():
+        """Reap stale work of this worker's role, then do at most one unit of
+        work: a queued analysis, else a queued report, else a scan."""
+        if self.runs_scans:
+            self.reap_stale()
+        if self.runs_reports:
+            self.reap_stale_reports()
+        if self.runs_scans and self.analyze_once():
             return True
+        if self.runs_reports and self.report_once():
+            return True
+        if not self.runs_scans:
+            return False
         claimed = self.claim()
         if claimed is None:
             return False
@@ -423,6 +483,102 @@ class Worker:
             session.commit()
             logger.info("analysis run %s finished: %s", run_id, run.status)
             return True
+
+    # --- reports ------------------------------------------------------------------
+
+    def report_once(self) -> bool:
+        """Generate at most one queued report. Returns True if one was processed."""
+        with self.session_factory() as session:
+            report_ids = ReportRepository(session).queued_ids(self.candidate_batch)
+        for report_id in report_ids:
+            claimed = self.claim_report(report_id)
+            if claimed is not None:
+                self.generate_report(claimed)
+                return True
+        return False
+
+    def claim_report(self, report_id: uuid.UUID) -> ClaimedReport | None:
+        with self.session_factory() as session:
+            report = ReportRepository(session).get_for_update(report_id, skip_locked=True)
+            if report is None or report.status is not ReportStatus.QUEUED:
+                return None  # another worker has it, or it is no longer queued
+            report.status = ReportStatus.GENERATING
+            report.claimed_by = self.worker_id
+            report.claimed_at = func.now()  # database clock, as the reaper uses
+            claimed = ClaimedReport(report.id, dict(report.snapshot), tuple(report.formats))
+            session.commit()
+            logger.info("report %s claimed by %s", report_id, self.worker_id)
+            return claimed
+
+    def generate_report(self, claimed: ClaimedReport) -> None:
+        artifacts: tuple[Artifact, ...] = ()
+        error: str | None = None
+        try:
+            # No session or transaction exists here: rendering reads only the
+            # frozen snapshot.
+            artifacts = self.report_renderer(claimed.snapshot, claimed.formats)
+        except ReportError as exc:
+            error = exc.code
+        except Exception:
+            # Exception text could contain report data; the code is stored and
+            # the traceback goes to the worker log only.
+            logger.exception("report %s failed to render", claimed.report_id)
+            error = "render_error"
+        if error is None and sorted(a.format for a in artifacts) != sorted(claimed.formats):
+            error = "render_error"
+        self.finalize_report(claimed, artifacts, error)
+
+    def finalize_report(
+        self, claimed: ClaimedReport, artifacts: tuple[Artifact, ...], error: str | None
+    ) -> bool:
+        """Write the artifacts and the final status in one transaction. Returns
+        False (and writes nothing) if this worker no longer owns the report."""
+        with self.session_factory() as session:
+            repo = ReportRepository(session)
+            report = repo.get_for_update(claimed.report_id)
+            if (
+                report is None
+                or report.status is not ReportStatus.GENERATING
+                or report.claimed_by != self.worker_id
+            ):
+                logger.warning(
+                    "discarding output for report %s: no longer owned by %s",
+                    claimed.report_id,
+                    self.worker_id,
+                )
+                return False
+            now = self.clock()
+            if error is None:
+                # Artifacts are flushed while the report is still generating
+                # (the database accepts artifacts only then), then it completes.
+                for artifact in artifacts:
+                    repo.add_artifact(
+                        ReportArtifact(
+                            report_id=report.id,
+                            format=artifact.format,
+                            media_type=artifact.media_type,
+                            content=artifact.content,
+                            size_bytes=artifact.size,
+                            sha256=artifact.sha256,
+                            renderer=artifact.renderer[:200],
+                        )
+                    )
+                report.status = ReportStatus.COMPLETED
+            else:
+                report.status = ReportStatus.FAILED
+                report.error_code = error[:64]
+            report.finished_at = now
+            session.commit()
+            logger.info("report %s finished: %s", claimed.report_id, report.status)
+            return True
+
+    def reap_stale_reports(self) -> int:
+        with self.session_factory() as session:
+            reaped = ReportRepository(session).reap_stale(self.report_stale_after, self.clock())
+            session.commit()
+        for report_id in reaped:
+            logger.warning("report %s failed: worker_lost", report_id)
+        return len(reaped)
 
     # --- reaper ---------------------------------------------------------------------
 

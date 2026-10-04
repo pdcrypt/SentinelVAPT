@@ -9,6 +9,7 @@ from app.models.analysis import (
 )
 from app.models.assessment import Assessment
 from app.models.project import Project
+from app.models.report import Report, ReportArtifact, ReportEvidence, ReportFinding
 from app.models.scan import Scan
 from app.models.scan_results import Asset, Endpoint, EndpointCookie, Evidence, ScanLog
 from app.models.target import Target
@@ -25,6 +26,10 @@ __all__ = [
     "FindingEvidence",
     "FindingStatusChange",
     "Project",
+    "Report",
+    "ReportArtifact",
+    "ReportEvidence",
+    "ReportFinding",
     "RuleVersion",
     "Scan",
     "ScanLog",

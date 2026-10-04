@@ -3,6 +3,7 @@
 from app.repositories.analysis import AnalysisRepository
 from app.repositories.assessment import AssessmentRepository
 from app.repositories.project import ProjectRepository
+from app.repositories.report import ReportRepository
 from app.repositories.scan import QueuedCandidate, ScanRepository
 from app.repositories.scan_results import ScanResultRepository
 from app.repositories.target import TargetRepository
@@ -13,6 +14,7 @@ __all__ = [
     "AssessmentRepository",
     "ProjectRepository",
     "QueuedCandidate",
+    "ReportRepository",
     "ScanRepository",
     "ScanResultRepository",
     "TargetAuthorizationRepository",

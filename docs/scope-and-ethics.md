@@ -3,11 +3,12 @@
 SentinelVAPT is an **authorized** assessment platform. It exists for local
 security labs and for targets whose owner has explicitly authorized testing.
 
-## Current state (Phase 4)
+## Current state (Phase 5)
 
 Passive discovery scans of `local_lab` targets can be requested through the
 API and are run by the worker, which then analyses the stored results offline
-into findings. What is in place today:
+into findings; analysed scans can be turned into reports. What is in place
+today:
 
 - **Recorded, acknowledged authorization.** A target cannot be created without
   who authorized testing, a reference, a validity window and an explicit
@@ -77,6 +78,14 @@ into findings. What is in place today:
   confirm the context ([ADR 0009](adr/0009-deterministic-analysis-and-findings.md)).
   Findings reference stored, redacted evidence rather than copying bodies, and
   rule errors are recorded by exception type only.
+- **Reports are offline, evidence-bound records.** A report is rendered from
+  a snapshot of stored, redacted data frozen when it is requested; rendering
+  makes no network requests (the PDF engine refuses every URL, and the report
+  worker can reach only the database) and imports neither the scanner nor the
+  rule engine. Response bodies are never copied, apart from short redacted
+  excerpts for body-content issues; target-controlled text is escaped and the
+  output is checked against an HTML allowlist. Completed reports cannot be
+  changed or deleted ([ADR 0010](adr/0010-evidence-backed-reporting.md)).
 - **Non-root containers** for the backend and frontend.
 
 ## Planned safety controls

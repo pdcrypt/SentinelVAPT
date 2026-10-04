@@ -11,7 +11,7 @@ Inside the container that path does not exist and is simply skipped.
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = Field(default=2.0, gt=0, le=60)
     worker_heartbeat_seconds: float = Field(default=5.0, gt=0, le=60)
     worker_stale_after_seconds: float = Field(default=60.0, gt=0, le=3600)
+    # Role of `python -m app.worker` when --role is not given (ADR 0010).
+    worker_role: Literal["scans", "reports", "all"] = "all"
+    # A report still generating after this long is failed as worker_lost.
+    worker_report_stale_after_seconds: float = Field(default=600.0, gt=0, le=86400)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

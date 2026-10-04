@@ -38,6 +38,7 @@ class AnalysisRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "analysis_runs"
     __table_args__ = (
         UniqueConstraint("scan_id", "ruleset_version"),
+        UniqueConstraint("id", "scan_id"),  # target of reports' composite foreign key
         Index("ix_analysis_runs_status_created_at", "status", "created_at"),
         CheckConstraint(
             "(status IN ('completed', 'failed')) = (finished_at IS NOT NULL)",

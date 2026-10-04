@@ -193,6 +193,23 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
         "JOIN targets t ON t.id = a.target_id WHERE t.project_id = :p"
     )
     with factory() as s:
+        # Reports and their artifacts and links are permanent records: the
+        # database refuses to delete them (ADR 0010). Test cleanup alone
+        # bypasses those triggers, for this transaction only and only for these
+        # four tables, with the superuser-only replication role; production code
+        # has no such path. The role is reset before anything that relies on
+        # ON DELETE CASCADE (which replica mode would also skip).
+        s.execute(text("SET LOCAL session_replication_role = replica"))
+        for table in ("report_artifacts", "report_findings", "report_evidence"):
+            s.execute(
+                text(  # table names are constants of this function
+                    f"DELETE FROM {table} WHERE report_id IN "  # noqa: S608
+                    f"(SELECT id FROM reports WHERE scan_id IN ({scans}))"
+                ),
+                {"p": project_id},
+            )
+        s.execute(text(f"DELETE FROM reports WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL
+        s.execute(text("SET LOCAL session_replication_role = origin"))
         # Findings and analysis runs RESTRICT scan deletion (ADR 0009); rule
         # versions are global and immutable, so they stay.
         s.execute(text(f"DELETE FROM findings WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL

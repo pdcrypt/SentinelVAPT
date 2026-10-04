@@ -30,7 +30,7 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# Generated reports (templates in reports/templates are tracked)
+# Generated reports (report templates live in reports/sentinel_reports/templates)
 reports/output/
 
 # Editors / OS

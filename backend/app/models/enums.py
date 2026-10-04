@@ -51,3 +51,27 @@ class FindingStatus(StrEnum):
 
 
 STATUSES_REQUIRING_REASON = frozenset({FindingStatus.FALSE_POSITIVE, FindingStatus.ACCEPTED_RISK})
+
+
+class ReportStatus(StrEnum):
+    QUEUED = "queued"
+    GENERATING = "generating"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ReportKind(StrEnum):
+    DRAFT = "draft"
+    FINAL = "final"
+
+
+class ReportClassification(StrEnum):
+    INTERNAL = "internal"
+    CONFIDENTIAL = "confidential"
+    RESTRICTED = "restricted"
+
+
+class ReportFormat(StrEnum):
+    JSON = "json"
+    HTML = "html"
+    PDF = "pdf"

@@ -8,6 +8,8 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    # "reporting" lets the report worker reach the database and nothing else.
+    networks: [default, reporting]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -55,18 +57,39 @@ services:
       timeout: 3s
       retries: 5
 
-  # Scan worker (ADR 0008): claims queued scans from PostgreSQL and runs the
-  # scanner. No published ports. Scans reach lab targets only: the scanner
-  # refuses public addresses.
+  # Scan worker (ADR 0008, 0009): claims queued scans and analysis runs from
+  # PostgreSQL and runs the scanner. No published ports. Scans reach lab
+  # targets only: the scanner refuses public addresses.
   worker:
     build: *backend-build
-    command: ["python", "-m", "app.worker"]
+    command: ["python", "-m", "app.worker", "--role", "scans"]
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Report worker (ADR 0010): renders queued reports from their frozen
+  # snapshots. Same image, separate process, so a long scan never delays a
+  # report and the PDF engine never runs next to the scanner. Its only network
+  # is "reporting", which is internal: it can reach the database and nothing
+  # else (no lab targets, no internet).
+  report-worker:
+    build: *backend-build
+    command: ["python", "-m", "app.worker", "--role", "reports"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    networks: [reporting]
     depends_on:
       db:
         condition: service_healthy
@@ -96,6 +119,11 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
+
+networks:
+  default: {}
+  reporting:
+    internal: true
 
 volumes:
   db-data:

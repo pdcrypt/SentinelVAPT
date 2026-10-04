@@ -12,7 +12,8 @@ frontend (Next.js) ──HTTP──▶ backend API (FastAPI) ──SQL──▶ 
 
 worker ──plain values──▶ analysis (standalone, offline rule engine) ──▶ finding candidates
 
-reports (standalone) renders persisted assessment snapshots.
+report-worker (backend package, role "reports") ──frozen snapshot──▶ reports (standalone,
+                                               offline renderer) ──▶ JSON / HTML / PDF
 ```
 
 | Component  | Owns                                                                   | Must never                                     |
@@ -20,9 +21,10 @@ reports (standalone) renders persisted assessment snapshots.
 | `frontend` | UI, triage workflow, report download                                   | Contact targets, hold secrets                  |
 | `backend`  | CRUD, validation, authorization/scope rules, enqueueing scans          | Perform network scanning                       |
 | worker     | Claim queued scans, call the scanner, persist results, run analysis    | Bypass the scanner's scope guard               |
+| report-worker | Claim queued reports, render them, store the artifacts              | Reach anything but the database                |
 | `scanner`  | Discovery, scope enforcement, safe HTTP client, redaction              | Import backend code, touch the DB, read env    |
 | `analysis` | Deterministic rules: stored observations → finding candidates          | Make network requests, touch the DB, use AI    |
-| `reports`  | Build report snapshots, render HTML (PDF later)                        | Trigger scans or modify findings               |
+| `reports`  | Validate snapshots, render JSON / HTML / PDF from them                 | Fetch resources, touch the DB, import backend/scanner/analysis |
 
 ## Backend layering
 
@@ -47,9 +49,10 @@ reports (standalone) renders persisted assessment snapshots.
 6. The worker analyses the persisted results offline with the rule engine and
    stores findings that reference the existing evidence.
 7. Findings are triaged through the API.
+8. A report request freezes a snapshot of one analysed scan; the report worker
+   renders it into JSON, HTML and PDF artifacts.
 
-Steps 1–7 exist (Phases 1–4; ADR 0008, ADR 0009). Reports and retests are
-later phases.
+Steps 1–8 exist (Phases 1–5; ADR 0008, 0009, 0010). Retests are a later phase.
 
 ## Domain model
 
@@ -63,7 +66,9 @@ Scan 1─N AnalysisRun 1─N Finding             (implemented, Phase 4)
 Finding N─M Evidence (same scan only)        (implemented, Phase 4)
 Finding 1─N FindingStatusChange              (implemented, Phase 4; triage history)
 RuleVersion 1─N Finding                      (implemented, Phase 4; immutable metadata)
-Assessment 1─N Report                       (planned)
+Assessment 1─N Report N─1 Scan, AnalysisRun  (implemented, Phase 5; immutable snapshot)
+Report 1─N ReportArtifact                    (implemented, Phase 5; json/html/pdf, hashed)
+Report N─M Finding, Evidence (same scan)     (implemented, Phase 5; report_findings/_evidence)
 Assessment.parent_assessment_id → retests   (planned, Phase 6)
 ```
 
@@ -180,6 +185,24 @@ short:
   which is stable across scans. `rule_version` and the immutable
   `rule_versions` table record which logic and text produced it.
 
+## Reports (Phase 5)
+
+See [ADR 0010](adr/0010-evidence-backed-reporting.md) and
+[reports.md](reports.md). In short:
+
+- A report covers one assessment and one completed, analysed scan (`final`
+  also requires a completed assessment). Its snapshot, built from persisted,
+  redacted rows via a field allowlist, is frozen and validated against a JSON
+  Schema when it is requested.
+- `reports/sentinel_reports` renders it offline and deterministically: canonical
+  JSON, autoescaped sandboxed Jinja2 HTML checked against a tag allowlist, and
+  PDF from the same HTML via WeasyPrint with a deny-all URL fetcher. Templates
+  are versioned and hash-locked.
+- `python -m app.worker --role reports` (compose `report-worker`, on an
+  internal network with only the database) claims, renders without a database
+  session, and stores hashed artifacts (≤ 25 MB) in PostgreSQL. Triggers make
+  reports, artifacts and their links immutable.
+
 ## API (v1)
 
 | Method | Path |
@@ -204,6 +227,9 @@ short:
 | `GET` | `/api/v1/findings/{id}`, `/evidence`, `/history` |
 | `POST` | `/api/v1/findings/{id}/triage` (body: `status`, `reason`, `triaged_by`) |
 | `GET` | `/api/v1/rules` (the rule catalog this deployment evaluates) |
+| `POST`, `GET` | `/api/v1/assessments/{id}/reports` (body: `scan_id`, `kind`, `formats`, `title`, `prepared_by`, …) |
+| `GET` | `/api/v1/reports/{id}`, `/artifacts`, `/artifacts/{json,html,pdf}`, `/preview` |
+| `GET` | `/api/v1/report-templates` |
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,

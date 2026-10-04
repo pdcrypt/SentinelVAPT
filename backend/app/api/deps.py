@@ -11,6 +11,7 @@ from app.repositories import (
     AnalysisRepository,
     AssessmentRepository,
     ProjectRepository,
+    ReportRepository,
     ScanRepository,
     ScanResultRepository,
     TargetAuthorizationRepository,
@@ -19,6 +20,7 @@ from app.repositories import (
 from app.services.assessments import AssessmentService
 from app.services.findings import FindingService
 from app.services.projects import ProjectService
+from app.services.reports import ReportService
 from app.services.scans import ScanService
 from app.services.targets import TargetService
 
@@ -78,11 +80,23 @@ def get_finding_service(session: SessionDep, clock: ClockDep) -> FindingService:
     )
 
 
+def get_report_service(session: SessionDep, clock: ClockDep) -> ReportService:
+    return ReportService(
+        ReportRepository(session),
+        ScanRepository(session),
+        AssessmentRepository(session),
+        session,
+        session,
+        clock,
+    )
+
+
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TargetServiceDep = Annotated[TargetService, Depends(get_target_service)]
 AssessmentServiceDep = Annotated[AssessmentService, Depends(get_assessment_service)]
 ScanServiceDep = Annotated[ScanService, Depends(get_scan_service)]
 FindingServiceDep = Annotated[FindingService, Depends(get_finding_service)]
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]
