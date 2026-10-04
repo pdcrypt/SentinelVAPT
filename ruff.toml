@@ -1,0 +1,25 @@
+# Shared Ruff config for backend/, scanner/ and reports/.
+target-version = "py312"
+line-length = 100
+
+[lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes
+  "I",        # isort
+  "B",        # bugbear
+  "UP",       # pyupgrade
+  "S",        # bandit (security)
+  "SIM",      # simplify
+  "RUF",
+]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S101"]  # asserts are fine in tests
+
+[format]
+quote-style = "double"
+
+[lint.isort]
+known-first-party = ["app", "sentinel_scanner", "sentinel_reports"]
+known-third-party = ["alembic"]

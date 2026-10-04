@@ -1,0 +1,29 @@
+[project]
+name = "sentinel-scanner"
+version = "0.1.0"
+description = "SentinelVAPT non-destructive scanner engine (standalone; no API/DB dependencies)"
+requires-python = ">=3.12"
+# Keep this list small. The scanner must never depend on FastAPI, SQLAlchemy
+# or anything from backend/ (see docs/adr/0001).
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sentinel_scanner*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
