@@ -35,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.engine = engine
+    app.state.settings = settings
     app.state.session_factory = make_session_factory(engine)
 
     if settings.cors_origins:

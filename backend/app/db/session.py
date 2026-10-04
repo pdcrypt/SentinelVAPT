@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 
 def make_engine(database_url: str) -> Engine:
-    return create_engine(database_url, pool_pre_ping=True)
+    # hide_parameters: database error messages (which get logged) never
+    # include bound values such as password or session-token hashes.
+    return create_engine(database_url, pool_pre_ping=True, hide_parameters=True)
 
 
 def make_session_factory(engine: Engine) -> sessionmaker[Session]:

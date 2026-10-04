@@ -7,6 +7,8 @@ have the shape {"detail": str, "code": str, "field": str | null}.
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -107,6 +109,39 @@ class RetestReportNotAllowedError(DomainError):
         self.reason = reason
 
 
+class AuthenticationError(DomainError):
+    """No valid session (missing, unknown, revoked, expired or disabled user).
+    Deliberately uniform: the response never says which."""
+
+    status_code = 401
+    code = "unauthenticated"
+
+    def __init__(self) -> None:
+        super().__init__("Authentication required.")
+
+
+class InvalidCredentialsError(DomainError):
+    """A failed login. Unknown user, wrong password, disabled account and
+    throttling all produce exactly this error (ADR 0014)."""
+
+    status_code = 401
+    code = "invalid_credentials"
+
+    def __init__(self) -> None:
+        super().__init__("Invalid username or password.")
+
+
+class InvalidCurrentPasswordError(DomainError):
+    """A password change whose current password did not verify (or that was
+    throttled). Not 401: the session itself is still valid."""
+
+    status_code = 403
+    code = "invalid_current_password"
+
+    def __init__(self) -> None:
+        super().__init__("The current password is incorrect.", field="current_password")
+
+
 def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | None]:
     return {"detail": detail, "code": code, "field": field}
 
@@ -123,7 +158,33 @@ async def _domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
         | RetestReportNotAllowedError,
     ):
         content["reason"] = exc.reason
-    return JSONResponse(status_code=exc.status_code, content=content)
+    headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
+    return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
+
+
+# Fields whose submitted values must never be echoed back in a 422 response.
+_SECRET_FIELD_HINTS = ("password", "token", "secret")
+
+
+def _is_secret_field(loc: object) -> bool:
+    return isinstance(loc, list | tuple) and any(
+        isinstance(part, str) and any(hint in part.lower() for hint in _SECRET_FIELD_HINTS)
+        for part in loc
+    )
+
+
+async def _request_validation_handler(_: Request, exc: Exception) -> JSONResponse:
+    """FastAPI's default 422 body, except that the submitted value of a
+    password or token field is never echoed back."""
+    assert isinstance(exc, RequestValidationError)  # noqa: S101  # registered for it only
+    errors = []
+    for error in exc.errors():
+        item = dict(error)
+        if _is_secret_field(item.get("loc")):
+            item.pop("input", None)
+            item.pop("ctx", None)
+        errors.append(item)
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 
 async def _integrity_error_handler(_: Request, exc: Exception) -> JSONResponse:
@@ -138,4 +199,5 @@ async def _integrity_error_handler(_: Request, exc: Exception) -> JSONResponse:
 
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, _domain_error_handler)
+    app.add_exception_handler(RequestValidationError, _request_validation_handler)
     app.add_exception_handler(IntegrityError, _integrity_error_handler)

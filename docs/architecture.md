@@ -280,9 +280,20 @@ See [ADR 0013](adr/0013-frontend-architecture-and-threat-model.md) and
 
 ## Identity and authorization (Phase 9, in progress)
 
-See [ADR 0014](adr/0014-authentication-and-authorization.md). Milestone M1
-adds only the schema foundation; nothing uses it yet, and the API is still
-unauthenticated and localhost-only (ADR 0005).
+See [ADR 0014](adr/0014-authentication-and-authorization.md). M1 adds the
+schema foundation. M2 adds the authentication core:
+
+- `POST /api/v1/auth/login`, `POST /auth/logout`, `GET /auth/me` and
+  `POST /auth/password`;
+- Argon2id passwords;
+- server-side sessions storing only a SHA-256 of an opaque bearer token, with
+  30-minute idle and 12-hour absolute expiry;
+- uniform login failures;
+- throttling counted from audit events;
+- the `python -m app.cli create-admin` bootstrap.
+
+Existing routes are **not** protected yet (M3/M4), and the API remains
+localhost-only (ADR 0005).
 
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:
@@ -304,6 +315,7 @@ unauthenticated and localhost-only (ADR 0005).
 | Method | Path |
 | ------ | ---- |
 | `GET` | `/api/v1/health`, `/api/v1/health/ready` |
+| `POST` | `/api/v1/auth/login`, `/auth/logout`, `/auth/password`; `GET` `/auth/me` (Phase 9 M2; bearer session token) |
 | `POST`, `GET` | `/api/v1/projects` |
 | `GET`, `PATCH`, `DELETE` | `/api/v1/projects/{id}` |
 | `POST`, `GET` | `/api/v1/projects/{id}/targets` |

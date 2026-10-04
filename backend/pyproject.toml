@@ -10,6 +10,8 @@ dependencies = [
   "sqlalchemy>=2.0",
   "psycopg[binary]>=3.2",
   "alembic>=1.13",
+  # Argon2id password hashing (ADR 0014).
+  "argon2-cffi>=23.1",
 ]
 
 [project.optional-dependencies]

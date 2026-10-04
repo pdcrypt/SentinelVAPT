@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. Milestone M1 (schema foundation) is implemented; M2–M9 follow.
+- Status: accepted. M1 (schema foundation) and M2 (authentication core) are implemented; M3–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -276,6 +276,136 @@ rewriting them.
 | `audit_events` | Append-only (`UPDATE`, `DELETE` and `TRUNCATE` refused); database timestamp; actor consistency; `action` and `resource_type` formats; resource type exactly when resource ID; constrained metadata |
 | `platform_settings` | Singleton; cutover set once; never deleted |
 
+### Authentication core (implemented in M2)
+
+M2 establishes **who** the platform user is. It adds no route authorization:
+every existing route works exactly as before until M3/M4. It never touches
+project membership or target authorization.
+
+#### Endpoints
+
+| Method and path | Result |
+|---|---|
+| `POST /api/v1/auth/login` | `{username, password}` → 200 with `token`, `token_type: "bearer"`, `user` and `session`; any failure → the uniform 401 |
+| `POST /api/v1/auth/logout` | Bearer token → 204; revokes this session (reason `logout`); a second logout → 401 |
+| `GET /api/v1/auth/me` | Bearer token → the user and session expiries; no token, no project information |
+| `POST /api/v1/auth/password` | Bearer token plus `{current_password, new_password}` → 200 with a **fresh** session token |
+
+- Auth responses carry `Cache-Control: no-store`.
+- `401` responses send `WWW-Authenticate: Bearer` with one of two bodies:
+  - `{code: "invalid_credentials"}` for logins;
+  - `{code: "unauthenticated"}` for sessions.
+- A wrong current password is `403 invalid_current_password`. It is not 401,
+  because the session is still valid.
+- Password-policy violations are `422`, with the field named and the value
+  never echoed.
+- **No other endpoints:** there is no registration, password reset, user
+  administration or membership endpoint.
+
+#### Passwords
+
+- **Hashing:** Argon2id via `argon2-cffi`.
+  - Defaults: t=3, m=64 MiB, p=4 (RFC 9106's second recommendation).
+  - Settings cannot go below t=2, m=19 MiB, p=1 (the OWASP minimum).
+  - Hashes using other parameters are rehashed at the next successful login.
+- **Policy:**
+  - NFKC-normalized;
+  - 12–256 characters, refused rather than truncated above 256;
+  - no control characters, not only whitespace;
+  - not the username;
+  - no composition rules.
+- **Unknown users:** login verifies against a dummy hash generated once per
+  process with the current parameters, so it costs the same Argon2 work as a
+  real account. A test asserts that every login path performs exactly one
+  verification.
+
+#### Sessions
+
+- **Tokens:** `secrets.token_urlsafe(32)` (256 bits), generated only after a
+  successful login or password change. Only `sha256(token)` is stored, and a
+  presented token is never adopted.
+- **Expiry:**
+  - The absolute expiry is 12 hours, fixed at login.
+  - The idle expiry is 30 minutes. It moves forward on use (at most once a
+    minute) and never past the absolute expiry or backwards.
+- **Validation** rejects:
+  - unknown tokens;
+  - revoked sessions;
+  - sessions of inactive users;
+  - idle-expired sessions;
+  - absolutely expired sessions.
+
+  All five give the same 401. Only the `Authorization: Bearer` header is
+  read; cookies and query parameters never authenticate.
+- **Password change** revokes every session of the user, **including the
+  current one** (reason `password_changed`), and returns a fresh session. No
+  token from before the change keeps working.
+- **Disabling a user** (service operation; the admin API is M7) marks them
+  inactive and revokes all their sessions (reason `user_disabled`) in one
+  transaction. Validation also refuses sessions of inactive users on its own.
+- **Lock order:** session rows are locked (`FOR UPDATE`) by validation,
+  logout and password change. User rows are locked `FOR NO KEY UPDATE`, so the
+  foreign-key checks of concurrent audit inserts never deadlock against
+  session locks.
+
+#### Throttling (no extra state table)
+
+Failed attempts are recorded as `audit_events` (`auth.login_failed`,
+`auth.password_change_failed`). Each is committed before the uniform failure
+is returned. These events are the throttle record, so no second
+authentication-state table is needed. Counting is insert-only, so concurrent
+failures cannot corrupt a counter. Attempts for one account name are
+serialized with a transaction advisory lock.
+
+| | Rule |
+|---|---|
+| **Per account** | Failures since the account's last successful login or password change, within a 15-minute window. From the 5th failure, each attempt must wait `1 s × 2^(n−5)` after the latest failure, capped at 15 minutes. There is no permanent lockout. |
+| **Per source** | 50 failed logins from one address within the window throttle that source. A success does not reset it, so a valid account cannot be used to reset an attacker's source. |
+
+- A throttled attempt is verified like any other, recorded with reason
+  `throttled`, and refused with the same 401, even when the password is
+  correct.
+- Unknown usernames are never stored: only `reason` and the source address.
+- The source is the direct peer address. Trusted forwarding of the browser's
+  address from the Next.js server is M8.
+- All thresholds are settings with bounds.
+
+#### Bootstrap
+
+```
+python -m app.cli create-admin --username <name> --display-name "<name>"
+```
+
+- The password comes from a hidden prompt, entered twice, or as one line on
+  standard input with `--password-stdin` for automation. It is never accepted
+  as an argument and never printed.
+- The command refuses if any administrator exists. An advisory lock makes
+  concurrent bootstraps safe.
+- It enforces the username format and the password policy, and records a
+  `user.created` audit event (actor `system`, label `cli:create-admin`).
+
+#### Leak prevention added in M2
+
+- **SQL parameters.** The database engine is created with
+  `hide_parameters=True`. Error messages, which are logged, never contain
+  bound values such as password or token hashes.
+- **422 echoes.** Request-validation responses never echo the submitted value
+  of a password or token field. FastAPI's default 422 body includes the
+  input; it is removed for these fields.
+
+#### Deferred from M2
+
+| Deferred item | Milestone |
+|---|---|
+| Route authorization and project membership | M3/M4 |
+| Enforcing `must_change_password` on other routes | M3/M4 |
+| Recording `authentication_enforced_at` | M4 |
+| Remaining audit events and read endpoints | M6 |
+| User administration API (create, disable, enable, reset) | M7 |
+| Trusted client-address forwarding | M8 |
+| Browser cookie handling | M8 |
+| Pruning expired sessions | Later (expired and revoked rows can already be deleted) |
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -296,7 +426,7 @@ Phase 9 does not change:
 | Milestone | Scope |
 |---|---|
 | M1 | This ADR and the schema foundation (implemented) |
-| M2 | Identity core: Argon2id, admin CLI, login, logout, `me`, password change, sessions, throttling |
+| M2 | Identity core: Argon2id, admin CLI, login, logout, `me`, password change, sessions, throttling (implemented) |
 | M3 | Authorization core: `Principal`, `Permission`, resolver, access service, default-deny router, route meta-tests |
 | M4 | Apply to all existing routes: 404/403, membership-filtered lists, IDOR and matrix suites; record `authentication_enforced_at`; decide project-name scope |
 | M5 | Actor identity columns and server-set actors (snapshots unchanged) |

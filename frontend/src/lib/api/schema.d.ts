@@ -233,6 +233,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Start a session. Unknown user, wrong password, disabled account and
+         *     throttling all return the same 401.
+         */
+        post: operations["login_api_v1_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description End the current session. The token stops working immediately.
+         */
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Me
+         * @description The authenticated platform user and session. No project information.
+         */
+        get: operations["me_api_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Password
+         * @description Change the password. Every session of the user ends, including this
+         *     one; the response carries a fresh session token.
+         */
+        post: operations["change_password_api_v1_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/comparisons/{comparison_id}": {
         parameters: {
             query?: never;
@@ -1160,6 +1242,21 @@ export interface components {
             /** Secure */
             secure: boolean;
         };
+        /** CurrentUser */
+        CurrentUser: {
+            /** Display Name */
+            display_name: string;
+            global_role: components["schemas"]["GlobalRole"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Must Change Password */
+            must_change_password: boolean;
+            /** Username */
+            username: string;
+        };
         /** EndpointRead */
         EndpointRead: {
             /** Allowed Methods */
@@ -1487,6 +1584,12 @@ export interface components {
             /** Triaged By */
             triaged_by: string;
         };
+        /**
+         * GlobalRole
+         * @description Platform-wide role. Grants no project or target access by itself.
+         * @enum {string}
+         */
+        GlobalRole: "admin" | "user";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1544,6 +1647,28 @@ export interface components {
             /** Retest Of Assessment Id */
             retest_of_assessment_id: string | null;
             status: components["schemas"]["AssessmentStatus"];
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /** Password */
+            password: string;
+            /** Username */
+            username: string;
+        };
+        /**
+         * MeResponse
+         * @description The authenticated platform user. Says nothing about project access.
+         */
+        MeResponse: {
+            session: components["schemas"]["SessionInfo"];
+            user: components["schemas"]["CurrentUser"];
+        };
+        /** PasswordChangeRequest */
+        PasswordChangeRequest: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -1959,6 +2084,42 @@ export interface components {
          * @enum {string}
          */
         ScanStatus: "queued" | "running" | "completed" | "failed" | "cancelled";
+        /** SessionInfo */
+        SessionInfo: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Idle Expires At
+             * Format: date-time
+             */
+            idle_expires_at: string;
+        };
+        /**
+         * SessionResponse
+         * @description Returned by login and password change only. `token` is the only copy of
+         *     the opaque session token: the server keeps just its SHA-256. It is meant
+         *     for the Next.js server, which keeps it in an HttpOnly cookie (M8).
+         */
+        SessionResponse: {
+            session: components["schemas"]["SessionInfo"];
+            /** Token */
+            token: string;
+            /**
+             * Token Type
+             * @default bearer
+             * @constant
+             */
+            token_type: "bearer";
+            user: components["schemas"]["CurrentUser"];
+        };
         /** TargetAuthorizationIn */
         TargetAuthorizationIn: {
             /**
@@ -2789,6 +2950,124 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AssessmentRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_v1_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Invalid username or password (always the same response) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_api_v1_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    change_password_api_v1_auth_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description The current password is incorrect */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
