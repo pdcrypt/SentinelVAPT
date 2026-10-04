@@ -10,6 +10,8 @@ frontend (Next.js) ──HTTP──▶ backend API (FastAPI) ──SQL──▶ 
                                   ▼
                               scanner (standalone) ──scoped HTTP──▶ lab / authorized targets
 
+worker ──plain values──▶ analysis (standalone, offline rule engine) ──▶ finding candidates
+
 reports (standalone) renders persisted assessment snapshots.
 ```
 
@@ -17,8 +19,9 @@ reports (standalone) renders persisted assessment snapshots.
 | ---------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
 | `frontend` | UI, triage workflow, report download                                   | Contact targets, hold secrets                  |
 | `backend`  | CRUD, validation, authorization/scope rules, enqueueing scans          | Perform network scanning                       |
-| worker     | Claim queued scans, call the scanner, persist results                  | Bypass the scanner's scope guard               |
-| `scanner`  | Checks, scope enforcement, safe HTTP client, finding candidates        | Import backend code, touch the DB, read env    |
+| worker     | Claim queued scans, call the scanner, persist results, run analysis    | Bypass the scanner's scope guard               |
+| `scanner`  | Discovery, scope enforcement, safe HTTP client, redaction              | Import backend code, touch the DB, read env    |
+| `analysis` | Deterministic rules: stored observations → finding candidates          | Make network requests, touch the DB, use AI    |
 | `reports`  | Build report snapshots, render HTML (PDF later)                        | Trigger scans or modify findings               |
 
 ## Backend layering
@@ -40,11 +43,13 @@ reports (standalone) renders persisted assessment snapshots.
 4. The worker claims the scan (`FOR UPDATE SKIP LOCKED`), builds a `ScanGrant`
    and calls the scanner.
 5. The scanner re-validates the grant, checks every request against scope, and
-   returns redacted discovery results (and, later, finding candidates).
+   returns redacted discovery results, which the worker persists.
+6. The worker analyses the persisted results offline with the rule engine and
+   stores findings that reference the existing evidence.
+7. Findings are triaged through the API.
 
-Steps 1–5 exist (Phases 1–3: scans are queued by the API and run by the
-worker, ADR 0008); steps 6–9 (findings, triage, reports, retests) are later
-phases.
+Steps 1–7 exist (Phases 1–4; ADR 0008, ADR 0009). Reports and retests are
+later phases.
 
 ## Domain model
 
@@ -54,7 +59,10 @@ Target 1─N Assessment N─1 TargetAuthorization (implemented, Phase 1)
 Assessment 1─N Scan (implemented, Phase 3; scan → its assessment's target + authorization)
 Scan 1─N ScanLog, Asset, Endpoint, Evidence   (implemented, Phase 3; scan-scoped)
 Endpoint 1─N EndpointCookie, Evidence         (implemented, Phase 3)
-Scan 1─N Finding                             (planned)
+Scan 1─N AnalysisRun 1─N Finding             (implemented, Phase 4)
+Finding N─M Evidence (same scan only)        (implemented, Phase 4)
+Finding 1─N FindingStatusChange              (implemented, Phase 4; triage history)
+RuleVersion 1─N Finding                      (implemented, Phase 4; immutable metadata)
 Assessment 1─N Report                       (planned)
 Assessment.parent_assessment_id → retests   (planned, Phase 6)
 ```
@@ -73,8 +81,8 @@ the same target, and a trigger rejects any UPDATE of a record or any DELETE
 other than the cascade from deleting a whole target (allowed only while it has
 no assessments).
 
-Findings will carry `detection_type`: `automated_detection` or
-`manual_verification_required`.
+Findings carry `detection_type`: `automated_detection` or
+`manual_verification_required` (ADR 0009).
 
 ### Target scope and authorization (Phase 1)
 
@@ -156,6 +164,22 @@ See [ADR 0008](adr/0008-scan-execution-and-worker.md). In short:
   `endpoints`, `endpoint_cookies`, `evidence`) with unique keys that make
   re-persisting a no-op.
 
+## Analysis and findings (Phase 4)
+
+See [ADR 0009](adr/0009-deterministic-analysis-and-findings.md), the
+generated [rule catalog](rules.md) and the [taxonomy policy](taxonomy.md). In
+short:
+
+- `analysis/sentinel_analysis` is a standalone, dependency-free, offline rule
+  engine with 14 passive rules (at most `low` severity, no CVSS).
+- Finalizing a completed or cancelled scan queues an analysis run in the same
+  transaction. The worker locks the run with `SKIP LOCKED`, builds
+  `ScanObservations` from the stored rows, runs the engine and stores findings
+  in one transaction.
+- A finding's identity is its fingerprint (rule, subject, discriminator),
+  which is stable across scans. `rule_version` and the immutable
+  `rule_versions` table record which logic and text produced it.
+
 ## API (v1)
 
 | Method | Path |
@@ -175,6 +199,11 @@ See [ADR 0008](adr/0008-scan-execution-and-worker.md). In short:
 | `POST` | `/api/v1/scans/{id}/cancel` |
 | `GET` | `/api/v1/scans/{id}/logs`, `/assets`, `/endpoints` (filters: `fetched`, `skip_reason`, `source`, `method`), `/evidence` |
 | `GET` | `/api/v1/evidence/{id}` |
+| `GET` | `/api/v1/scans/{id}/findings` (filters: `severity`, `confidence`, `detection_type`, `category`, `rule_id`, `status`), `/findings/summary`, `/analysis` |
+| `GET` | `/api/v1/assessments/{id}/findings/summary` |
+| `GET` | `/api/v1/findings/{id}`, `/evidence`, `/history` |
+| `POST` | `/api/v1/findings/{id}/triage` (body: `status`, `reason`, `triaged_by`) |
+| `GET` | `/api/v1/rules` (the rule catalog this deployment evaluates) |
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,

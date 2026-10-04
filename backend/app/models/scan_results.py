@@ -128,6 +128,7 @@ class Evidence(UUIDPrimaryKeyMixin, _CreatedAt, Base):
     __tablename__ = "evidence"
     __table_args__ = (
         UniqueConstraint("scan_id", "scanner_evidence_id"),
+        UniqueConstraint("id", "scan_id"),  # target of finding_evidence's composite key
         ForeignKeyConstraint(
             ["endpoint_id", "scan_id"],
             ["endpoints.id", "endpoints.scan_id"],

@@ -8,11 +8,13 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 3 (scan execution). Projects, targets with scope and
-> authorization, assessments and passive discovery scans of `local_lab`
-> targets are available through the REST API; scans are run by a worker and
-> their results (logs, assets, endpoints, cookies, redacted evidence) are
-> stored. There is no vulnerability detection and no UI yet.
+> **Status:** Phase 4 (deterministic analysis). Projects, targets with scope
+> and authorization, assessments and passive discovery scans of `local_lab`
+> targets are available through the REST API. A worker runs the scans, stores
+> their redacted results, and analyses them offline with 14 passive rules into
+> findings that can be triaged through the API
+> ([rule catalog](docs/rules.md)). There are no active checks, no reports and
+> no UI yet.
 
 ## Stack
 
@@ -21,6 +23,7 @@ reports. It does not perform exploitation. See
 | Frontend  | Next.js, TypeScript, Playwright              |
 | Backend   | Python, FastAPI, SQLAlchemy 2, Alembic, pytest |
 | Scanner   | Standalone Python package                    |
+| Analysis  | Standalone Python package (offline rules)    |
 | Reports   | Standalone Python package                    |
 | Database  | PostgreSQL 17                                |
 | Runtime   | Docker Compose                               |
@@ -31,6 +34,7 @@ reports. It does not perform exploitation. See
 frontend/   Next.js app (UI only; never contacts targets)
 backend/    FastAPI API, services, repositories, models, migrations
 scanner/    Scanner engine and checks (no API/DB dependencies)
+analysis/   Offline rule engine: stored observations -> findings (no network/DB)
 reports/    Report generation from persisted snapshots
 tests/      Cross-component and lab fixture tests
 docs/       Architecture, ADRs, scope and ethics, per-check docs
@@ -81,10 +85,12 @@ PowerShell's default execution policy blocking `Activate.ps1`.
 ```powershell
 cd backend
 python -m venv .venv
-# The backend imports the scanner. Install it from this repository first; it is
-# deliberately not a declared dependency, so pip never fetches a same-named
-# package from PyPI. (compat mode lets mypy see the editable install.)
+# The backend imports the scanner and the rule engine. Install them from this
+# repository first; they are deliberately not declared dependencies, so pip
+# never fetches a same-named package from PyPI. (compat mode lets mypy see the
+# editable installs.)
 .\.venv\Scripts\python -m pip install -e ..\scanner --config-settings editable_mode=compat
+.\.venv\Scripts\python -m pip install -e ..\analysis --config-settings editable_mode=compat
 .\.venv\Scripts\python -m pip install -e ".[dev]"
 .\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m uvicorn --factory app.main:create_app --reload
@@ -102,7 +108,7 @@ After changing models, generate a migration and review it before applying:
 .\.venv\Scripts\python -m alembic revision --autogenerate -m "describe the change"
 ```
 
-**Scanner / reports** (same steps in `scanner\` or `reports\`):
+**Scanner / analysis / reports** (same steps in `scanner\`, `analysis\` or `reports\`):
 
 ```powershell
 cd scanner
@@ -122,7 +128,7 @@ On macOS/Linux, use `.venv/bin/python` instead of `.\.venv\Scripts\python`.
 
 ## Checks and tests
 
-**Python** (in `backend\`, `scanner\` or `reports\`):
+**Python** (in `backend\`, `scanner\`, `analysis\` or `reports\`):
 
 ```powershell
 .\.venv\Scripts\python -m ruff check .
@@ -172,7 +178,8 @@ them.
 | 1 ✅  | Core domain: projects, targets with authorization, assessments     |
 | 2 ✅  | Discovery engine: scan grants, scope guard, safe HTTP client       |
 | 3 ✅  | Scan execution: worker, scan logs, assets, endpoints, evidence     |
-| 4     | Frontend MVP: target/assessment flows, live scans, triage          |
+| 4 ✅  | Analysis: offline rule engine, findings, triage API                |
 | 5     | Reporting: HTML reports from snapshots                             |
 | 6     | Retesting: fixed / still present / new diffs                       |
-| 7     | Hardening: platform auth, more checks, PDF export, polish          |
+| 7     | Frontend MVP: target/assessment flows, live scans, triage          |
+| 8     | Hardening: platform auth, more checks, PDF export, polish          |

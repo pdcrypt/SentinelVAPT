@@ -3,10 +3,11 @@
 SentinelVAPT is an **authorized** assessment platform. It exists for local
 security labs and for targets whose owner has explicitly authorized testing.
 
-## Current state (Phase 3)
+## Current state (Phase 4)
 
 Passive discovery scans of `local_lab` targets can be requested through the
-API and are run by the worker. What is in place today:
+API and are run by the worker, which then analyses the stored results offline
+into findings. What is in place today:
 
 - **Recorded, acknowledged authorization.** A target cannot be created without
   who authorized testing, a reference, a validity window and an explicit
@@ -68,6 +69,14 @@ API and are run by the worker. What is in place today:
   database code, and only its transport layer may open network connections;
   tests fail otherwise
   ([ADR 0001](adr/0001-monorepo-with-standalone-scanner.md)).
+- **Analysis is offline and evidence-bound.** Findings come only from data
+  the scan already stored: the rule engine cannot make requests, touch the
+  database or call an AI service (tests enforce its imports). Every finding
+  states what its evidence proves and what it does not, is at most `low`
+  severity, and is marked `manual_verification_required` when a human must
+  confirm the context ([ADR 0009](adr/0009-deterministic-analysis-and-findings.md)).
+  Findings reference stored, redacted evidence rather than copying bodies, and
+  rule errors are recorded by exception type only.
 - **Non-root containers** for the backend and frontend.
 
 ## Planned safety controls
@@ -90,3 +99,7 @@ API and are run by the worker. What is in place today:
 Every check needs a short doc in `docs/checks/` stating what requests it sends,
 why they are non-destructive, and whether its findings are
 `automated_detection` or `manual_verification_required`.
+
+A new analysis rule must state what its evidence proves and does not prove,
+use only taxonomy identifiers verified under [taxonomy.md](taxonomy.md), get a
+lockfile entry, and appear in the regenerated [rule catalog](rules.md).

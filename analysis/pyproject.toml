@@ -1,0 +1,32 @@
+[project]
+name = "sentinel-analysis"
+version = "0.1.0"
+description = "SentinelVAPT deterministic rule engine: persisted scan observations -> findings (no network, no database)"
+requires-python = ">=3.12"
+# Keep this empty. The analysis package must never depend on network clients,
+# web frameworks or database libraries (see docs/adr/0009).
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sentinel_analysis*"]
+
+[tool.setuptools.package-data]
+sentinel_analysis = ["py.typed", "rule_metadata.lock.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

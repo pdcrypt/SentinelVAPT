@@ -18,6 +18,8 @@ dev = [
   "httpx2>=2.13",
   "ruff>=0.6",
   "mypy>=1.11",
+  # Generates a throwaway self-signed certificate for the local TLS contract test.
+  "cryptography>=43",
 ]
 
 [build-system]

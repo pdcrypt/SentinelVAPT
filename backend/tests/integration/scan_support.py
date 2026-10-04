@@ -171,6 +171,10 @@ class ScanEnv:
             "SELECT row_to_json(x)::text FROM evidence x WHERE scan_id = :s",
             "SELECT row_to_json(c)::text FROM endpoint_cookies c "
             "JOIN endpoints e ON e.id = c.endpoint_id WHERE e.scan_id = :s",
+            "SELECT row_to_json(x)::text FROM analysis_runs x WHERE scan_id = :s",
+            "SELECT row_to_json(x)::text FROM findings x WHERE scan_id = :s",
+            "SELECT row_to_json(h)::text FROM finding_status_changes h "
+            "JOIN findings f ON f.id = h.finding_id WHERE f.scan_id = :s",
         ]
         with self.factory() as s:
             return "\n".join(
@@ -184,7 +188,15 @@ class ScanEnv:
 
 
 def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None:
+    scans = (
+        "SELECT s.id FROM scans s JOIN assessments a ON a.id = s.assessment_id "
+        "JOIN targets t ON t.id = a.target_id WHERE t.project_id = :p"
+    )
     with factory() as s:
+        # Findings and analysis runs RESTRICT scan deletion (ADR 0009); rule
+        # versions are global and immutable, so they stay.
+        s.execute(text(f"DELETE FROM findings WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL
+        s.execute(text(f"DELETE FROM analysis_runs WHERE scan_id IN ({scans})"), {"p": project_id})  # noqa: S608  # constant SQL
         s.execute(
             text(
                 "DELETE FROM scans WHERE assessment_id IN (SELECT a.id FROM assessments a "

@@ -1,16 +1,19 @@
 # Build context is the repository root (see docker-compose.yml), because the
-# backend imports the standalone scanner package (ADR 0001: backend -> scanner
-# is the allowed direction). Ignore rules: backend/Dockerfile.dockerignore.
+# backend imports the standalone scanner and analysis packages (ADR 0001, 0009:
+# backend -> scanner and backend -> analysis are the allowed directions).
+# Ignore rules: backend/Dockerfile.dockerignore.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# The scanner is installed from this repository, never resolved by name from a
-# package index (avoids dependency confusion with a same-named public package).
+# The scanner and the rule engine are installed from this repository, never
+# resolved by name from a package index (avoids dependency confusion with a
+# same-named public package).
 COPY scanner /opt/sentinel-scanner
-RUN pip install /opt/sentinel-scanner
+COPY analysis /opt/sentinel-analysis
+RUN pip install /opt/sentinel-scanner /opt/sentinel-analysis
 
 WORKDIR /app
 

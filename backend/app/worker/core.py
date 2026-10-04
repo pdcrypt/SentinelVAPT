@@ -11,8 +11,13 @@ Per scan, three phases with strictly separated database access:
              and to cancel the scanner if the scan, assessment or authorization
              changes underneath it.
 3. finalize  one transaction: lock the scan; if this worker still owns it,
-             write all results and the final status together; otherwise drop
+             write all results and the final status together, and queue the
+             scan's analysis run (completed / cancelled scans); otherwise drop
              the results (e.g. the scan was reaped).
+
+Analysis runs (ADR 0009) are claimed with SKIP LOCKED and executed entirely in
+one transaction: a crash rolls it back and the run stays queued; an error
+raised while analysing marks the run failed. Analysis never contacts the target.
 
 No automatic retries: a failed scan stays failed.
 """
@@ -24,20 +29,23 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from sentinel_analysis import RULESET_VERSION
 from sqlalchemy import func
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.clock import Clock, utc_now
 from app.core.errors import ScanNotAllowedError
 from app.models import Assessment, Target
-from app.models.enums import AssessmentStatus, ScanStatus
+from app.models.enums import AnalysisStatus, AssessmentStatus, ScanStatus
 from app.repositories import (
+    AnalysisRepository,
     AssessmentRepository,
     QueuedCandidate,
     ScanRepository,
     ScanResultRepository,
     TargetRepository,
 )
+from app.services.analysis import AnalysisError, execute_run, fail_run
 from app.services.scan_grants import build_scan_grant, discovery_config, grant_snapshot
 from app.services.scan_results import (
     LogEntry,
@@ -139,8 +147,11 @@ class Worker:
         logger.info("worker %s stopped", self.worker_id)
 
     def run_once(self) -> bool:
-        """Reap stale scans, then claim and execute at most one scan."""
+        """Reap stale scans, then run at most one queued analysis or, if there
+        is none, claim and execute at most one scan."""
         self.reap_stale()
+        if self.analyze_once():
+            return True
         claimed = self.claim()
         if claimed is None:
             return False
@@ -374,8 +385,43 @@ class Worker:
                 scan.events_count = counts.logs
                 scan.evidence_count = counts.evidence
                 scan.finished_at = now
+                # Same transaction as the results: a finalized scan always has
+                # its analysis queued, and a dropped finalize queues nothing.
+                AnalysisRepository(session).queue_run(scan.id, RULESET_VERSION)
             session.commit()
             logger.info("scan %s finished: %s", scan.id, scan.status)
+            return True
+
+    # --- analysis -------------------------------------------------------------------
+
+    def analyze_once(self) -> bool:
+        """Run at most one queued analysis. Returns True if one was processed."""
+        with self.session_factory() as session:
+            run_ids = AnalysisRepository(session).queued_run_ids(self.candidate_batch)
+        return any(self._try_analyze(run_id) for run_id in run_ids)
+
+    def _try_analyze(self, run_id: uuid.UUID) -> bool:
+        with self.session_factory() as session:
+            repo = AnalysisRepository(session)
+            run = repo.get_run_for_update(run_id, skip_locked=True)
+            if run is None or run.status is not AnalysisStatus.QUEUED:
+                return False  # another worker has it, or it is already done
+            # The scan is terminal and no longer changes; it is read, not locked.
+            scan = ScanRepository(session).get(run.scan_id)
+            now = self.clock()
+            try:
+                with session.begin_nested():
+                    execute_run(repo, scan, run, now)
+            except Exception as exc:
+                # Everything the run wrote is rolled back to the savepoint.
+                # Only a code is stored: exception text may contain target data.
+                code = exc.code if isinstance(exc, AnalysisError) else "analysis_error"
+                if not isinstance(exc, AnalysisError):
+                    logger.exception("analysis run %s failed", run_id)
+                session.refresh(run)
+                fail_run(run, code, now)
+            session.commit()
+            logger.info("analysis run %s finished: %s", run_id, run.status)
             return True
 
     # --- reaper ---------------------------------------------------------------------

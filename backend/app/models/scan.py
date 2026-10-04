@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -43,6 +44,8 @@ class Scan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             postgresql_where=text("status IN ('queued', 'running')"),
         ),
         Index("ix_scans_assessment_id_created_at", "assessment_id", "created_at"),
+        # Target of findings' composite foreign key.
+        UniqueConstraint("id", "assessment_id", "target_id"),
         Index("ix_scans_status_created_at", "status", "created_at"),
         CheckConstraint("status <> 'queued' OR started_at IS NULL", name="queued_not_started"),
         CheckConstraint(

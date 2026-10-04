@@ -1,6 +1,7 @@
 """A tiny HTTP site on 127.0.0.1 for scan tests. Never a public address."""
 
 import contextlib
+import ssl
 import threading
 import time
 from collections.abc import Iterator
@@ -19,7 +20,10 @@ class Page:
 
 
 class LabSite:
-    def __init__(self) -> None:
+    def __init__(self, tls: ssl.SSLContext | None = None) -> None:
+        """With `tls`, the site serves HTTPS on 127.0.0.1 (e.g. with a
+        self-signed certificate from tests.integration.tls_support)."""
+        self.scheme = "https" if tls is not None else "http"
         self.pages: dict[str, Page] = {}
         self.requests: list[tuple[str, str]] = []
         site = self
@@ -52,6 +56,8 @@ class LabSite:
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.httpd.daemon_threads = True
         self.httpd.block_on_close = False
+        if tls is not None:
+            self.httpd.socket = tls.wrap_socket(self.httpd.socket, server_side=True)
         self.port = int(self.httpd.server_address[1])
         self._thread = threading.Thread(
             target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True
@@ -61,7 +67,7 @@ class LabSite:
         self.pages[path] = Page(body=f"<!doctype html><html>{body}</html>".encode(), **kwargs)
 
     def url(self, path: str = "/") -> str:
-        return f"http://lab.test:{self.port}{path}"
+        return f"{self.scheme}://lab.test:{self.port}{path}"
 
     def slow_site(self, pages: int = 40, delay_s: float = 0.15) -> None:
         """Slow pages all linked from the home page (depth 1, so the crawl depth

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import Clock, utc_now
 from app.db.session import get_session
 from app.repositories import (
+    AnalysisRepository,
     AssessmentRepository,
     ProjectRepository,
     ScanRepository,
@@ -16,6 +17,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.services.assessments import AssessmentService
+from app.services.findings import FindingService
 from app.services.projects import ProjectService
 from app.services.scans import ScanService
 from app.services.targets import TargetService
@@ -66,10 +68,21 @@ def get_scan_service(session: SessionDep, clock: ClockDep) -> ScanService:
     )
 
 
+def get_finding_service(session: SessionDep, clock: ClockDep) -> FindingService:
+    return FindingService(
+        AnalysisRepository(session),
+        ScanRepository(session),
+        AssessmentRepository(session),
+        session,
+        clock,
+    )
+
+
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TargetServiceDep = Annotated[TargetService, Depends(get_target_service)]
 AssessmentServiceDep = Annotated[AssessmentService, Depends(get_assessment_service)]
 ScanServiceDep = Annotated[ScanService, Depends(get_scan_service)]
+FindingServiceDep = Annotated[FindingService, Depends(get_finding_service)]
 
 Limit = Annotated[int, Query(ge=1, le=100)]
 Offset = Annotated[int, Query(ge=0)]

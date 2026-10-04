@@ -33,3 +33,21 @@ class ScanStatus(StrEnum):
 
 ACTIVE_SCAN_STATUSES = frozenset({ScanStatus.QUEUED, ScanStatus.RUNNING})
 TERMINAL_SCAN_STATUSES = frozenset({ScanStatus.COMPLETED, ScanStatus.FAILED, ScanStatus.CANCELLED})
+
+
+class AnalysisStatus(StrEnum):
+    QUEUED = "queued"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class FindingStatus(StrEnum):
+    """Phase 4 triage states. fixed / retest_required arrive with retesting."""
+
+    OPEN = "open"
+    CONFIRMED = "confirmed"
+    FALSE_POSITIVE = "false_positive"
+    ACCEPTED_RISK = "accepted_risk"
+
+
+STATUSES_REQUIRING_REASON = frozenset({FindingStatus.FALSE_POSITIVE, FindingStatus.ACCEPTED_RISK})
