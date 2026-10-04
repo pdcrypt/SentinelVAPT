@@ -9,6 +9,14 @@ from app.models.analysis import (
 )
 from app.models.assessment import Assessment
 from app.models.comparison import Comparison, ComparisonCoverageEvidence, ComparisonRecord
+from app.models.identity import (
+    AuditEvent,
+    PlatformSettings,
+    ProjectMember,
+    User,
+    UserCredential,
+    UserSession,
+)
 from app.models.project import Project
 from app.models.report import Report, ReportArtifact, ReportEvidence, ReportFinding
 from app.models.retest_report import RetestReport, RetestReportArtifact, RetestReportEvidence
@@ -21,6 +29,7 @@ __all__ = [
     "AnalysisRun",
     "Assessment",
     "Asset",
+    "AuditEvent",
     "Comparison",
     "ComparisonCoverageEvidence",
     "ComparisonRecord",
@@ -30,7 +39,9 @@ __all__ = [
     "Finding",
     "FindingEvidence",
     "FindingStatusChange",
+    "PlatformSettings",
     "Project",
+    "ProjectMember",
     "Report",
     "ReportArtifact",
     "ReportEvidence",
@@ -43,4 +54,7 @@ __all__ = [
     "ScanLog",
     "Target",
     "TargetAuthorization",
+    "User",
+    "UserCredential",
+    "UserSession",
 ]

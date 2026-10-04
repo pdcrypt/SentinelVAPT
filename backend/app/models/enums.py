@@ -96,3 +96,42 @@ class ComparisonState(StrEnum):
     DISMISSED = "dismissed"
     NOT_RETESTED = "not_retested"
     NOT_COMPARABLE = "not_comparable"
+
+
+# --- Phase 9: identity and authorization (ADR 0014) ------------------------------
+
+
+class GlobalRole(StrEnum):
+    """Platform-wide role. Grants no project or target access by itself."""
+
+    ADMIN = "admin"  # manages user accounts and reads the global audit log
+    USER = "user"
+
+
+class ProjectRole(StrEnum):
+    """A member's role within one project."""
+
+    OWNER = "owner"  # members, targets, authorization acknowledgment, deletion
+    OPERATOR = "operator"  # runs the workflow: assessments, scans, triage, reports
+    VIEWER = "viewer"  # read-only
+
+
+class SessionRevocationReason(StrEnum):
+    LOGOUT = "logout"
+    PASSWORD_CHANGED = "password_changed"  # noqa: S105  # a revocation reason, not a secret
+    USER_DISABLED = "user_disabled"
+    ROLE_CHANGED = "role_changed"
+    REVOKED_BY_USER = "revoked_by_user"
+    REVOKED_BY_ADMIN = "revoked_by_admin"
+
+
+class AuditActorType(StrEnum):
+    USER = "user"  # an authenticated platform user
+    SYSTEM = "system"  # a worker or a server-side command
+    ANONYMOUS = "anonymous"  # an unauthenticated request (e.g. a failed login)
+
+
+class AuditOutcome(StrEnum):
+    SUCCESS = "success"
+    DENIED = "denied"
+    FAILURE = "failure"

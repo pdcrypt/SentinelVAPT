@@ -12,7 +12,10 @@ if TYPE_CHECKING:
 class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "projects"
 
-    name: Mapped[str] = mapped_column(String(200), unique=True)
+    # Not unique since Phase 9 (ADR 0014): names are labels, not identifiers,
+    # and global uniqueness would reveal other users' projects. Indexed for
+    # lookups by name.
+    name: Mapped[str] = mapped_column(String(200), index=True)
     description: Mapped[str | None] = mapped_column(Text)
     # Populated once platform authentication exists (ADR 0005).
     created_by: Mapped[str | None] = mapped_column(String(200))

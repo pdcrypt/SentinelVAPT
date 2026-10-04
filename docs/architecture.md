@@ -79,6 +79,9 @@ Assessment.retest_of_assessment_id → parent  (implemented, Phase 6; same targe
 Assessment.baseline_scan_id → parent's scan  (implemented, Phase 6; immutable)
 Assessment(retest) 1─N Comparison            (implemented, Phase 6; one per scan and policy)
 Comparison 1─N ComparisonRecord 1─N coverage evidence (current scan only)
+User 1─1 UserCredential, User 1─N Session      (schema only, Phase 9 M1)
+Project N─M User via ProjectMember(role)      (schema only, Phase 9 M1)
+AuditEvent (append-only, historical ids)      (schema only, Phase 9 M1)
 ```
 
 An assessment reaches its project through its target; there is no separate
@@ -274,6 +277,27 @@ See [ADR 0013](adr/0013-frontend-architecture-and-threat-model.md) and
   triage is always a separately labelled status.
 - **No backend changes.** No backend, database or migration changes, and no
   authentication (names are self-asserted).
+
+## Identity and authorization (Phase 9, in progress)
+
+See [ADR 0014](adr/0014-authentication-and-authorization.md). Milestone M1
+adds only the schema foundation; nothing uses it yet, and the API is still
+unauthenticated and localhost-only (ADR 0005).
+
+- **Three separate concepts.** Platform identity (`users`,
+  `user_credentials`, `sessions`), project membership (`project_members`:
+  owner / operator / viewer) and target authorization
+  (`target_authorizations`, unchanged). None implies another; the global
+  `admin` role grants no project access.
+- **Database rules.**
+  - Credentials accept only Argon2id hashes.
+  - Sessions store only a SHA-256 of the token, with frozen identity and
+    lifetime and final revocation.
+  - A project with members keeps at least one owner (deferred trigger).
+  - `audit_events` is append-only with constrained metadata.
+- **Project names** are no longer unique database-wide (`uq_projects_name`
+  became the plain index `ix_projects_name`). The service still refuses
+  duplicates until M4.
 
 ## API (v1)
 
