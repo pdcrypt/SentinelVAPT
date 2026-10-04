@@ -8,9 +8,10 @@ capped.
 import re
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
-from urllib.parse import urldefrag, urljoin
+from urllib.parse import urldefrag
 
 from sentinel_scanner.models import EndpointSource
+from sentinel_scanner.urls import join_url
 
 MAX_LINKS_PER_DOCUMENT = 1000
 MAX_TITLE_LENGTH = 300
@@ -56,7 +57,7 @@ class _Extractor(HTMLParser):
         value = raw.strip()
         if not value or value.lower().startswith(_IGNORED_SCHEMES) or value.startswith("#"):
             return
-        absolute, _ = urldefrag(urljoin(self.base_url, value))
+        absolute, _ = urldefrag(join_url(self.base_url, value))
         self.doc.links.append(ExtractedLink(absolute, source, method))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -64,7 +65,7 @@ class _Extractor(HTMLParser):
         if tag == "base" and not self.base_seen and attributes.get("href"):
             # Only the first <base> counts, as in browsers. Links resolved
             # against it are still scope-checked before any request.
-            self.base_url = urljoin(self.base_url, attributes["href"] or "")
+            self.base_url = join_url(self.base_url, attributes["href"] or "")
             self.base_seen = True
         elif tag == "link":
             rel = (attributes.get("rel") or "").lower()
@@ -118,9 +119,9 @@ def extract_robots(text: str, robots_url: str) -> list[ExtractedLink]:
         if not value or len(links) >= MAX_LINKS_PER_DOCUMENT:
             continue
         if key in ("allow", "disallow") and "*" not in value and "$" not in value:
-            links.append(ExtractedLink(urljoin(robots_url, value), EndpointSource.ROBOTS))
+            links.append(ExtractedLink(join_url(robots_url, value), EndpointSource.ROBOTS))
         elif key == "sitemap":
-            links.append(ExtractedLink(urljoin(robots_url, value), EndpointSource.SITEMAP))
+            links.append(ExtractedLink(join_url(robots_url, value), EndpointSource.SITEMAP))
     return links
 
 
@@ -131,6 +132,6 @@ def extract_sitemap(text: str, sitemap_url: str) -> list[ExtractedLink]:
     """<loc> entries. Parsed with a regex rather than an XML parser, so entity
     expansion and external entities in untrusted XML never come into play."""
     return [
-        ExtractedLink(urljoin(sitemap_url, match.group(1)), EndpointSource.SITEMAP)
+        ExtractedLink(join_url(sitemap_url, match.group(1)), EndpointSource.SITEMAP)
         for match in _LOC.finditer(text)
     ][:MAX_LINKS_PER_DOCUMENT]

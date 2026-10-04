@@ -170,7 +170,9 @@ test("artifact routes validate identifiers and never render inline downloads", a
   }
 });
 
-test("a NUL character is rejected without exposing the server error", async ({ page }) => {
+test("a NUL character is rejected as a validation error, without server internals", async ({
+  page,
+}) => {
   test.skip(!process.env.E2E_BASE_URL, "needs the API (set E2E_BASE_URL)");
   await page.goto("/projects");
   const form = page.getByTestId("create-project");
@@ -180,6 +182,8 @@ test("a NUL character is rejected without exposing the server error", async ({ p
   await form.locator('button[type="submit"]').click();
   const alert = form.getByRole("alert");
   await expect(alert).toBeVisible();
-  await expect(alert).toContainText("Something went wrong");
+  // The API refuses NUL with a 422 validation error (PostgreSQL text cannot hold it).
+  await expect(alert).toContainText("Check the form");
+  await expect(alert).toContainText("Text must not contain NUL (U+0000) characters");
   await expect(alert).not.toContainText(/Traceback|Internal Server Error|psycopg|DataError/);
 });

@@ -119,8 +119,8 @@ page renders per request.
   backend behaviour or data.
 - Platform authentication (a later phase) can attach a session in one
   place: the server-side API client and the Server Action guard.
-- **Pre-existing backend behaviour, not fixed here:** text containing NUL
-  makes the API return a plain 500. The console shows a generic error for
-  it.
+- **NUL in input:** text containing NUL once made the API return a plain
+  500. The API now rejects it as a 422 validation error (PostgreSQL text
+  cannot hold U+0000), and the console shows that field error.
 - **Index-page cost:** the index pages issue one API call per project and
   per assessment, which is acceptable for a local lab.

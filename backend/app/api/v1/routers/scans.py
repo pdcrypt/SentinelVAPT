@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, status
 
 from app.api.deps import Limit, Offset, ScanServiceDep
 from app.models import Asset, Evidence, Scan, ScanLog
+from app.schemas.common import TextQuery
 from app.schemas.scan import (
     AssetRead,
     CookieRead,
@@ -69,9 +70,9 @@ def list_scan_endpoints(
     limit: Limit = 50,
     offset: Offset = 0,
     fetched: bool | None = None,
-    skip_reason: Annotated[str | None, Query(max_length=32)] = None,
-    source: Annotated[str | None, Query(max_length=32)] = None,
-    method: Annotated[str | None, Query(max_length=16)] = None,
+    skip_reason: Annotated[TextQuery | None, Query(max_length=32)] = None,
+    source: Annotated[TextQuery | None, Query(max_length=32)] = None,
+    method: Annotated[TextQuery | None, Query(max_length=16)] = None,
 ) -> list[EndpointRead]:
     rows = service.endpoints(
         scan_id,

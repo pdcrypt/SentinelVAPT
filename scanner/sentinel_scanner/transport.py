@@ -27,7 +27,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
-from urllib.parse import urljoin
 
 from sentinel_scanner.errors import RequestFailed, RequestLimitReached, ScopeViolation
 from sentinel_scanner.limits import ScanLimits
@@ -35,6 +34,7 @@ from sentinel_scanner.netaddr import IPAddress
 from sentinel_scanner.ratelimit import RateLimiter
 from sentinel_scanner.resolver import Resolver
 from sentinel_scanner.scope import CheckedUrl, ScopePolicy
+from sentinel_scanner.urls import join_url
 from sentinel_scanner.version import USER_AGENT
 
 
@@ -208,7 +208,7 @@ class SafeHttpClient:
                 return FetchResult(tuple(responses))
             if responses[-1].status == 303 and current_method is not HttpMethod.HEAD:
                 current_method = HttpMethod.GET
-            next_url = urljoin(responses[-1].url, location)
+            next_url = join_url(responses[-1].url, location)
             try:
                 responses.append(self.request(current_method, next_url))
             except ScopeViolation as exc:
