@@ -12,25 +12,22 @@ import {
   startLab,
   stopLab,
 } from "./support/lab";
+import { OPERATOR_STATE } from "./support/session";
 
 // The complete operator workflow through the UI, against the live compose
 // stack and a temporary lab target (tests/e2e/support/lab.ts):
 // project → target + authorization → assessment → scan → findings + triage →
 // scan report → retest B → comparison → retest report → retest C.
+// It runs as a signed-in operator (Phase 9 M8): auth.setup.ts creates the
+// account, signs in through the UI and sets its password; the browser keeps
+// only the opaque session cookie.
 
 test.describe.configure({ mode: "serial" });
 test.skip(
   !process.env.E2E_BASE_URL,
   "needs the running compose stack and Docker (set E2E_BASE_URL)",
 );
-// Since Phase 9 M4 every API route except health and login requires a session
-// and project membership, and the console cannot sign in until M8 adds the
-// browser session (login page, HttpOnly cookie held by the Next.js server).
-// Until then this workflow cannot run against a live stack.
-test.skip(
-  !process.env.E2E_BROWSER_SESSIONS,
-  "the API requires authentication (Phase 9 M4); browser sessions arrive in M8",
-);
+test.use({ storageState: OPERATOR_STATE });
 
 const RUN = Date.now().toString(36);
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -203,7 +200,8 @@ test("project, target and authorization", async ({ page }) => {
   await page.waitForURL(new RegExp(`/targets/${UUID}$`));
   state.target = idFrom(page, "/targets");
   await expect(page.getByText("Authorization is recorded, not verified.").first()).toBeVisible();
-  await expect(page.getByText("self-asserted (no platform login yet)").first()).toBeVisible();
+  // The acknowledgement is the signed-in operator, recorded by the API.
+  await expect(page.getByText("signed-in user").first()).toBeVisible();
   await expect(page.getByTestId("authorization-history").locator("tbody tr")).toHaveCount(1);
   await expect(page.locator("#scope")).toContainText(LAB_HOST);
   await expect(page.locator("#scope a")).toHaveCount(0); // target URLs are not links

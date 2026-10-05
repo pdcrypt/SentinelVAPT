@@ -18,8 +18,10 @@ reports. It does not perform exploitation. See
 > compared finding by finding ([retesting](docs/retesting.md)), with
 > evidence-backed retest reports ([retest reports](docs/retest-reporting.md)).
 > A localhost-only Next.js operator console drives the whole workflow
-> ([operator console](docs/frontend.md)). There are no active checks and no
-> platform login yet.
+> ([operator console](docs/frontend.md)) behind a platform sign-in, with
+> project membership and roles enforced by the API
+> ([ADR 0014](docs/adr/0014-authentication-and-authorization.md)). There are no
+> active checks.
 
 ## Stack
 
@@ -74,16 +76,25 @@ docker compose --profile lab up -d
 
 All ports bind to `127.0.0.1` only (see [ADR 0005](docs/adr/0005-localhost-only-until-auth.md)).
 
+Create the first administrator once (it is refused when one exists), then
+sign in at http://localhost:3000. The administrator creates the other
+accounts (API `POST /api/v1/users`); each new user sets their own password at
+first sign-in. There is no self-registration.
+
+```powershell
+docker compose exec backend python -m app.cli create-admin --username admin --display-name "Administrator"
+```
+
 ## Demo workflow (operator console)
 
 Authorized local lab use only. Open http://localhost:3000 with the lab target
-running (`docker compose --profile lab up -d`), then:
+running (`docker compose --profile lab up -d`) and sign in, then:
 
 1. **Projects:** create a project. **Add target:**
    - base URL `http://lab-target/`, in-scope host `lab-target`;
    - record the authorization and tick the acknowledgement. The platform
-     records it but cannot verify it, and there is no login yet: every name
-     you enter is shown as *self-asserted*.
+     records that you, the signed-in user, acknowledged it, but it cannot
+     verify that the authorization itself is genuine.
 2. On the target, **plan an assessment**, **start** it and **launch a passive
    scan**. The scan page refreshes until the scan and its analysis finish.
 3. **Findings:** open them with their evidence (shown as inert text). Record a

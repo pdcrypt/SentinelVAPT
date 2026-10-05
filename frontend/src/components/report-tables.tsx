@@ -26,7 +26,7 @@ function ReportRows({ reports, base }: { reports: AnyReport[]; base: string }) {
             <StatusBadge status={r.status} />
           </td>
           <td className="small">
-            <Actor name={r.prepared_by} />
+            <Actor name={r.prepared_by} userId={r.requested_by_user_id} />
           </td>
           <td className="mono">{formatTime(r.created_at)}</td>
         </tr>

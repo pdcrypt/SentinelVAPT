@@ -4,3 +4,4 @@ playwright-report
 test-results
 tests
 .env*
+.e2e

@@ -1,7 +1,8 @@
 // Host and Origin checks for the Next.js boundary (ADR 0013).
 //
-// The operator UI is localhost-only (ADR 0005) and has no login yet, so any
-// page on another origin that the operator visits could try to drive it:
+// The operator UI is localhost-only (ADR 0005) and its session is a cookie
+// (Phase 9 M8), so any page on another origin that the operator visits could
+// try to drive it:
 // cross-site form posts (CSRF) or DNS rebinding (a hostile name resolving to
 // 127.0.0.1, which makes the browser send that name as the Host). Every
 // request must therefore carry an allowlisted Host, and every state-changing

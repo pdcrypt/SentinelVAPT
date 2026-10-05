@@ -93,9 +93,10 @@ today:
   - **Request checks:** unexpected Host headers and cross-origin writes are refused.
   - **Hostile data:** everything captured from targets is shown as inert text, with
     hidden characters made visible, and report previews run in a script-less sandbox.
-  - **Targets and names:** the console creates only `local_lab` targets. The
-    authorization and the names typed into forms are recorded as self-asserted: there
-    is no platform login yet.
+  - **Targets and names:** the console creates only `local_lab` targets. Every page
+    requires a platform sign-in, and the API records who acted from the session. The
+    authorization itself (who authorized testing) is what the operator enters: the
+    platform records it but cannot verify it.
 
 ## Planned safety controls
 

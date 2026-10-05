@@ -37,6 +37,11 @@ const DOCUMENTED_CODES = new Set([
   "comparison_not_allowed",
   "retest_report_not_allowed",
   "integrity_error",
+  // Authentication and authorization (Phase 9): uniform messages that never
+  // say which check failed.
+  "forbidden",
+  "invalid_credentials",
+  "invalid_current_password",
 ]);
 
 /** Plain-language explanations of the API's 409 refusal reasons. */
@@ -66,6 +71,8 @@ export const REASON_TEXT: Record<string, string> = {
 };
 
 const STATUS_TITLES: Record<number, string> = {
+  401: "Sign-in failed",
+  403: "Not permitted",
   404: "Not found",
   409: "Not allowed right now",
   421: "Request refused",

@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging) and M7 (user and membership administration) are implemented; M8–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging), M7 (user and membership administration) and M8 (browser sessions and frontend login) are implemented; M9 follows.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -45,11 +45,13 @@ None implies another:
 browser ──(HttpOnly session cookie)──▶ Next.js ──(Authorization: Bearer <opaque token>)──▶ FastAPI ──▶ PostgreSQL
 ```
 
-- **Login.** Next.js calls `POST /api/v1/auth/login` server-side and stores
-  the returned token in an `HttpOnly`, `SameSite=Strict`, `Path=/` cookie.
+- **Login.** Next.js calls `POST /api/v1/auth/login` server-side. The
+  returned token stays on the Next.js server; the browser gets an `HttpOnly`,
+  `SameSite=Strict`, `Path=/` cookie that holds only an opaque reference to
+  it (amended in M8: the cookie was first planned to hold the token itself).
   - Name `__Host-sv_session`, with `Secure`. Browsers treat
     `http://localhost` as secure.
-  - The name and the `Secure` flag are configurable for browsers that need it.
+  - Only a development server can drop `Secure` (and the prefix), explicitly.
 - **Forwarding.** Next.js forwards the token as a bearer token from its
   server-only API client. The token never reaches client JavaScript, client
   bundles or RSC payloads.
@@ -367,7 +369,8 @@ serialized with a transaction advisory lock.
   correct.
 - Unknown usernames are never stored: only `reason` and the source address.
 - The source is the direct peer address. Trusted forwarding of the browser's
-  address from the Next.js server is M8.
+  address from the Next.js server was planned for M8 and is deferred (see
+  "Not in M8").
 - All thresholds are settings with bounds.
 
 #### Bootstrap
@@ -402,8 +405,8 @@ python -m app.cli create-admin --username <name> --display-name "<name>"
 | Recording `authentication_enforced_at` | M4 |
 | Remaining audit events and read endpoints | M6 |
 | User administration API (create, disable, enable, reset) | M7 |
-| Trusted client-address forwarding | M8 |
-| Browser cookie handling | M8 |
+| Trusted client-address forwarding | Deferred (not in M8; see M8) |
+| Browser cookie handling | M8 (implemented) |
 | Pruning expired sessions | Later (expired and revoked rows can already be deleted) |
 
 ### Authorization machinery (implemented in M3)
@@ -1018,6 +1021,110 @@ As in M6:
 - the migration's vocabulary insert is idempotent, and a downgrade keeps
   every action that an event already uses.
 
+### Browser sessions and frontend login (implemented in M8)
+
+The operator console signs users in with the M2 endpoints and holds their
+sessions server-side. FastAPI stays the only authority: it checks passwords,
+issues and validates sessions, enforces the password-change gate and decides
+every project and resource permission. The console only knows whether the
+browser has a session, and shows what the API returns.
+
+#### Architecture
+
+```
+browser ──(__Host-sv_session: opaque id)──▶ Next.js server ──(Authorization: Bearer <token>)──▶ FastAPI
+                                             └─ session store (memory): SHA-256(id) → token, absolute expiry
+```
+
+- **The token never reaches the browser.** The store maps a random 256-bit id
+  (the cookie value) to the API token. Not in a cookie, HTML, RSC payload,
+  client bundle, URL or browser storage. Keys are the SHA-256 of the id, so
+  the store holds no usable cookie value. `lib/api/client.ts` is the only
+  code that reads the token and adds `Authorization: Bearer`; source guards
+  enforce this and keep every auth module `server-only`.
+- **Why not the token in the cookie** (the original plan): an `HttpOnly`
+  cookie already keeps it from scripts, but any copy of the cookie (a
+  browser profile, a proxy log, a HAR file) would then be an API credential
+  usable from anywhere until it expires. An opaque id is useless without
+  this server, can be revoked here without the API, and leaks nothing.
+- **Why in memory.** The console is one local process (ADR 0005); no second
+  session database is introduced. Restarting the console signs everyone out
+  and nobody holds the orphaned API tokens, which then expire on their idle
+  timeout. A multi-instance deployment would need a shared store; that is
+  out of scope.
+- **The cookie.** `HttpOnly`, `Secure` (always in production;
+  `SESSION_COOKIE_INSECURE=1` drops it on a development server only),
+  `SameSite=Strict`, `Path=/`, no `Domain`, `Max-Age` up to the API session's
+  absolute expiry (24 hours at most). It is removed with the same attributes.
+
+#### Flows
+
+- **Login** (`/login`, a Server Action): the Host/Origin guard, a size check,
+  then `POST /auth/login` anonymously. Every failure (unknown user, wrong
+  password, disabled, throttled, malformed) gets the one message "Invalid
+  username or password.". On success a fresh id is created, whatever cookie
+  the browser sent (no fixation); a session it replaces is revoked. Users
+  with `must_change_password` go to `/account/password`.
+- **Current user**: the console layout calls `GET /auth/me` on every page load
+  and shows the username and an "administrator" label for global admins
+  (display only). It never receives ids, tokens or session details.
+- **Password change** (`/account/password`): the only page a user with a
+  pending change can open; elsewhere the layout and the API's
+  `password_change_required` both lead back to it. The form posts to
+  `POST /auth/password`; the API's policy and messages apply unchanged (the
+  console checks only that the confirmation matches). The API ends every
+  session of the user and returns a new one, which replaces the browser
+  session under a new id.
+- **Logout** (a POST): the entry is removed and the cookie cleared first, then
+  `POST /auth/logout` revokes the API session. It succeeds the same way when
+  the API session had already ended or the API is unreachable.
+- **Ended sessions**: any 401 from the API (idle or absolute expiry, logout
+  elsewhere, disabled user, password reset, unknown token) removes the entry,
+  is never retried, and sends the browser to `/session/end`, which clears a
+  stale cookie and shows the sign-in page. `/session/end` is a GET that never
+  touches a live session. A 403 or 404 stays what the API said: "Not
+  permitted" or "Not found".
+
+#### Route protection
+
+- The proxy, after its Host and Origin checks, redirects requests without a
+  session cookie to `/login` (303) and refuses writes with 401. Public: only
+  `/login`, `/session/end` and framework files.
+- The `(console)` layout validates the session with the API before rendering;
+  without one, no page data can be fetched at all, since the API client has
+  no token to send.
+- Project access is not checked in the console. A non-member, including a
+  global admin, sees "Not found"; a viewer's write shows "Not permitted".
+
+#### CSRF
+
+The browser authenticates with a cookie, so every state-changing request to
+the console must prove it comes from the console. The Phase 8 defence is kept
+and now also covers sign-in, sign-out and password change:
+
+- the Host must be allowlisted, the `Origin` must be exactly this origin and
+  `Sec-Fetch-Site` (when sent) `same-origin`, in the proxy and again as the
+  first statement of every Server Action (a source guard checks this);
+- the session cookie is `SameSite=Strict`, so a cross-site request does not
+  carry it at all;
+- GET requests change nothing (`/session/end` only clears a cookie whose
+  session is already gone).
+
+Origin verification is a standard CSRF defence when the server requires the
+header on every write, as it does here. A synchronizer token would add a
+second, competing mechanism without closing a gap.
+
+#### Not in M8
+
+| Deferred | Why |
+|---|---|
+| Account, member and audit pages in the console | The APIs exist (M6/M7) and are the authority; the console pages are UI work for a later milestone. |
+| Trusted client-address forwarding to the API | All browser logins reach the API from the console's address, so the per-source login throttle (50 failures in 15 minutes) applies to the console as a whole. Forwarding the browser's address needs a backend trust setting; M8 makes no backend change. The per-account throttle is unaffected. |
+| A shared session store | Single local instance (ADR 0005). |
+| A return-to URL after sign-in | Avoids an open redirect; sign-in always lands on the overview. |
+
+No backend, database or OpenAPI change was needed.
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -1044,7 +1151,7 @@ Phase 9 does not change:
 | M5 | Server-owned actor identity: `*_user_id` columns with write-once triggers, actor fields refused, workers as system actors (implemented) |
 | M6 | Audit emission for state changes, denials and worker transitions; closed vocabulary; database-enforced integrity; owner/admin read endpoints (implemented) |
 | M7 | Account administration (create, list, disable, password reset) and owner-managed membership with the last-owner and last-admin invariants; legacy claim command since M4 (implemented) |
-| M8 | Frontend login and logout, account, members, admin, audit; 401/403 handling |
+| M8 | Browser sessions (opaque cookie, server-held token), login, logout, current user, required password change, route protection, 401/403 handling, CSRF review (implemented; account, member and audit pages deferred) |
 | M9 | Mutation suite, full regression, live Compose as owner, operator and viewer, documentation |
 
 ## Non-goals (Phase 9)

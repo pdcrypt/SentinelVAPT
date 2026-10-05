@@ -98,7 +98,11 @@ export default async function FindingPage({ params }: { params: Promise<{ findin
             ["Reason", <SafeText key="r" value={f.status_reason} />],
             [
               "Changed by",
-              f.status_changed_by ? <Actor key="b" name={f.status_changed_by} /> : "—",
+              f.status_changed_by ? (
+                <Actor key="b" name={f.status_changed_by} userId={f.status_changed_by_user_id} />
+              ) : (
+                "—"
+              ),
             ],
             ["Changed at (UTC)", formatTime(f.status_changed_at)],
           ]}
@@ -148,7 +152,7 @@ export default async function FindingPage({ params }: { params: Promise<{ findin
                     <SafeText value={h.reason} />
                   </td>
                   <td>
-                    <Actor name={h.changed_by} />
+                    <Actor name={h.changed_by} userId={h.changed_by_user_id} />
                   </td>
                 </tr>
               ))}

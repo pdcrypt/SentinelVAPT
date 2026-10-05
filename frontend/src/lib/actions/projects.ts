@@ -31,7 +31,7 @@ export async function createProjectAction(_: ActionState, form: FormData): Promi
 }
 
 /** The authorization block shared by target creation and re-authorization.
- *  The platform records it; it cannot verify it (no login, ADR 0005). */
+ *  The platform records it; it cannot verify it (ADR 0005). */
 function authorization(form: FormData): AuthorizationIn | ActionState {
   const validFrom = utcDateTime(form, "valid_from");
   const validUntil = utcDateTime(form, "valid_until");

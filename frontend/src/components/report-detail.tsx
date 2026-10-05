@@ -44,7 +44,10 @@ export function ReportDetail({
             ["Kind", report.kind],
             ["Title", <SafeText key="t" value={report.title} />],
             ["Classification", report.classification],
-            ["Prepared by", <Actor key="p" name={report.prepared_by} />],
+            [
+              "Prepared by",
+              <Actor key="p" name={report.prepared_by} userId={report.requested_by_user_id} />,
+            ],
             ["Reviewed by", report.reviewed_by ? <Actor key="r" name={report.reviewed_by} /> : "—"],
             ...context,
             [

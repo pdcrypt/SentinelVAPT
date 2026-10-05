@@ -2,6 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { downloadArtifact, previewArtifact } from "@/lib/artifacts";
 
+// Requests act as a signed-in user (lib/auth/session.ts is covered by
+// auth-flows.test.ts).
+vi.mock("@/lib/auth/session", () => ({
+  currentToken: async () => "test-session-token",
+  forgetCurrentSession: async () => undefined,
+}));
+
 const REPORT = "22222222-2222-4222-8222-222222222222";
 const SANDBOX_CSP =
   "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; " +

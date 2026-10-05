@@ -9,7 +9,11 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: { baseURL, trace: "on-first-retry" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    // Signs an operator in through the UI (live stack only; see auth.setup.ts).
+    { name: "setup", testMatch: /.*\.setup\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, dependencies: ["setup"] },
+  ],
   // Without E2E_BASE_URL, starts a production server (the CSP assertions
   // expect production headers); the live-stack workflow tests then skip.
   webServer: process.env.E2E_BASE_URL

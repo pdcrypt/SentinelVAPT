@@ -1,6 +1,9 @@
 // Result of a Server Action, rendered by <ActionForm>. Never contains raw
 // API responses: errors go through mapApiError (lib/api/errors.ts).
+import { redirect } from "next/navigation";
+
 import { mapApiError, toUiError, type UiError } from "@/lib/api/errors";
+import { authRedirect } from "@/lib/auth/paths";
 
 export type ActionState =
   { status: "idle" } | { status: "ok"; message: string } | { status: "error"; error: UiError };
@@ -11,7 +14,11 @@ export function ok(message: string): ActionState {
   return { status: "ok", message };
 }
 
+/** A failed API call. If the session ended (401) or a password change is
+ *  due, the browser is sent there instead of seeing an error. */
 export function failed(error: unknown): ActionState {
+  const to = authRedirect(error);
+  if (to !== null) redirect(to);
   return { status: "error", error: toUiError(error) };
 }
 

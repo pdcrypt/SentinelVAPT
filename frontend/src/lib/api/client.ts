@@ -1,10 +1,20 @@
 import "server-only";
 
+import { currentToken, forgetCurrentSession } from "@/lib/auth/session";
+
 // The only code that talks to the SentinelVAPT API (ADR 0013). It runs on the
 // Next.js server: the browser never learns API_INTERNAL_URL and never calls
 // the API. Responses are parsed defensively and errors are reduced to the
 // API's documented error shape ({detail, code, field, reason}); response
 // bodies of unexpected errors are never kept, so they cannot reach a page.
+//
+// Every call acts as the signed-in user (ADR 0014, Phase 9 M8): the bearer
+// token comes from the browser session held by this server
+// (lib/auth/session.ts) and is added here, the only place that sends it.
+// Without a session nothing is sent. When the API answers 401 the session is
+// over (expired, revoked, logged out, disabled, password reset), so it is
+// dropped here and never retried; the caller sends the browser to sign in.
+// Only sign-in itself is anonymous. Identity is never sent any other way.
 
 const TIMEOUT_MS = 15_000;
 
@@ -84,21 +94,33 @@ export async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, "unexpected_response", null);
 }
 
+/** "session": as the signed-in user (the default). "anonymous": no
+ *  credentials (sign-in only). A token: as that specific session (sign-out
+ *  of a session that was just removed from the store). */
+export type Auth = "session" | "anonymous" | { token: string };
+
 async function send(
   method: string,
   path: string,
-  options: { query?: Query; body?: unknown } = {},
+  options: { query?: Query; body?: unknown; auth?: Auth } = {},
 ): Promise<Response> {
+  const auth = options.auth ?? "session";
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (auth !== "anonymous") {
+    const token = auth === "session" ? await currentToken() : auth.token;
+    if (!token) throw new ApiError(401, "unauthenticated", "Authentication required.");
+    headers.Authorization = `Bearer ${token}`;
+  }
   const init: RequestInit = {
     method,
     cache: "no-store",
     redirect: "error",
     signal: AbortSignal.timeout(TIMEOUT_MS),
-    headers: { Accept: "application/json" },
+    headers,
   };
   if (options.body !== undefined) {
     init.body = JSON.stringify(options.body);
-    init.headers = { ...init.headers, "Content-Type": "application/json" };
+    headers["Content-Type"] = "application/json";
   }
   let response: Response;
   try {
@@ -106,7 +128,11 @@ async function send(
   } catch {
     throw new ApiError(503, "api_unreachable", null);
   }
-  if (!response.ok) throw await toApiError(response);
+  if (!response.ok) {
+    const error = await toApiError(response);
+    if (auth === "session" && error.status === 401) await forgetCurrentSession();
+    throw error;
+  }
   return response;
 }
 
@@ -121,8 +147,9 @@ export async function apiWrite<T>(
   method: "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown,
+  auth: Auth = "session",
 ): Promise<{ status: number; data: T | null }> {
-  const response = await send(method, path, { body });
+  const response = await send(method, path, { body, auth });
   if (response.status === 204) return { status: 204, data: null };
   return { status: response.status, data: (await response.json()) as T };
 }

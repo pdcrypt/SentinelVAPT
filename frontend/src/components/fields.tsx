@@ -10,6 +10,7 @@ export function TextField({
   defaultValue,
   placeholder,
   maxLength = 200,
+  autoComplete = "off",
 }: {
   name: string;
   label: string;
@@ -18,6 +19,7 @@ export function TextField({
   defaultValue?: string;
   placeholder?: string;
   maxLength?: number;
+  autoComplete?: "off" | "username";
 }) {
   return (
     <div className="field">
@@ -33,10 +35,39 @@ export function TextField({
         defaultValue={defaultValue}
         placeholder={placeholder}
         maxLength={maxLength}
-        autoComplete="off"
+        autoComplete={autoComplete}
         spellCheck={false}
       />
       {hint && <span className="hint">{hint}</span>}
+    </div>
+  );
+}
+
+/** A password input. Never given a value: what was typed is never sent back
+ *  to the page (React clears the form after its action runs). The length
+ *  limit is the API's request bound; the password policy is the API's. */
+export function PasswordField({
+  name,
+  label,
+  autoComplete,
+}: {
+  name: string;
+  label: string;
+  autoComplete: "current-password" | "new-password";
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={`f-${name}`}>{label} *</label>
+      <input
+        id={`f-${name}`}
+        name={name}
+        type="password"
+        required
+        maxLength={1024}
+        autoComplete={autoComplete}
+        spellCheck={false}
+        autoCapitalize="none"
+      />
     </div>
   );
 }

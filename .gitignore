@@ -29,6 +29,8 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+# Generated e2e accounts and signed-in browser state (Phase 9 M8)
+.e2e/
 
 # Generated reports (report templates live in reports/sentinel_reports/templates)
 reports/output/

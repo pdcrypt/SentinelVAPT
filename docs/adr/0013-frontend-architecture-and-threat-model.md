@@ -10,7 +10,8 @@ Phases 1–7 expose the whole workflow through a REST API. Phase 8 adds an
 operator console for it, without changing the backend, the database, the
 scanner, the analysis rules or the report renderers. There is still no
 platform login (ADR 0005): the stack is bound to 127.0.0.1, and every name
-typed into a form is self-asserted.
+typed into a form is self-asserted. (Phase 9 M8 later adds sign-in and browser
+sessions to this console; see ADR 0014.)
 
 The console displays data that is hostile by construction. Target names,
 URLs, page titles, response headers and bodies come from the systems being

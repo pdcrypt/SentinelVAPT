@@ -20,6 +20,18 @@ export function isUuid(value: string): boolean {
   return UUID.test(value);
 }
 
+// --- authentication (ADR 0014, Phase 9 M8) ---------------------------------------------
+// Sign-in is the only anonymous call. Sign-out names the session to revoke
+// explicitly: by then it has already been removed from the session store.
+
+export const login = (body: T.LoginRequest) =>
+  apiWrite<T.SessionResponse>("POST", "/auth/login", body, "anonymous");
+export const logout = (token: string) =>
+  apiWrite<null>("POST", "/auth/logout", undefined, { token });
+export const getMe = () => apiGet<T.MeResponse>("/auth/me");
+export const changePassword = (body: T.PasswordChangeRequest) =>
+  apiWrite<T.SessionResponse>("POST", "/auth/password", body);
+
 // --- health ----------------------------------------------------------------------------
 
 export const getReadiness = () => apiGet<T.HealthResponse>("/health/ready");

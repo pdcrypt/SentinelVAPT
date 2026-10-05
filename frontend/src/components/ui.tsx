@@ -4,13 +4,25 @@ import type { ReactNode } from "react";
 import { SafeText } from "@/components/safe-text";
 import type { UiError } from "@/lib/api/errors";
 
-/** A person named in a record. There is no platform login yet, so every such
- *  name was typed by whoever made the request (ADR 0005, ADR 0013). */
-export function Actor({ name }: { name: string | null | undefined }) {
+/** A person named in a record. Since Phase 9 M5 the API records the
+ *  signed-in user who acted (`userId`) and stores their name as a label;
+ *  records made before that, and names typed into a form, are self-asserted
+ *  (ADR 0014). Display only: the label is never used to decide anything. */
+export function Actor({
+  name,
+  userId,
+}: {
+  name: string | null | undefined;
+  userId?: string | null;
+}) {
   return (
     <span className="actor">
       <SafeText value={name} />{" "}
-      <span className="self-asserted">self-asserted (no platform login yet)</span>
+      {userId ? (
+        <span className="signed-in">signed-in user</span>
+      ) : (
+        <span className="self-asserted">self-asserted</span>
+      )}
     </span>
   );
 }

@@ -11,9 +11,11 @@ and threat model are in
     ([ADR 0005](adr/0005-localhost-only-until-auth.md)).
   - Only `local_lab` targets can be created and scanned. Checks are passive
     and non-destructive.
-- **No authentication yet.** Names typed into forms (who authorized testing,
-  who triaged, who prepared a report) are **self-asserted (no platform login
-  yet)**. The UI labels every such name that way.
+- **Signed in, with the API as the authority** (Phase 9 M8, see
+  [Sign-in and browser sessions](#sign-in-and-browser-sessions)). Every page
+  except sign-in requires a session. Who acted is recorded by the API from
+  that session and labelled "signed-in user"; older records are labelled
+  *self-asserted*. Who authorized testing is still what the operator enters.
 - **The platform records an authorization; it does not verify it.** It
   enforces the window and scope on every scan, but it cannot check that the
   authorization is genuine.
@@ -127,10 +129,17 @@ npm run api:check                # generated API types match openapi/sentinelvap
 E2E_BASE_URL=http://localhost:3000 npx playwright test   # needs the compose stack and Docker
 ```
 
-Since Phase 9 M4 the API requires a session and project membership. The
-console cannot sign in until M8 (ADR 0014), so until then it receives 401
-from the API, and the live-stack workflow spec is skipped (it runs only with
-`E2E_BROWSER_SESSIONS` set). The other specs and checks are unaffected.
+The live-stack specs (`E2E_BASE_URL` set) sign in with real accounts made by
+the platform's own mechanisms (`tests/e2e/support/accounts.ts`): the first
+administrator comes from `python -m app.cli create-admin` run in the backend
+container (or from `E2E_ADMIN_USERNAME` / `E2E_ADMIN_PASSWORD` when the stack
+already has one), and every other account is created by that administrator
+through the account API with a random temporary password. The generated
+administrator's credentials are kept in `frontend/.e2e/` (git- and
+docker-ignored). The `setup` project signs an operator in through the UI,
+completes the required password change and saves the browser state (the
+opaque cookie only) for the workflow spec. Without `E2E_BASE_URL`, only the
+specs that need no account run.
 
 Since M5 the forms no longer ask who acknowledged an authorization,
 prepared a report or made a triage. The server records the signed-in
@@ -140,3 +149,49 @@ The end-to-end suite runs the whole workflow (A → B → C) through the UI
 against a temporary nginx lab target it starts on the compose network
 (`tests/e2e/support/lab.ts`). It also runs the browser-facing security
 checks (`tests/e2e/security.spec.ts`).
+
+## Sign-in and browser sessions
+
+Phase 9 M8 ([ADR 0014](adr/0014-authentication-and-authorization.md)).
+
+```
+browser ──(opaque HttpOnly cookie)──▶ Next.js server ──(Authorization: Bearer <token>)──▶ FastAPI
+                                       └─ in-memory session store: cookie id → API token
+```
+
+- **Sign-in** (`/login`, a Server Action) sends the username and password to
+  `POST /api/v1/auth/login` from the server. The API checks the password,
+  throttles and audits; every failure gets the same message. The token it
+  returns stays in the Next.js server's memory. The browser gets a cookie
+  holding a fresh random id (never the token), and a redirect.
+- **The cookie**: `__Host-sv_session`, `HttpOnly`, `Secure`,
+  `SameSite=Strict`, `Path=/`, no `Domain`, expiring with the API session's
+  absolute expiry. `SESSION_COOKIE_INSECURE=1` drops `Secure` (and the
+  `__Host-` prefix) on a development server only; production ignores it.
+- **Every API call** adds `Authorization: Bearer <token>` in
+  `lib/api/client.ts`, the only place the token is read. Nothing else
+  identifies the user: no identity headers, no actor fields.
+- **Protected pages.** The proxy sends requests without a session cookie to
+  `/login` (writes get 401). The console layout asks `GET /auth/me` on every
+  page load, so a revoked or expired session is noticed at once. Which
+  projects and records a user sees is decided by the API: non-members get
+  "Not found", a role without the permission gets "Not permitted", and a
+  global administrator is not a member of every project.
+- **Password change.** A user with `must_change_password` (new accounts,
+  administrator resets) can reach only `/account/password`; the API refuses
+  everything else with `password_change_required`, which the console turns
+  into that page. The policy is the API's. A successful change ends every
+  session of the user and the console switches to the new one.
+- **Ended sessions.** A 401 from the API (idle or absolute expiry, sign-out
+  elsewhere, disabled user, password reset) drops the server-side entry and
+  sends the browser through `/session/end`, which clears the stale cookie and
+  shows the sign-in page. Nothing is retried.
+- **Sign-out** (a POST) forgets the session, clears the cookie and revokes the
+  API session; it works the same if the API session had already ended.
+- **CSRF.** Every state-changing request must come from this origin (Host
+  allowlist, exact `Origin`, `Sec-Fetch-Site`), in the proxy and again in each
+  Server Action; the cookie is also `SameSite=Strict`. Sign-in is protected
+  the same way (no login CSRF).
+- **Restarting the console** signs everyone out (the store is in memory); the
+  orphaned API sessions expire on their idle timeout and no one holds their
+  tokens.

@@ -52,6 +52,49 @@ describe("source tree", () => {
     }
   });
 
+  it("keeps the browser session and the API token server-only (Phase 9 M8)", () => {
+    for (const name of ["lib/auth/session.ts", "lib/auth/store.ts", "lib/auth/user.ts"]) {
+      expect(read(join(SRC, name)), name).toMatch(/^import "server-only";/m);
+    }
+    expect(read(join(SRC, "lib/actions/auth.ts"))).toMatch(/^"use server";/);
+    const clientFiles = SOURCES.filter((f) => /^["']use client["'];/m.test(read(f)));
+    expect(clientFiles.length).toBeGreaterThan(0);
+    for (const file of clientFiles) {
+      expect(read(file), rel(file)).not.toMatch(/from "@\/lib\/auth\/(session|store|user)"/);
+      expect(read(file), rel(file)).not.toMatch(/\btoken\b|SessionResponse|Authorization/);
+    }
+    // The token is read in exactly one place and sent from exactly one place.
+    const tokenReaders = SOURCES.filter((f) => /\bcurrentToken\(|\.token\b/.test(read(f)));
+    for (const file of tokenReaders) {
+      const source = read(file);
+      expect(
+        /^import "server-only";/m.test(source) || /^"use server";/.test(source),
+        rel(file),
+      ).toBe(true);
+    }
+    const bearer = SOURCES.filter((f) => /Bearer /.test(read(f))).map(rel);
+    expect(bearer).toEqual(["lib/api/client.ts"]);
+  });
+
+  it("never keeps anything in browser storage or script-readable cookies", () => {
+    for (const file of SOURCES) {
+      expect(read(file), rel(file)).not.toMatch(
+        /localStorage|sessionStorage|indexedDB|document\.cookie/,
+      );
+    }
+  });
+
+  it("only the server talks to the API, and never with identity headers", () => {
+    for (const file of SOURCES) {
+      const source = read(file);
+      expect(source, rel(file)).not.toMatch(/["'`]X-(User|User-Id|Actor|Username)["'`]/i);
+      if (/\bfetch\(/.test(source)) {
+        expect(["lib/api/client.ts", "lib/api/health.ts"], rel(file)).toContain(rel(file));
+        expect(source, rel(file)).toMatch(/^import "server-only";/m);
+      }
+    }
+  });
+
   it("starts every Server Action with the Host/Origin guard", () => {
     const actionFiles = SOURCES.filter((f) => /^["']use server["'];/m.test(read(f)));
     expect(actionFiles.length).toBeGreaterThan(0);

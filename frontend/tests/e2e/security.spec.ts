@@ -1,11 +1,21 @@
 import { request as httpRequest } from "node:http";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+import { activate, createAccount } from "./support/accounts";
+import { LIVE, LIVE_ONLY, signIn } from "./support/session";
 
 // Browser-facing security controls of the operator console (ADR 0013),
 // checked against the running server.
 
 const BASE = new URL(process.env.E2E_BASE_URL ?? "http://localhost:3000");
+
+/** Signs a fresh account in (live stack only). */
+async function signedIn(page: Page): Promise<void> {
+  const account = await createAccount("security");
+  await activate(account);
+  await signIn(page, account);
+}
 
 /** A raw HTTP request, so Host/Origin can be set to anything (browsers and
  *  fetch do not allow forging them). */
@@ -64,13 +74,28 @@ test("application pages carry a per-request nonce CSP without unsafe-inline scri
   for (const tag of scripts) expect(tag).toContain(`nonce="${nonce}"`);
 });
 
-test("the application runs under its CSP without violations", async ({ page }) => {
+test("the sign-in page runs under its CSP without violations", async ({ page }) => {
   const violations: string[] = [];
   page.on("console", (msg) => {
     if (/Content Security Policy|Refused to (execute|load|apply)/i.test(msg.text())) {
       violations.push(msg.text());
     }
   });
+  await page.goto("/login");
+  await expect(page.locator("h1")).toHaveText("Sign in");
+  await page.getByLabel("Username").fill("someone");
+  expect(violations).toEqual([]);
+});
+
+test("the application runs under its CSP without violations", async ({ page }) => {
+  test.skip(!LIVE, LIVE_ONLY);
+  const violations: string[] = [];
+  page.on("console", (msg) => {
+    if (/Content Security Policy|Refused to (execute|load|apply)/i.test(msg.text())) {
+      violations.push(msg.text());
+    }
+  });
+  await signedIn(page);
   for (const path of [
     "/",
     "/projects",
@@ -100,7 +125,7 @@ test("forged or unexpected Host headers are refused (DNS rebinding)", async () =
     "X-Forwarded-Host": "evil.example",
   });
   expect(forwarded.status).toBe(421);
-  expect((await raw("GET", "/projects", { Host: BASE.host })).status).toBe(200);
+  expect((await raw("GET", "/login", { Host: BASE.host })).status).toBe(200);
 });
 
 test("cross-site writes are refused", async () => {
@@ -156,16 +181,17 @@ test("the client bundle never contains the API address", async ({ request }) => 
   }
 });
 
-test("artifact routes validate identifiers and never render inline downloads", async ({
-  request,
-}) => {
+test("artifact routes validate identifiers and never render inline downloads", async ({ page }) => {
+  test.skip(!LIVE, LIVE_ONLY);
+  await signedIn(page);
   for (const path of [
     "/artifacts/reports/not-a-uuid/json",
     "/artifacts/reports/00000000-0000-4000-8000-000000000000/docx",
     "/artifacts/retest-reports/..%2f..%2fhealth/preview",
+    "/artifacts/reports/00000000-0000-4000-8000-000000000000/json", // not a member: 404
   ]) {
-    const res = await request.get(path);
-    expect([404]).toContain(res.status());
+    const res = await page.request.get(path);
+    expect(res.status(), path).toBe(404);
     expect(res.headers()["content-security-policy"]).toContain("sandbox");
   }
 });
@@ -173,7 +199,8 @@ test("artifact routes validate identifiers and never render inline downloads", a
 test("a NUL character is rejected as a validation error, without server internals", async ({
   page,
 }) => {
-  test.skip(!process.env.E2E_BASE_URL, "needs the API (set E2E_BASE_URL)");
+  test.skip(!LIVE, LIVE_ONLY);
+  await signedIn(page);
   await page.goto("/projects");
   const form = page.getByTestId("create-project");
   await form.locator('[name="name"]').evaluate((el: HTMLInputElement) => {

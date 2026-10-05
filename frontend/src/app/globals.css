@@ -195,6 +195,54 @@ code,
   max-width: 1400px;
 }
 
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.role-label {
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.btn-small {
+  padding: 3px 8px;
+  font-size: 12.5px;
+}
+
+/* --- sign-in and password change ------------------------------------------------- */
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+}
+.auth-brand {
+  color: var(--fg);
+}
+.auth-brand .brand-sub {
+  color: var(--muted);
+}
+
 /* --- page structure ------------------------------------------------------------ */
 
 .page-header {
@@ -532,6 +580,11 @@ code,
   color: var(--warn);
   white-space: nowrap;
 }
+.signed-in {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
 /* --- forms and buttons ------------------------------------------------------------ */
 
@@ -569,6 +622,7 @@ code,
   color: var(--bad);
 }
 input[type="text"],
+input[type="password"],
 input[type="datetime-local"],
 input[type="search"],
 textarea,

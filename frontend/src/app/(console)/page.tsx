@@ -51,9 +51,9 @@ export default async function HomePage() {
           <ul className="small">
             <li>Localhost-only: this console and the API are bound to 127.0.0.1.</li>
             <li>
-              No platform login yet. Names entered in forms (authorizer, triager, report author) are{" "}
-              <strong>self-asserted</strong>; the platform does not verify who you are or whether an
-              authorization is genuine.
+              You are signed in: the API records who performed each action from your session, never
+              from a name in a form. Who authorized testing is still what you enter; the platform
+              cannot verify that an authorization is genuine.
             </li>
             <li>
               Only <code>local_lab</code> targets can be scanned. Checks are passive and

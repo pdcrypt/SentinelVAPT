@@ -78,8 +78,14 @@ describe("untrusted values render as inert text", () => {
     expect(out).toContain("http://lab-target/admin?x=1");
   });
 
-  it("labels actors as self-asserted", () => {
-    expect(html(<Actor name="Alice" />)).toContain("self-asserted (no platform login yet)");
+  it("labels actors recorded from a session apart from self-asserted names", () => {
+    expect(html(<Actor name="Alice" />)).toContain("self-asserted");
+    expect(html(<Actor name="Alice" userId={null} />)).toContain("self-asserted");
+    const signedIn = html(<Actor name="Alice" userId="6f1c0e3a-1111-4222-8333-444455556666" />);
+    expect(signedIn).toContain("signed-in user");
+    expect(signedIn).not.toContain("self-asserted");
+    // The label is display only: the id itself is never rendered.
+    expect(signedIn).not.toContain("6f1c0e3a");
   });
 });
 

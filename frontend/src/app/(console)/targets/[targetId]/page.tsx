@@ -111,13 +111,13 @@ export default async function TargetPage({ params }: { params: Promise<{ targetI
                       {formatTime(a.valid_from)} → {formatTime(a.valid_until)}
                     </td>
                     <td>
-                      <Actor name={a.authorized_by} />
+                      <SafeText value={a.authorized_by} />
                     </td>
                     <td className="wrap">
                       <SafeText value={a.reference} />
                     </td>
                     <td className="small">
-                      <Actor name={a.acknowledged_by} />
+                      <Actor name={a.acknowledged_by} userId={a.acknowledged_by_user_id} />
                       <br />
                       <span className="mono">{formatTime(a.acknowledged_at)}</span>
                     </td>

@@ -39,6 +39,12 @@ export type AssessmentStatus = S["AssessmentStatus"];
 export type ScanStatus = S["ScanStatus"];
 export type ReportStatus = S["ReportStatus"];
 export type HealthResponse = S["HealthResponse"];
+export type LoginRequest = S["LoginRequest"];
+export type PasswordChangeRequest = S["PasswordChangeRequest"];
+export type CurrentUser = S["CurrentUser"];
+export type MeResponse = S["MeResponse"];
+/** Carries the API session token: server-only (lib/actions/auth.ts). */
+export type SessionResponse = S["SessionResponse"];
 
 /** The eight persisted comparison states (comparison policy cmp-1), in the
  *  order the retest report presents them. Display only: the UI never

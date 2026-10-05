@@ -343,8 +343,13 @@ the last active admin is kept. Project owners add members, change their
 roles and remove them; a project always keeps an owner. Every change and
 every refusal is audited.
 
-The console cannot sign in until M8. The API remains localhost-only
-(ADR 0005).
+M8 connects the operator console. The browser holds only an opaque,
+`HttpOnly`, `SameSite=Strict` cookie; the Next.js server keeps the API session
+token in memory and sends it as a bearer token from its server-only client.
+Every console page requires a session, a pending password change allows only
+the password page, and a 401 from the API ends the browser session. FastAPI
+remains the authority for authentication and authorization. The API remains
+localhost-only (ADR 0005).
 
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:

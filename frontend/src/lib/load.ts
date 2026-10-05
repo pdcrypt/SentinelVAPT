@@ -1,6 +1,9 @@
 import "server-only";
 
+import { redirect } from "next/navigation";
+
 import { mapApiError, toUiError, type UiError } from "@/lib/api/errors";
+import { authRedirect } from "@/lib/auth/paths";
 
 export type Loaded<T> = { ok: true; data: T } | { ok: false; error: UiError };
 
@@ -10,6 +13,9 @@ export async function load<T>(read: () => Promise<T>): Promise<Loaded<T>> {
   try {
     return { ok: true, data: await read() };
   } catch (error) {
+    // The session ended or a password change is due: no page renders.
+    const to = authRedirect(error);
+    if (to !== null) redirect(to);
     if (error instanceof Error && /^invalid (identifier|fingerprint)$/.test(error.message)) {
       return {
         ok: false,

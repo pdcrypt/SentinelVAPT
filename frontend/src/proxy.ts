@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { cookieName, cookieSecure } from "@/lib/auth/cookie";
+import { gate, LOGIN_PATH } from "@/lib/auth/paths";
 import { buildCsp, generateNonce, isArtifactPath } from "@/lib/security/csp";
 import { allowedHosts, checkRequest } from "@/lib/security/request-guard";
 
@@ -8,21 +10,43 @@ import { allowedHosts, checkRequest } from "@/lib/security/request-guard";
 // Origin (CSRF defence). Application pages get a fresh CSP nonce. Server
 // Actions repeat the Host/Origin check themselves (lib/security/action-guard)
 // so a matcher change can never silently remove it.
+//
+// Since Phase 9 M8 a request without a session cookie reaches only the
+// sign-in page: page loads are redirected there, anything else gets 401.
+// This is an early exit, not the check itself: the console layout and the
+// API client validate the session with the API on every request.
+
+const PLAIN = {
+  "Content-Type": "text/plain; charset=utf-8",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+};
 
 export function proxy(request: NextRequest): NextResponse {
   const decision = checkRequest(request.method, request.headers, allowedHosts());
   if (!decision.ok) {
     return new NextResponse(
       decision.status === 421 ? "Misdirected request.\n" : "Cross-origin request refused.\n",
-      {
-        status: decision.status,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Cache-Control": "no-store",
-          "X-Content-Type-Options": "nosniff",
-        },
-      },
+      { status: decision.status, headers: PLAIN },
     );
+  }
+
+  const access = gate(
+    request.method,
+    request.nextUrl.pathname,
+    request.cookies.has(cookieName(cookieSecure())),
+  );
+  if (!access.ok) {
+    if (access.action === "redirect_to_login") {
+      const login = request.nextUrl.clone();
+      login.pathname = LOGIN_PATH;
+      login.search = "";
+      return NextResponse.redirect(login, {
+        status: 303,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+    return new NextResponse("Sign in required.\n", { status: 401, headers: PLAIN });
   }
 
   // Report artifacts set their own sandboxing headers (app/artifacts).

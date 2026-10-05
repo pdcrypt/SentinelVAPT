@@ -4,6 +4,13 @@ import { ApiError, apiGet, apiWrite, buildPath, toApiError } from "@/lib/api/cli
 import { id } from "@/lib/api/endpoints";
 import { mapApiError, toUiError } from "@/lib/api/errors";
 
+// Requests act as a signed-in user (lib/auth/session.ts is covered by
+// auth-flows.test.ts).
+vi.mock("@/lib/auth/session", () => ({
+  currentToken: async () => "test-session-token",
+  forgetCurrentSession: async () => undefined,
+}));
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,

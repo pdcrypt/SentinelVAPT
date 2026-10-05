@@ -2,6 +2,7 @@ import "server-only";
 
 import { ApiError, apiArtifact } from "@/lib/api/client";
 import { isUuid } from "@/lib/api/endpoints";
+import { authRedirect } from "@/lib/auth/paths";
 
 // Report artifacts, passed from the API to the browser under the same origin
 // as the UI, so the browser never calls the API (ADR 0013). Only an allowlist
@@ -35,7 +36,14 @@ function plain(status: number, message: string): Response {
 }
 
 function failure(error: unknown): Response {
+  const to = authRedirect(error);
+  if (to !== null) {
+    return new Response(null, { status: 303, headers: { ...BASE_HEADERS, Location: to } });
+  }
   if (error instanceof ApiError && error.status === 404) return plain(404, "Not found.");
+  if (error instanceof ApiError && error.status === 403) {
+    return plain(403, "You do not have permission to do this.");
+  }
   if (error instanceof ApiError && error.status === 409) {
     return plain(409, "This report has no artifacts yet.");
   }

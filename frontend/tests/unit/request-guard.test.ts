@@ -131,8 +131,10 @@ describe("proxy", () => {
   });
 
   it("sets a fresh nonce CSP on application pages", () => {
-    const a = proxy(req("GET", "http://localhost:3000/projects", { host: "localhost:3000" }));
-    const b = proxy(req("GET", "http://localhost:3000/projects", { host: "localhost:3000" }));
+    // A signed-in page load (the session cookie) and the public sign-in page.
+    const signedIn = { host: "localhost:3000", cookie: "__Host-sv_session=x" };
+    const a = proxy(req("GET", "http://localhost:3000/projects", signedIn));
+    const b = proxy(req("GET", "http://localhost:3000/login", { host: "localhost:3000" }));
     const cspA = a.headers.get("content-security-policy") ?? "";
     const cspB = b.headers.get("content-security-policy") ?? "";
     const nonceA = /'nonce-([^']+)'/.exec(cspA)?.[1];
@@ -145,6 +147,10 @@ describe("proxy", () => {
     expect(scriptSrc).not.toContain("unsafe-inline");
     expect(cspA).toContain("frame-ancestors 'none'");
     expect(cspA).toContain("object-src 'none'");
+    // Browser code may only fetch from this origin, never the API (Phase 9 M8)
+    // and forms may only post here.
+    expect(cspA.split("; ")).toContain("connect-src 'self'");
+    expect(cspA.split("; ")).toContain("form-action 'self'");
     expect(a.headers.get("x-frame-options")).toBe("DENY");
     // The nonce is passed to the renderer through the request headers.
     expect(a.headers.get("x-middleware-request-x-nonce")).toBe(nonceA);
@@ -152,8 +158,12 @@ describe("proxy", () => {
 
   it("leaves report artifacts to their own sandboxing headers", () => {
     const res = proxy(
-      req("GET", "http://localhost:3000/artifacts/reports/x/preview", { host: "localhost:3000" }),
+      req("GET", "http://localhost:3000/artifacts/reports/x/preview", {
+        host: "localhost:3000",
+        cookie: "__Host-sv_session=x",
+      }),
     );
+    expect(res.status).toBe(200);
     expect(res.headers.get("content-security-policy")).toBeNull();
   });
 });

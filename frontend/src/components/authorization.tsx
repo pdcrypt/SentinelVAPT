@@ -11,9 +11,9 @@ export function AuthorizationDisclaimer() {
     <Notice tone="warn">
       <strong>Authorization is recorded, not verified.</strong> SentinelVAPT stores who you say
       authorized testing, the reference and the window, and enforces that window and the scope on
-      every scan. It cannot check that the authorization is genuine, and there is no platform login
-      yet: the names you enter are self-asserted. Only test systems you are explicitly authorized to
-      test, in a local lab.
+      every scan. It records that you, the signed-in user, acknowledged it, but it cannot check that
+      the authorization itself is genuine. Only test systems you are explicitly authorized to test,
+      in a local lab.
     </Notice>
   );
 }
@@ -111,6 +111,7 @@ export function AuthorizationSummaryView({
     | "valid_from"
     | "valid_until"
     | "acknowledged_by"
+    | "acknowledged_by_user_id"
     | "acknowledged_at"
   >;
 }) {
@@ -124,10 +125,13 @@ export function AuthorizationSummaryView({
           </span>,
         ],
         ["Window (UTC)", `${formatTime(auth.valid_from)} → ${formatTime(auth.valid_until)}`],
-        ["Authorized by", <Actor key="a" name={auth.authorized_by} />],
+        ["Authorized by", <SafeText key="a" value={auth.authorized_by} />],
         ["Reference", <SafeText key="r" value={auth.reference} />],
         ["Notes", <SafeText key="n" value={auth.notes} />],
-        ["Acknowledged by", <Actor key="k" name={auth.acknowledged_by} />],
+        [
+          "Acknowledged by",
+          <Actor key="k" name={auth.acknowledged_by} userId={auth.acknowledged_by_user_id} />,
+        ],
         ["Acknowledged at", formatTime(auth.acknowledged_at)],
       ]}
     />
