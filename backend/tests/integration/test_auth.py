@@ -580,9 +580,13 @@ def test_no_response_leaks_secrets(live: Live) -> None:
     assert token not in me
 
 
-def test_existing_routes_are_unchanged(live: Live) -> None:
-    """M2 adds no route authorization: existing routes work without a token."""
+def test_product_routes_require_a_session(live: Live) -> None:
+    """Since Phase 9 M4 every product route needs a valid session; only
+    health, readiness and login are public."""
     client = live.client()
-    assert client.get("/api/v1/projects").status_code == 200
-    assert client.get("/api/v1/rules").status_code == 200
+    assert client.get("/api/v1/projects").status_code == 401
+    assert client.get("/api/v1/rules").status_code == 401
     assert client.get("/api/v1/health").status_code == 200
+    token = login(client, live.user().username).json()["token"]
+    assert client.get("/api/v1/projects", headers=bearer(token)).json() == []
+    assert client.get("/api/v1/rules", headers=bearer(token)).status_code == 200

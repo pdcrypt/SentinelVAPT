@@ -188,7 +188,11 @@ def remove_members(engine: Engine, projects: list[uuid.UUID]) -> None:
 
 def new_project(env: ScanEnv) -> uuid.UUID:
     with env.factory() as s:
-        return get_project_service(s).create(ProjectCreate(name=f"m3-{uuid.uuid4()}")).id
+        return (
+            get_project_service(s)
+            .create(ProjectCreate(name=f"m3-{uuid.uuid4()}"), owner_id=None)
+            .id
+        )
 
 
 @pytest.fixture
@@ -456,6 +460,7 @@ def resource_keys(env: ScanEnv, c: Mapping[str, Any]) -> dict[ResourceType, dict
         R.SCAN: {"id": scan},
         R.REPORT: {"id": report},
         R.COMPARISON: {"id": c["cmp_b"]},
+        R.ASSESSMENT_COMPARISON: {"assessment_id": c["b"], "comparison_id": c["cmp_b"]},
         R.RETEST_REPORT: {"id": rr},
     }
     for resource, table in (
@@ -598,6 +603,10 @@ def test_wrong_parent_and_wrong_kind_never_resolve(
             (R.COMPARISON_RECORD, {**keys[R.COMPARISON_RECORD], "fingerprint": "f" * 64}),
             # An id of one kind presented as another.
             (R.RETEST_ASSESSMENT, {"id": keys[R.ASSESSMENT]["id"]}),
+            (
+                R.ASSESSMENT_COMPARISON,
+                {**keys[R.ASSESSMENT_COMPARISON], "assessment_id": keys[R.ASSESSMENT]["id"]},
+            ),
             (R.REPORT, {"id": rr}),
             (R.RETEST_REPORT, {"id": report}),
             (R.SCAN, {"id": keys[R.FINDING]["id"]}),

@@ -498,10 +498,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Projects */
+        /**
+         * List Projects
+         * @description Only the projects the caller is a member of (whatever their global role).
+         */
         get: operations["list_projects_api_v1_projects_get"];
         put?: never;
-        /** Create Project */
+        /**
+         * Create Project
+         * @description The authenticated user becomes the project's first owner, in the same
+         *     transaction. Nothing in the body names an owner.
+         */
         post: operations["create_project_api_v1_projects_post"];
         delete?: never;
         options?: never;

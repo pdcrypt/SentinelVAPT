@@ -262,7 +262,9 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
 def scan_env(engine: Engine) -> Iterator[ScanEnv]:
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     with factory() as s:
-        project = get_project_service(s).create(ProjectCreate(name=f"scan-{uuid.uuid4()}"))
+        project = get_project_service(s).create(
+            ProjectCreate(name=f"scan-{uuid.uuid4()}"), owner_id=None
+        )
     with LabSite() as site:
         site.html(
             "/",

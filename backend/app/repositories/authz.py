@@ -28,13 +28,15 @@ from app.models.enums import ProjectRole
 @dataclass(frozen=True)
 class ResolverSpec:
     """`source` is a FROM clause ending in a table aliased `t` (targets),
-    except for projects; `keys` are the key columns, each compared with a
-    bound parameter of the same name; `uuid_keys` must be UUIDs."""
+    except for projects; `keys` are the key names, each compared with a
+    bound parameter of the same name (against `r.<key>` unless `columns`
+    names the column); `uuid_keys` must be UUIDs."""
 
     source: str
     keys: tuple[str, ...]
     uuid_keys: frozenset[str]
     project_column: str = "t.project_id"
+    columns: Mapping[str, str] | None = None
 
 
 def _via_scan(table: str) -> ResolverSpec:
@@ -97,6 +99,12 @@ RESOLVERS: Mapping[ResourceType, ResolverSpec] = {
     ResourceType.COMPARISON: ResolverSpec(
         "comparisons r JOIN targets t ON t.id = r.target_id", _ID, _UUID_ID
     ),
+    ResourceType.ASSESSMENT_COMPARISON: ResolverSpec(
+        "comparisons r JOIN targets t ON t.id = r.target_id",
+        ("assessment_id", "comparison_id"),
+        frozenset({"assessment_id", "comparison_id"}),
+        columns={"assessment_id": "r.current_assessment_id", "comparison_id": "r.id"},
+    ),
     ResourceType.COMPARISON_RECORD: ResolverSpec(
         "comparison_records r JOIN comparisons c ON c.id = r.comparison_id "
         "JOIN targets t ON t.id = c.target_id",
@@ -128,7 +136,8 @@ RESOLVERS: Mapping[ResourceType, ResolverSpec] = {
 
 # Key columns of each resource's own table, by the resolver alias used above.
 _KEY_COLUMNS: Mapping[ResourceType, Mapping[str, str]] = {
-    resource: {key: ("p.id" if resource is ResourceType.PROJECT else
+    resource: {key: (spec.columns[key] if spec.columns else
+                     "p.id" if resource is ResourceType.PROJECT else
                      "t.id" if resource is ResourceType.TARGET else f"r.{key}")
                for key in spec.keys}
     for resource, spec in RESOLVERS.items()

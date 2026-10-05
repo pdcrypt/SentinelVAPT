@@ -983,7 +983,9 @@ def test_retest_and_comparison_api(
     assert (
         api.get(f"/api/v1/comparisons/{cid}/records", params={"state": "bogus"}).status_code == 422
     )
-    assert api.get(f"/api/v1/comparisons/{cid}/records/xyz").status_code == 422
+    # A fingerprint that cannot exist is simply not found (authorization
+    # resolves the record before path validation; Phase 9 M4).
+    assert api.get(f"/api/v1/comparisons/{cid}/records/xyz").status_code == 404
     assert api.get(f"/api/v1/comparisons/{cid}/records/{'0' * 64}").status_code == 404
     assert [c["id"] for c in api.get(url).json()] == [cid]
     lineage = api.get(f"/api/v1/assessments/{bid}/lineage").json()

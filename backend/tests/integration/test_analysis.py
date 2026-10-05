@@ -17,11 +17,12 @@ from sentinel_analysis.rules.base import Rule
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_principal
 from app.core.config import Settings
 from app.db.session import get_session
 from app.main import create_app
-from app.models import AnalysisRun, Finding, FindingEvidence, Scan
-from app.models.enums import AnalysisStatus, ScanStatus
+from app.models import AnalysisRun, Finding, FindingEvidence, ProjectMember, Scan, User
+from app.models.enums import AnalysisStatus, ProjectRole, ScanStatus
 from app.repositories import AnalysisRepository
 from app.services import analysis as analysis_service
 from app.worker import core as worker_core
@@ -29,6 +30,7 @@ from sentinel_scanner import CancellationToken, DiscoveryConfig, DiscoveryResult
 from sentinel_scanner import run_discovery as real_run_discovery
 from sentinel_scanner.grant import ScanGrant
 from sentinel_scanner.models import ScanEvent
+from tests.integration.conftest import principal_for
 from tests.integration.lab_site import LabSite
 from tests.integration.scan_support import RESOLVER, ScanEnv
 from tests.integration.tls_support import self_signed_server_context
@@ -99,16 +101,37 @@ def run_of(env: ScanEnv, scan_id: uuid.UUID) -> AnalysisRun:
 
 @pytest.fixture
 def committed_api(settings: Settings, scan_env: ScanEnv) -> Iterator[TestClient]:
-    """API client whose requests commit to the database the worker uses."""
+    """API client whose requests commit to the database the worker uses. It
+    acts as a committed user who owns the scan_env project (see the `api`
+    fixture for why the principal is overridden)."""
+    with scan_env.factory() as s:
+        user = User(username=f"api-{uuid.uuid4().hex[:12]}", display_name="API Tester")
+        s.add(user)
+        s.flush()
+        s.add(
+            ProjectMember(project_id=scan_env.project_id, user_id=user.id, role=ProjectRole.OWNER)
+        )
+        s.commit()
+        s.expunge(user)
     app = create_app(settings)
+    app.dependency_overrides[get_principal] = lambda: principal_for(user)
 
     def session() -> Iterator[Session]:
         with scan_env.factory() as s:
             yield s
 
     app.dependency_overrides[get_session] = session
-    with TestClient(app) as client:
-        yield client
+    try:
+        with TestClient(app) as client:
+            yield client
+    finally:
+        with scan_env.factory() as s:
+            # Test cleanup only: users cannot be deleted normally and the
+            # project would otherwise be left without an owner.
+            s.execute(text("SET LOCAL session_replication_role = replica"))
+            s.execute(text("DELETE FROM project_members WHERE user_id = :u"), {"u": user.id})
+            s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user.id})
+            s.commit()
 
 
 # --- golden end-to-end ------------------------------------------------------------------
@@ -562,11 +585,15 @@ def test_triage_requires_reasons_and_records_history(
     assert fp.status_code == 200
     assert fp.json()["status_reason"] == "lab artefact"
 
+    # Since Phase 9 M4 the recorded actor is the authenticated user; the
+    # body's triaged_by is accepted but not trusted (M5 removes it).
+    actor = api.get("/api/v1/auth/me").json()["user"]["username"]
     history = api.get(f"/api/v1/findings/{finding_id}/history").json()
     assert [(h["from_status"], h["to_status"], h["changed_by"]) for h in history] == [
-        ("open", "confirmed", "Tester"),
-        ("confirmed", "false_positive", "Lead"),
+        ("open", "confirmed", actor),
+        ("confirmed", "false_positive", actor),
     ]
+    assert fp.json()["status_changed_by"] == actor
 
 
 def test_concurrent_triage_serializes_on_the_finding(

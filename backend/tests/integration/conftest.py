@@ -16,9 +16,17 @@ Isolation mirrors production:
   cannot leak changes into later requests.
 - Deferred constraints are normally checked at COMMIT, which never happens
   here; they are forced to be checked whenever a request's session commits.
+
+Since Phase 9 M4 every product route requires an authenticated principal and
+project membership. The `api` client acts as a real user (created inside the
+rolled-back transaction) through a dependency override of get_principal; it
+owns every project it creates through the API, as any creator does. The
+authentication and authorization suites (test_auth*, test_authz*,
+test_m4_*) never use this override: they log in for real.
 """
 
 import os
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -32,10 +40,13 @@ from sqlalchemy import URL, Connection, Engine, event, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_clock
+from app.api.deps import get_clock, get_principal
 from app.core.config import Settings, get_settings
 from app.db.session import get_session, make_engine
 from app.main import create_app
+from app.models import User
+from app.models.enums import GlobalRole
+from app.services.auth import Principal
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -152,9 +163,38 @@ def clock() -> FrozenClock:
     return FrozenClock(NOW)
 
 
+def principal_for(user: User) -> Principal:
+    """A principal for `user` without a session row (tests overriding
+    get_principal only; the authentication suites log in for real)."""
+    return Principal(
+        user_id=user.id,
+        username=user.username,
+        display_name=user.display_name,
+        global_role=GlobalRole(user.global_role),
+        must_change_password=False,
+        session_id=uuid.uuid4(),
+        session_created_at=NOW,
+        idle_expires_at=NOW + timedelta(minutes=30),
+        expires_at=NOW + timedelta(hours=12),
+    )
+
+
 @pytest.fixture
-def api(settings: Settings, db_connection: Connection, clock: FrozenClock) -> Iterator[TestClient]:
+def api_user(db_connection: Connection) -> User:
+    with open_session(db_connection) as session:
+        user = User(username=f"api-{uuid.uuid4().hex[:12]}", display_name="API Tester")
+        session.add(user)
+        session.commit()
+        session.expunge(user)
+    return user
+
+
+@pytest.fixture
+def api(
+    settings: Settings, db_connection: Connection, clock: FrozenClock, api_user: User
+) -> Iterator[TestClient]:
     app = create_app(settings)
+    app.dependency_overrides[get_principal] = lambda: principal_for(api_user)
 
     def request_session() -> Iterator[Session]:
         # A fresh session per request; closing it without commit rolls back.

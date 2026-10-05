@@ -307,8 +307,18 @@ M3 adds the authorization machinery, but no route uses it yet:
 Missing, cross-project and non-member requests all get the same 404. A member
 without the permission gets a 403.
 
-Existing routes are **not** protected yet (M4), and the API remains
-localhost-only (ADR 0005).
+M4 enforces it on all 66 routes:
+
+- Only health, readiness and login are public.
+- `GET /projects` lists only the caller's member projects, and the creator of
+  a project becomes its owner.
+- Every other route declares its permission and the resource it resolves.
+- Legacy projects stay invisible until an operator claims them
+  (`python -m app.cli claim-project`).
+- The cutover is recorded once (`python -m app.cli enforce-authentication`).
+
+The console cannot sign in until M8. The API remains localhost-only
+(ADR 0005).
 
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:
@@ -322,8 +332,8 @@ localhost-only (ADR 0005).
   - A project with members keeps at least one owner (deferred trigger).
   - `audit_events` is append-only with constrained metadata.
 - **Project names** are no longer unique database-wide (`uq_projects_name`
-  became the plain index `ix_projects_name`). The service still refuses
-  duplicates until M4.
+  became the plain index `ix_projects_name`). Since M4 they are unique among
+  each user's projects.
 
 ## API (v1)
 

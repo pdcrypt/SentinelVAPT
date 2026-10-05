@@ -23,6 +23,14 @@ test.skip(
   !process.env.E2E_BASE_URL,
   "needs the running compose stack and Docker (set E2E_BASE_URL)",
 );
+// Since Phase 9 M4 every API route except health and login requires a session
+// and project membership, and the console cannot sign in until M8 adds the
+// browser session (login page, HttpOnly cookie held by the Next.js server).
+// Until then this workflow cannot run against a live stack.
+test.skip(
+  !process.env.E2E_BROWSER_SESSIONS,
+  "the API requires authentication (Phase 9 M4); browser sessions arrive in M8",
+);
 
 const RUN = Date.now().toString(36);
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";

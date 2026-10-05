@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.integration.conftest import create_project
+from tests.integration.conftest import create_assessment, create_project, create_target
 
 pytestmark = pytest.mark.integration
 
@@ -77,13 +77,21 @@ def test_nul_inside_lists_and_nested_objects(api: TestClient) -> None:
 
 
 def test_nul_in_a_text_query_filter_is_a_422(api: TestClient) -> None:
-    scan = uuid.uuid4()
+    project = create_project(api)
+    target = create_target(api, project["id"])
+    assessment = create_assessment(api, target["id"])
+    assert api.post(f"/api/v1/assessments/{assessment['id']}/start").status_code == 200
+    scan = api.post(f"/api/v1/assessments/{assessment['id']}/scans", json={}).json()["id"]
     for name in ("method", "source", "skip_reason"):
         resp = api.get(f"/api/v1/scans/{scan}/endpoints", params={name: "a\x00b"})
         assert resp.status_code == 422, name
         assert_nul_rejected(resp.json(), ["query", name])
-    # Without the NUL the filter is accepted (the scan simply does not exist).
-    assert api.get(f"/api/v1/scans/{scan}/endpoints", params={"method": "GET"}).status_code == 404
+    # Without the NUL the filter is accepted.
+    assert api.get(f"/api/v1/scans/{scan}/endpoints", params={"method": "GET"}).json() == []
+    # A scan the caller cannot see is not found before any query validation
+    # (Phase 9 M4: authorization runs first, so validation reveals nothing).
+    missing = api.get(f"/api/v1/scans/{uuid.uuid4()}/endpoints", params={"method": "a\x00b"})
+    assert missing.status_code == 404
 
 
 @pytest.mark.parametrize(

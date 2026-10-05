@@ -134,6 +134,9 @@ class ResourceType(StrEnum):
     REPORT_FINDING = "report_finding"
     REPORT_EVIDENCE = "report_evidence"
     COMPARISON = "comparison"
+    # A comparison named under an assessment (POST .../comparisons/{id}/reports):
+    # it exists only if the assessment is its current (retest) assessment.
+    ASSESSMENT_COMPARISON = "assessment_comparison"
     COMPARISON_RECORD = "comparison_record"
     COMPARISON_COVERAGE_EVIDENCE = "comparison_coverage_evidence"
     RETEST_REPORT = "retest_report"
@@ -144,6 +147,8 @@ class ResourceType(StrEnum):
     def not_found(self) -> str:
         """The API's existing 404 detail for this resource ("scan not found").
         A retest is an assessment to API clients."""
+        if self is ResourceType.ASSESSMENT_COMPARISON:
+            return "comparison not found for this assessment"
         noun = "assessment" if self is ResourceType.RETEST_ASSESSMENT else self.value
         return f"{noun.replace('_', ' ')} not found"
 

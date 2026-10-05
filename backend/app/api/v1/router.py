@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.authz import require_access_descriptor
 from app.api.v1.routers import (
     assessments,
     auth,
@@ -13,7 +14,10 @@ from app.api.v1.routers import (
     targets,
 )
 
-api_router = APIRouter(prefix="/api/v1")
+# Default deny (ADR 0014): every route must declare exactly one access
+# descriptor (public, authenticated, global or project permission) on the
+# route itself, or the request fails closed with a logged 500.
+api_router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_access_descriptor)])
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(projects.router)

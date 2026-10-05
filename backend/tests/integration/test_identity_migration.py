@@ -11,14 +11,17 @@ from typing import Any
 
 import pytest
 from alembic import command
-from fastapi.testclient import TestClient
 from sqlalchemy import URL, Connection, Engine, inspect, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from app.core.config import Settings
-from app.db.session import get_session, make_engine
-from app.main import create_app
+from app.api.deps import get_assessment_service, get_scan_service, get_target_service
+from app.core.clock import utc_now
+from app.db.session import make_engine
+from app.models import Project
+from app.schemas.assessment import AssessmentCreate
+from app.schemas.scan import ScanCreate
+from app.schemas.target import TargetCreate, TargetUpdate
 from tests.integration.conftest import _alembic_config, _test_database_url
 
 pytestmark = pytest.mark.integration
@@ -59,18 +62,13 @@ def scratch() -> Iterator[tuple[URL, Engine]]:
         _admin_execute(url, f'DROP DATABASE IF EXISTS "{url.database}" WITH (FORCE)')
 
 
-def _seed(engine: Engine, settings: Settings) -> None:
-    """Representative Phase 1-3 data through the real API: projects, a target
-    with two authorization versions (self-asserted actor text), an assessment
-    and a queued scan."""
+def _seed(engine: Engine) -> None:
+    """Representative Phase 1-3 data through the real services: projects, a
+    target with two authorization versions (self-asserted actor text), an
+    assessment and a queued scan. (Since Phase 9 M4 the API needs an
+    authenticated member, which this pre-M1 schema cannot have; projects are
+    inserted as they were before memberships existed.)"""
     factory = sessionmaker(bind=engine, expire_on_commit=False)
-    app = create_app(settings)
-
-    def session() -> Iterator[Session]:
-        with factory() as s:
-            yield s
-
-    app.dependency_overrides[get_session] = session
     now = datetime.now(UTC)
     authorization: dict[str, Any] = {
         "authorized_by": "Lab Owner \u00e9\u202e",
@@ -81,32 +79,33 @@ def _seed(engine: Engine, settings: Settings) -> None:
         "acknowledged_by": "Student Tester (self-asserted)",
         "acknowledge": True,
     }
-    with TestClient(app) as api:
-        project = api.post("/api/v1/projects", json={"name": "Legacy lab"}).json()
-        api.post("/api/v1/projects", json={"name": "Second legacy project", "description": "x"})
-        target = api.post(
-            f"/api/v1/projects/{project['id']}/targets",
-            json={
-                "name": "Lab target",
-                "base_url": "http://lab-target/",
-                "environment": "local_lab",
-                "in_scope_hosts": ["lab-target"],
-                "authorization": authorization,
-            },
+    with factory() as s:
+        project = Project(name="Legacy lab")
+        s.add_all([project, Project(name="Second legacy project", description="x")])
+        s.commit()
+        targets = get_target_service(s, utc_now)
+        target = targets.create(
+            project.id,
+            TargetCreate.model_validate(
+                {
+                    "name": "Lab target",
+                    "base_url": "http://lab-target/",
+                    "environment": "local_lab",
+                    "in_scope_hosts": ["lab-target"],
+                    "authorization": authorization,
+                }
+            ),
         )
-        assert target.status_code == 201, target.text
-        target_id = target.json()["id"]
-        reauthorized = api.patch(
-            f"/api/v1/targets/{target_id}",
-            json={"authorization": {**authorization, "reference": "LAB-002"}},
+        targets.update(
+            target.id,
+            TargetUpdate.model_validate(
+                {"authorization": {**authorization, "reference": "LAB-002"}}
+            ),
         )
-        assert reauthorized.status_code == 200, reauthorized.text
-        assessment = api.post(
-            f"/api/v1/targets/{target_id}/assessments", json={"name": "Baseline"}
-        ).json()
-        assert api.post(f"/api/v1/assessments/{assessment['id']}/start").status_code == 200
-        scan = api.post(f"/api/v1/assessments/{assessment['id']}/scans", json={})
-        assert scan.status_code == 201, scan.text
+        assessments = get_assessment_service(s, utc_now)
+        assessment = assessments.create(target.id, AssessmentCreate(name="Baseline"))
+        assessments.start(assessment.id)
+        get_scan_service(s, utc_now).create(assessment.id, ScanCreate())
 
 
 def _tables(conn: Connection) -> set[str]:
@@ -166,12 +165,12 @@ def _signature(conn: Connection, tables: set[str]) -> dict[str, set[str]]:
 
 
 def test_round_trip_preserves_phase_1_to_8_data(
-    scratch: tuple[URL, Engine], settings: Settings
+    scratch: tuple[URL, Engine],
 ) -> None:
     url, engine = scratch
     cfg = _alembic_config(url)
     command.upgrade(cfg, PREVIOUS)
-    _seed(engine, settings)
+    _seed(engine)
 
     with engine.connect() as conn:
         existing = _tables(conn)

@@ -3529,6 +3529,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Delete Assessment",
     "tags": [
      "assessments"
@@ -3570,6 +3575,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Assessment",
     "tags": [
      "assessments"
@@ -3621,6 +3631,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Update Assessment",
     "tags": [
      "assessments"
@@ -3664,6 +3679,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Cancel Assessment",
     "tags": [
      "assessments"
@@ -3711,6 +3731,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Comparisons",
     "tags": [
      "retests"
@@ -3766,6 +3791,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Request Comparison",
     "tags": [
      "retests"
@@ -3833,6 +3863,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Retest Report",
     "tags": [
      "retest-reports"
@@ -3876,6 +3911,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Complete Assessment",
     "tags": [
      "assessments"
@@ -3919,6 +3959,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Assessment Findings Summary",
     "tags": [
      "findings"
@@ -3966,6 +4011,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Lineage",
     "tags": [
      "retests"
@@ -4036,6 +4086,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Reports",
     "tags": [
      "reports"
@@ -4088,6 +4143,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Report",
     "tags": [
      "reports"
@@ -4158,6 +4218,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Retest Reports",
     "tags": [
      "retest-reports"
@@ -4205,6 +4270,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Retests",
     "tags": [
      "retests"
@@ -4257,6 +4327,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Retest",
     "tags": [
      "retests"
@@ -4327,6 +4402,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scans",
     "tags": [
      "scans"
@@ -4386,6 +4466,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Scan",
     "tags": [
      "scans"
@@ -4429,6 +4514,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Start Assessment",
     "tags": [
      "assessments"
@@ -4614,6 +4704,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Comparison",
     "tags": [
      "retests"
@@ -4717,6 +4812,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Comparison Records",
     "tags": [
      "retests"
@@ -4770,6 +4870,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Comparison Record",
     "tags": [
      "retests"
@@ -4813,6 +4918,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Evidence",
     "tags": [
      "scans"
@@ -4856,6 +4966,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Finding",
     "tags": [
      "findings"
@@ -4903,6 +5018,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Finding Evidence",
     "tags": [
      "findings"
@@ -4950,6 +5070,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Finding History",
     "tags": [
      "findings"
@@ -5003,6 +5128,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Triage Finding",
     "tags": [
      "findings"
@@ -5055,6 +5185,7 @@
   },
   "/api/v1/projects": {
    "get": {
+    "description": "Only the projects the caller is a member of (whatever their global role).",
     "operationId": "list_projects_api_v1_projects_get",
     "parameters": [
      {
@@ -5107,12 +5238,18 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Projects",
     "tags": [
      "projects"
     ]
    },
    "post": {
+    "description": "The authenticated user becomes the project's first owner, in the same\ntransaction. Nothing in the body names an owner.",
     "operationId": "create_project_api_v1_projects_post",
     "requestBody": {
      "content": {
@@ -5146,6 +5283,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Project",
     "tags": [
      "projects"
@@ -5182,6 +5324,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Delete Project",
     "tags": [
      "projects"
@@ -5223,6 +5370,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Project",
     "tags": [
      "projects"
@@ -5274,6 +5426,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Update Project",
     "tags": [
      "projects"
@@ -5344,6 +5501,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Project Assessments",
     "tags": [
      "assessments"
@@ -5414,6 +5576,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Targets",
     "tags": [
      "targets"
@@ -5465,6 +5632,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Target",
     "tags": [
      "targets"
@@ -5490,6 +5662,11 @@
       "description": "Successful Response"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Report Templates",
     "tags": [
      "reports"
@@ -5533,6 +5710,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Report",
     "tags": [
      "reports"
@@ -5580,6 +5762,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Artifacts",
     "tags": [
      "reports"
@@ -5629,6 +5816,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Download Artifact",
     "tags": [
      "reports"
@@ -5671,6 +5863,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Preview Report",
     "tags": [
      "reports"
@@ -5696,6 +5893,11 @@
       "description": "Successful Response"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Retest Report Templates",
     "tags": [
      "retest-reports"
@@ -5739,6 +5941,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Retest Report",
     "tags": [
      "retest-reports"
@@ -5786,6 +5993,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Retest Artifacts",
     "tags": [
      "retest-reports"
@@ -5835,6 +6047,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Download Retest Artifact",
     "tags": [
      "retest-reports"
@@ -5876,6 +6093,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Preview Retest Report",
     "tags": [
      "retest-reports"
@@ -5898,6 +6120,11 @@
       "description": "Successful Response"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Rules",
     "tags": [
      "findings"
@@ -5941,6 +6168,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Scan",
     "tags": [
      "scans"
@@ -5988,6 +6220,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Analysis Runs",
     "tags": [
      "findings"
@@ -6058,6 +6295,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scan Assets",
     "tags": [
      "scans"
@@ -6101,6 +6343,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Cancel Scan",
     "tags": [
      "scans"
@@ -6238,6 +6485,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scan Endpoints",
     "tags": [
      "scans"
@@ -6308,6 +6560,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scan Evidence",
     "tags": [
      "scans"
@@ -6499,6 +6756,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scan Findings",
     "tags": [
      "findings"
@@ -6542,6 +6804,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Scan Findings Summary",
     "tags": [
      "findings"
@@ -6612,6 +6879,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Scan Logs",
     "tags": [
      "scans"
@@ -6648,6 +6920,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Delete Target",
     "tags": [
      "targets"
@@ -6689,6 +6966,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Get Target",
     "tags": [
      "targets"
@@ -6740,6 +7022,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Update Target",
     "tags": [
      "targets"
@@ -6810,6 +7097,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Target Assessments",
     "tags": [
      "assessments"
@@ -6861,6 +7153,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "Create Assessment",
     "tags": [
      "assessments"
@@ -6932,6 +7229,11 @@
       "description": "Validation Error"
      }
     },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
     "summary": "List Target Authorizations",
     "tags": [
      "targets"

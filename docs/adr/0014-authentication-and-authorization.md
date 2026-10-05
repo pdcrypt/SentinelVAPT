@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core) and M3 (authorization machinery) are implemented; M4–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery) and M4 (authorization enforcement) are implemented; M5–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -513,6 +513,163 @@ The following are deferred to later milestones:
 No migration was needed. Composite foreign keys already keep every chain on
 one target.
 
+### Authorization enforcement (implemented in M4)
+
+M4 attaches the M3 machinery to every product route. The FastAPI backend is
+the authorization boundary. The browser and the Next.js server are not.
+
+#### Route classification
+
+All 66 operations declare exactly one descriptor on the route itself. The
+default-deny guard sits on the top-level `/api/v1` router.
+
+| Kind | Count | Routes |
+|---|---:|---|
+| Public | 3 | `GET /health`, `GET /health/ready`, `POST /auth/login` |
+| Authenticated | 4 | `GET /auth/me`, `POST /auth/logout`, `POST /auth/password` (allowed while a password change is pending); `GET /projects` (membership-filtered) |
+| Global permission | 4 | `POST /projects` (`project.create`); `GET /rules`, `/report-templates`, `/retest-report-templates` (`catalog.read`) |
+| Project permission | 55 | Everything else |
+
+`tests/unit/test_route_inventory.py` holds the expected descriptor of every
+operation and checks it against the production app. The test fails on any new
+route until that route is classified.
+
+#### Permissions by route family
+
+| Routes | Permission (resource resolved) |
+|---|---|
+| All reads (details, lists, logs, assets, endpoints, evidence, findings, reports, artifacts, previews, comparisons, records, lineage) | `project.read` |
+| `PATCH` / `DELETE /projects/{id}` | `project.update` / `project.delete` |
+| `POST /projects/{id}/targets`, `PATCH` / `DELETE /targets/{id}` | `target.manage`, and also `target.authorize` whenever the body acknowledges an authorization (always on create) |
+| `POST /targets/{id}/assessments`, `PATCH /assessments/{id}`, start, complete, cancel | `assessment.write` |
+| `DELETE /assessments/{id}` | `assessment.delete` |
+| `POST /assessments/{id}/scans`, `POST /scans/{id}/cancel` | `scan.run` |
+| `POST /findings/{id}/triage` | `finding.triage` |
+| `POST /assessments/{id}/reports`, `POST /assessments/{a}/comparisons/{c}/reports` | `report.request` |
+| `POST /assessments/{id}/retests`, `POST /assessments/{id}/comparisons` | `retest.write` |
+
+- **Nested ids.** `POST /assessments/{a}/comparisons/{c}/reports` resolves
+  the new composite resource `assessment_comparison`. The comparison exists
+  only under its own current (retest) assessment.
+- **Composite ids.** `GET /comparisons/{c}/records/{fingerprint}` resolves
+  the record through its comparison.
+- **Representation selectors.** Artifacts and previews resolve through their
+  owning report. The format (`{fmt}`) only selects a representation.
+- **Ids in request bodies.** Ids such as `scan_id` and `baseline_scan_id`
+  are never authorization claims. The services keep checking that they
+  belong to the authorized assessment, and a foreign id gets the same 404 as
+  a nonexistent one. A `project_id`, owner or role in a body is refused as
+  an unknown field.
+
+#### Order of checks
+
+The checks run in this order:
+
+1. session (401);
+2. password-change gate (403 `password_change_required`);
+3. resource resolution and membership (404);
+4. permission (403);
+5. the existing service, with its lifecycle and target-authorization rules
+   (409/422).
+
+Authorization dependencies run before FastAPI validates path, query and body
+parameters. As a result, a malformed id, or one that cannot exist (such as
+`/records/xyz`), is now a 404 instead of a 422. A request about a resource
+the caller cannot see is a 404 whatever its query or body contains.
+Validation errors are only returned to callers who may use the route.
+
+#### Projects
+
+- **Creation.** `POST /projects` makes the authenticated user the first
+  owner in the same transaction (`created_by_user_id` is the user). The body
+  cannot name an owner, a creator or a role.
+- **Listing.** `GET /projects` lists only the caller's member projects. An
+  admin without memberships sees an empty list.
+- **Names.** Names are unique among the projects of the acting user, under a
+  per-user advisory lock. A conflict never reveals the name of a project the
+  caller cannot see. Different users may use the same name.
+
+#### Target authorization stays separate
+
+Membership never stands in for the acknowledgment, and `scan.run` never
+bypasses the scan grant. A scan launch still fails for:
+
+- an assessment that is not in progress;
+- a missing, expired, not-yet-valid or superseded authorization;
+- a target that is not `local_lab`;
+- an invalid scope;
+- another active scan.
+
+Text in an authorization record grants no platform access. Workers are
+unchanged:
+
+- They act on persisted, authorized work.
+- They revalidate the grant themselves.
+- They keep the Phase 3 lock order and never look at memberships.
+
+So removing a member does not cancel work they already queued.
+
+#### Actor identity
+
+Where a service already took an explicit actor, the actor is now the
+authenticated user. In M4 that is finding triage: `changed_by` and
+`status_changed_by` record the username. The body's `triaged_by` is still
+accepted, so the schema is unchanged, but it is ignored.
+
+Self-asserted body fields stay as they are until M5:
+
+- report `prepared_by`;
+- authorization `authorized_by` and `acknowledged_by`.
+
+No historical text is rewritten.
+
+#### Legacy projects and the cutover
+
+Projects that predate memberships (or that a server-side command created)
+have no members, so nobody sees them, admins included. An operator of the
+host claims one explicitly:
+
+```sh
+python -m app.cli list-unclaimed-projects
+python -m app.cli claim-project --project <uuid> --username <name>
+python -m app.cli enforce-authentication
+```
+
+`claim-project` makes one active user the first owner (`created_by_user_id`
+NULL, a server-side command).
+
+- It is idempotent for the same owner.
+- It refuses a project that has members, since that is membership
+  management (M7).
+- It serializes on the same per-project lock as the last-owner trigger.
+- It records a `project.claim` audit event. It never touches historical
+  text.
+
+`enforce-authentication` sets `platform_settings.authentication_enforced_at`
+to the database time once, and records `platform.auth_enforced`. The M1
+trigger refuses any later change. Enforcement itself does not depend on the
+timestamp: routes are protected from the moment M4 is deployed. Run the
+command at deployment. Actor text written before the recorded time is
+treated as self-asserted (M5); text from between deployment and the command
+is classified conservatively in the same way. No migration was needed.
+
+#### API contract and frontend
+
+- **OpenAPI.** The only change is `security: HTTPBearer` on the 60 newly
+  protected operations, plus two descriptions. No schema changed.
+- **Frontend.** The console has no browser session yet, so it receives 401
+  until M8. The live-stack Playwright workflow is skipped until M8 provides
+  sessions. The other frontend checks are unchanged.
+
+#### Not in M4
+
+| Deferred | Milestone |
+|---|---|
+| Actor columns; server-set `prepared_by`, `acknowledged_by`; removing `triaged_by` from the schema | M5 |
+| Auditing access denials and every state change; audit read endpoints | M6 |
+| Membership and user administration APIs; ownership transfer API | M7 |
+| Browser login, session cookie held by the Next.js server, 401/403 handling in the console | M8 |
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -535,7 +692,7 @@ Phase 9 does not change:
 | M1 | This ADR and the schema foundation (implemented) |
 | M2 | Identity core: Argon2id, admin CLI, login, logout, `me`, password change, sessions, throttling (implemented) |
 | M3 | Authorization machinery: `Permission`, role tables, `ResourceType`, resolver, access service, dependencies, password-change gate, default-deny guard (implemented; attached to no route) |
-| M4 | Apply to all existing routes: descriptors on every route, protected/public routers, route meta-tests, 404/403, membership-filtered lists, IDOR and matrix suites; record `authentication_enforced_at`; decide project-name scope |
+| M4 | Enforcement on all 66 routes, route inventory meta-tests, 404/403, membership-filtered lists, IDOR and role-matrix suites, legacy claim and cutover commands, per-member project names (implemented) |
 | M5 | Actor identity columns and server-set actors (snapshots unchanged) |
 | M6 | Audit emission and read endpoints |
 | M7 | Membership and user administration APIs; admin self-grant; legacy claim command |

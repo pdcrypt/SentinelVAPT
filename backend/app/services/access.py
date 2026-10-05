@@ -61,6 +61,16 @@ class AccessService:
             resource_key=tuple(sorted((k, str(v)) for k, v in key.items())),
         )
 
+    @staticmethod
+    def require_also(decision: AccessDecision, permission: Permission) -> None:
+        """A further project permission for an already-authorized request
+        (e.g. acknowledging a target authorization while updating the
+        target): same project, same role, no new lookup."""
+        if decision.role is None or decision.project_id is None:
+            raise AuthorizationConfigError("require_also needs a project decision")
+        if not project_role_grants(decision.role, permission):
+            raise ForbiddenError()
+
     def authorize_global(self, principal: Principal, permission: Permission) -> AccessDecision:
         if not isinstance(permission, Permission) or permission not in GLOBAL_PERMISSIONS:
             raise AuthorizationConfigError(f"not a global permission: {permission!r}")

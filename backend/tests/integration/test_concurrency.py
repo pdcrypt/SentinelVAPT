@@ -100,7 +100,7 @@ def factory(engine: Engine) -> sessionmaker[Session]:
 def project_id(factory: sessionmaker[Session]) -> Iterator[uuid.UUID]:
     with factory() as session:
         project = ProjectService(ProjectRepository(session), session).create(
-            ProjectCreate(name=f"concurrency-{uuid.uuid4()}")
+            ProjectCreate(name=f"concurrency-{uuid.uuid4()}"), owner_id=None
         )
     yield project.id
     with factory() as session:

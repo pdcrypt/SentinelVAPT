@@ -6,8 +6,9 @@ authorization). There is no registration, password reset or user
 administration here.
 """
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
+from app.api.authz import authenticated, public
 from app.api.deps import AuditContextDep, AuthServiceDep, PrincipalDep
 from app.schemas.auth import (
     CurrentUser,
@@ -48,6 +49,7 @@ def _issued(issued: IssuedSession) -> SessionResponse:
 
 @router.post(
     "/login",
+    dependencies=[Depends(public())],
     response_model=SessionResponse,
     responses={401: {"description": "Invalid username or password (always the same response)"}},
 )
@@ -60,14 +62,22 @@ def login(
     return _issued(auth.login(data.username, data.password, context))
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    dependencies=[Depends(authenticated(allow_password_change_pending=True))],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def logout(principal: PrincipalDep, auth: AuthServiceDep, context: AuditContextDep) -> Response:
     """End the current session. The token stops working immediately."""
     auth.logout(principal, context)
     return Response(status_code=status.HTTP_204_NO_CONTENT, headers=NO_STORE)
 
 
-@router.get("/me", response_model=MeResponse)
+@router.get(
+    "/me",
+    dependencies=[Depends(authenticated(allow_password_change_pending=True))],
+    response_model=MeResponse,
+)
 def me(principal: PrincipalDep, response: Response) -> MeResponse:
     """The authenticated platform user and session. No project information."""
     response.headers.update(NO_STORE)
@@ -76,6 +86,7 @@ def me(principal: PrincipalDep, response: Response) -> MeResponse:
 
 @router.post(
     "/password",
+    dependencies=[Depends(authenticated(allow_password_change_pending=True))],
     response_model=SessionResponse,
     responses={403: {"description": "The current password is incorrect"}},
 )

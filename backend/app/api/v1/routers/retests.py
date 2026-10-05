@@ -2,9 +2,12 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
+from app.api.authz import authorize
 from app.api.deps import ComparisonServiceDep, Limit, Offset, RetestServiceDep
+from app.core.authz import Permission as P
+from app.core.authz import ResourceType as R
 from app.models import Assessment, Comparison
 from app.models.enums import ComparisonState
 from app.schemas.assessment import AssessmentRead
@@ -23,6 +26,7 @@ router = APIRouter(tags=["retests"])
 
 @router.post(
     "/assessments/{assessment_id}/retests",
+    dependencies=[Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))],
     response_model=AssessmentRead,
     status_code=status.HTTP_201_CREATED,
 )
@@ -34,18 +38,27 @@ def create_retest(
     return service.create(assessment_id, data)
 
 
-@router.get("/assessments/{assessment_id}/retests", response_model=list[AssessmentRead])
+@router.get(
+    "/assessments/{assessment_id}/retests",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.ASSESSMENT, "assessment_id"))],
+    response_model=list[AssessmentRead],
+)
 def list_retests(assessment_id: uuid.UUID, service: RetestServiceDep) -> Sequence[Assessment]:
     return service.list_retests(assessment_id)
 
 
-@router.get("/assessments/{assessment_id}/lineage", response_model=list[LineageEntry])
+@router.get(
+    "/assessments/{assessment_id}/lineage",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.ASSESSMENT, "assessment_id"))],
+    response_model=list[LineageEntry],
+)
 def get_lineage(assessment_id: uuid.UUID, service: RetestServiceDep) -> list[dict[str, Any]]:
     return service.lineage(assessment_id)
 
 
 @router.post(
     "/assessments/{assessment_id}/comparisons",
+    dependencies=[Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))],
     response_model=ComparisonRead,
     status_code=status.HTTP_202_ACCEPTED,
     responses={200: {"description": "The comparison already exists for this scan and policy."}},
@@ -64,19 +77,31 @@ def request_comparison(
     return comparison
 
 
-@router.get("/assessments/{assessment_id}/comparisons", response_model=list[ComparisonRead])
+@router.get(
+    "/assessments/{assessment_id}/comparisons",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.ASSESSMENT, "assessment_id"))],
+    response_model=list[ComparisonRead],
+)
 def list_comparisons(
     assessment_id: uuid.UUID, service: ComparisonServiceDep
 ) -> Sequence[Comparison]:
     return service.list_for_assessment(assessment_id)
 
 
-@router.get("/comparisons/{comparison_id}", response_model=ComparisonRead)
+@router.get(
+    "/comparisons/{comparison_id}",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.COMPARISON, "comparison_id"))],
+    response_model=ComparisonRead,
+)
 def get_comparison(comparison_id: uuid.UUID, service: ComparisonServiceDep) -> Comparison:
     return service.get(comparison_id)
 
 
-@router.get("/comparisons/{comparison_id}/records", response_model=list[ComparisonRecordRead])
+@router.get(
+    "/comparisons/{comparison_id}/records",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.COMPARISON, "comparison_id"))],
+    response_model=list[ComparisonRecordRead],
+)
 def list_comparison_records(
     comparison_id: uuid.UUID,
     service: ComparisonServiceDep,
@@ -95,7 +120,17 @@ def list_comparison_records(
 
 
 @router.get(
-    "/comparisons/{comparison_id}/records/{fingerprint}", response_model=ComparisonRecordRead
+    "/comparisons/{comparison_id}/records/{fingerprint}",
+    dependencies=[
+        Depends(
+            authorize(
+                P.PROJECT_READ,
+                R.COMPARISON_RECORD,
+                key={"comparison_id": "comparison_id", "fingerprint": "fingerprint"},
+            )
+        )
+    ],
+    response_model=ComparisonRecordRead,
 )
 def get_comparison_record(
     comparison_id: uuid.UUID, fingerprint: FingerprintStr, service: ComparisonServiceDep

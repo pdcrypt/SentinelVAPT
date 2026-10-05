@@ -1,10 +1,13 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
+from app.api.authz import authorize, require_global
 from app.api.deps import Limit, Offset, RetestReportServiceDep
 from app.api.v1.routers.reports import DOWNLOAD_CSP, EXTENSIONS, PREVIEW_CSP
+from app.core.authz import Permission as P
+from app.core.authz import ResourceType as R
 from app.models import RetestReport
 from app.models.enums import ReportFormat
 from app.schemas.report import ArtifactRead, ReportTemplateRead
@@ -33,6 +36,15 @@ def _headers(sha256: str) -> dict[str, str]:
 
 @router.post(
     "/assessments/{assessment_id}/comparisons/{comparison_id}/reports",
+    dependencies=[
+        Depends(
+            authorize(
+                P.REPORT_REQUEST,
+                R.ASSESSMENT_COMPARISON,
+                key={"assessment_id": "assessment_id", "comparison_id": "comparison_id"},
+            )
+        )
+    ],
     response_model=RetestReportRead,
     status_code=status.HTTP_202_ACCEPTED,
     responses={200: {"description": "An identical report already exists."}},
@@ -52,7 +64,11 @@ def create_retest_report(
     return _read(report, service.artifacts([report.id])[report.id])
 
 
-@router.get("/assessments/{assessment_id}/retest-reports", response_model=list[RetestReportRead])
+@router.get(
+    "/assessments/{assessment_id}/retest-reports",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.ASSESSMENT, "assessment_id"))],
+    response_model=list[RetestReportRead],
+)
 def list_retest_reports(
     assessment_id: uuid.UUID,
     service: RetestReportServiceDep,
@@ -64,13 +80,21 @@ def list_retest_reports(
     return [_read(r, artifacts[r.id]) for r in reports]
 
 
-@router.get("/retest-reports/{report_id}", response_model=RetestReportRead)
+@router.get(
+    "/retest-reports/{report_id}",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.RETEST_REPORT, "report_id"))],
+    response_model=RetestReportRead,
+)
 def get_retest_report(report_id: uuid.UUID, service: RetestReportServiceDep) -> RetestReportRead:
     report = service.get(report_id)
     return _read(report, service.artifacts([report.id])[report.id])
 
 
-@router.get("/retest-reports/{report_id}/artifacts", response_model=list[ArtifactRead])
+@router.get(
+    "/retest-reports/{report_id}/artifacts",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.RETEST_REPORT, "report_id"))],
+    response_model=list[ArtifactRead],
+)
 def list_retest_artifacts(
     report_id: uuid.UUID, service: RetestReportServiceDep
 ) -> list[dict[str, Any]]:
@@ -78,7 +102,10 @@ def list_retest_artifacts(
     return service.artifacts([report.id])[report.id]
 
 
-@router.get("/retest-reports/{report_id}/artifacts/{fmt}")
+@router.get(
+    "/retest-reports/{report_id}/artifacts/{fmt}",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.RETEST_REPORT, "report_id"))],
+)
 def download_retest_artifact(
     report_id: uuid.UUID, fmt: ReportFormat, service: RetestReportServiceDep
 ) -> Response:
@@ -95,7 +122,10 @@ def download_retest_artifact(
     )
 
 
-@router.get("/retest-reports/{report_id}/preview")
+@router.get(
+    "/retest-reports/{report_id}/preview",
+    dependencies=[Depends(authorize(P.PROJECT_READ, R.RETEST_REPORT, "report_id"))],
+)
 def preview_retest_report(report_id: uuid.UUID, service: RetestReportServiceDep) -> Response:
     _, artifact = service.artifact(report_id, ReportFormat.HTML.value)
     return Response(
@@ -109,6 +139,10 @@ def preview_retest_report(report_id: uuid.UUID, service: RetestReportServiceDep)
     )
 
 
-@router.get("/retest-report-templates", response_model=list[ReportTemplateRead])
+@router.get(
+    "/retest-report-templates",
+    dependencies=[Depends(require_global(P.CATALOG_READ))],
+    response_model=list[ReportTemplateRead],
+)
 def list_retest_report_templates() -> list[dict[str, Any]]:
     return RetestReportService.templates()
