@@ -138,7 +138,7 @@ def complete(env: ScanEnv, assessment_id: uuid.UUID) -> None:
 def create_retest(env: ScanEnv, parent_id: uuid.UUID, **kw: Any) -> uuid.UUID:
     with env.factory() as s:
         data = RetestCreate.model_validate({"name": "Retest", **kw})
-        return get_retest_service(s, utc_now).create(parent_id, data).id
+        return get_retest_service(s, utc_now).create(parent_id, data, actor=env.actor).id
 
 
 def request_comparison(env: ScanEnv, assessment_id: uuid.UUID, scan_id: uuid.UUID) -> Any:
@@ -177,7 +177,7 @@ def mark_false_positive(env: ScanEnv, scan_id: uuid.UUID, rule_id: str) -> None:
             select(Finding).where(Finding.scan_id == scan_id, Finding.rule_id == rule_id)
         ).one()
         get_finding_service(s, utc_now).triage(
-            finding.id, FindingStatus.FALSE_POSITIVE, "lab artefact", "Lead"
+            finding.id, FindingStatus.FALSE_POSITIVE, "lab artefact", actor=env.actor
         )
 
 
@@ -188,6 +188,7 @@ def narrow_scope(env: ScanEnv, target_id: uuid.UUID, excluded: list[str]) -> Non
             TargetUpdate.model_validate(
                 {"excluded_paths": excluded, "authorization": authorization(reference="LAB-NARROW")}
             ),
+            actor=env.actor,
         )
 
 
@@ -224,9 +225,9 @@ def test_golden_retest_chain(
         report_id = get_report_service(s, utc_now).create(
             a,
             ReportCreate.model_validate(
-                {"scan_id": str(scan_a), "kind": "final", "title": "A", "prepared_by": "T",
-                 "formats": ["json", "html"]}
+                {"scan_id": str(scan_a), "kind": "final", "title": "A", "formats": ["json", "html"]}
             ),
+            actor=env.actor,
         ).id  # fmt: skip
     assert env.worker(role=WorkerRole.REPORTS).run_once()
     with env.factory() as s:
@@ -415,6 +416,7 @@ def test_scope_expansion_is_refused(scan_env: ScanEnv, baseline: dict[str, uuid.
                     "authorization": authorization(reference="LAB-WIDER"),
                 }
             ),
+            actor=scan_env.actor,
         )
     with pytest.raises(RetestNotAllowedError) as info:
         create_retest(scan_env, baseline["a"])
@@ -430,6 +432,7 @@ def test_scope_expansion_is_refused(scan_env: ScanEnv, baseline: dict[str, uuid.
                     "authorization": authorization(reference="LAB-NOEXCL"),
                 }
             ),
+            actor=scan_env.actor,
         )
     with pytest.raises(RetestNotAllowedError) as info:
         create_retest(scan_env, baseline["a"])
@@ -443,7 +446,7 @@ def test_expired_authorization_is_refused(
     with scan_env.factory() as s:
         service = get_retest_service(s, lambda: later)
         with pytest.raises(RetestNotAllowedError) as info:
-            service.create(baseline["a"], RetestCreate(name="Late"))
+            service.create(baseline["a"], RetestCreate(name="Late"), actor=scan_env.actor)
     assert info.value.reason == "authorization_expired"
 
 
@@ -766,8 +769,9 @@ def test_retest_parent_must_share_the_target(scan_env: ScanEnv, compared: dict[s
     _rejected(
         scan_env,
         "INSERT INTO assessments (id, target_id, authorization_id, name, status, "
-        "retest_of_assessment_id, baseline_scan_id) VALUES (gen_random_uuid(), :t, :z, 'x', "
-        "'cancelled', :a, :s)",
+        "retest_of_assessment_id, baseline_scan_id, created_by_user_id) VALUES "
+        "(gen_random_uuid(), :t, :z, 'x', 'cancelled', :a, :s, "
+        "(SELECT created_by_user_id FROM assessments WHERE id = :a))",
         {"t": other_target, "z": auth, "a": compared["a"], "s": compared["scan_a"]},
         "fk_assessments_retest_of",
     )
@@ -930,8 +934,9 @@ def test_one_live_retest_index(scan_env: ScanEnv, compared: dict[str, Any]) -> N
     _rejected(
         scan_env,
         "INSERT INTO assessments (id, target_id, authorization_id, name, status, "
-        "retest_of_assessment_id, baseline_scan_id) VALUES (gen_random_uuid(), :t, :z, 'x', "
-        "'planned', :a, :s)",
+        "retest_of_assessment_id, baseline_scan_id, created_by_user_id) VALUES "
+        "(gen_random_uuid(), :t, :z, 'x', 'planned', :a, :s, "
+        "(SELECT created_by_user_id FROM assessments WHERE id = :a))",
         {"t": compared["target"], "z": auth, "a": compared["a"], "s": compared["scan_a"]},
         "uq_assessments_one_live_retest",
     )

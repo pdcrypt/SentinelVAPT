@@ -278,8 +278,9 @@ def test_results_are_scoped_to_their_scan(db_connection: Connection, scan_id: uu
         other = uuid.uuid4()
         session.execute(
             text(
-                "INSERT INTO scans (id, assessment_id, target_id, authorization_id, config) "
-                "VALUES (:id, :a, :t, :z, '{}')"
+                "INSERT INTO scans (id, assessment_id, target_id, authorization_id, config, "
+                "requested_by_user_id) VALUES (:id, :a, :t, :z, '{}', "
+                "(SELECT created_by_user_id FROM assessments WHERE id = :a))"
             ),
             {
                 "id": other,

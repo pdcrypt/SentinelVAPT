@@ -200,7 +200,7 @@ def world(live: Live, scan_env: ScanEnv, engine: Engine) -> Iterator[World]:
     p2 = new_project(scan_env)
     try:
         target1 = scan_env.target()
-        target2 = ScanEnv(scan_env.factory, scan_env.site, p2).target()
+        target2 = ScanEnv(scan_env.factory, scan_env.site, p2, scan_env.actor).target()
         client = live.client()
         client.app.include_router(probe_router(), prefix="/api/v1")  # type: ignore[attr-defined]
         w = World(live, scan_env, client, scan_env.project_id, p2, target1, target2)
@@ -531,10 +531,10 @@ def full_chain(
                         "scan_id": str(completed["scan_a"]),
                         "kind": "final",
                         "title": "A",
-                        "prepared_by": "T",
                         "formats": ["json", "html"],
                     }
                 ),
+                actor=scan_env.actor,
             )
             .id
         )
@@ -545,7 +545,7 @@ def full_chain(
         add_member(engine, scan_env.project_id, chief.id, ProjectRole.OWNER)
         add_member(engine, scan_env.project_id, member.id, ProjectRole.OPERATOR)
         add_member(engine, p2, stranger.id, ProjectRole.OWNER)
-        other_target = ScanEnv(scan_env.factory, scan_env.site, p2).target()
+        other_target = ScanEnv(scan_env.factory, scan_env.site, p2, scan_env.actor).target()
         yield {
             **completed,
             "phase5_report": report,

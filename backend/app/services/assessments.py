@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import (
     ConflictError,
@@ -59,7 +60,10 @@ class AssessmentService:
         self.clock = clock
         self.scans = scans or ScanRepository(assessments.session)
 
-    def create(self, target_id: uuid.UUID, data: AssessmentCreate) -> Assessment:
+    def create(
+        self, target_id: uuid.UUID, data: AssessmentCreate, *, actor: UserActor
+    ) -> Assessment:
+        actor = require_user_actor(actor)
         # Locked so the authorization recorded below cannot be superseded mid-request.
         target = self.targets.get_for_update(target_id)
         if target is None:
@@ -76,6 +80,7 @@ class AssessmentService:
                 authorization_id=authorization.id,
                 name=data.name,
                 description=data.description,
+                created_by_user_id=actor.user_id,
             )
         )
         self.uow.commit()

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.authz import authorize
 from app.api.deps import Limit, Offset, TargetServiceDep
+from app.core.actors import UserActor
 from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
@@ -38,9 +39,10 @@ def create_target(
 ) -> TargetRead:
     # A new target always carries an authorization acknowledgment. Project
     # membership never stands in for it: the acknowledgment itself is still
-    # validated and recorded by the target service (Phase 1).
+    # validated and recorded by the target service (Phase 1), attributed to the
+    # authenticated user (Phase 9 M5).
     AccessService.require_also(access, P.TARGET_AUTHORIZE)
-    return _read(service.create(project_id, data), service)
+    return _read(service.create(project_id, data, actor=UserActor.of(access.principal)), service)
 
 
 @router.get(
@@ -73,7 +75,7 @@ def update_target(
 ) -> TargetRead:
     if data.authorization is not None:
         AccessService.require_also(access, P.TARGET_AUTHORIZE)
-    return _read(service.update(target_id, data), service)
+    return _read(service.update(target_id, data, actor=UserActor.of(access.principal)), service)
 
 
 @router.delete(

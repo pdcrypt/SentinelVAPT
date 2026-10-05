@@ -34,7 +34,7 @@ from app.services import analysis as analysis_service
 from tests.integration.auth_support import Live, _cleanup, auth_settings, bearer, login
 from tests.integration.conftest import FrozenClock
 from tests.integration.lab_site import LabSite
-from tests.integration.scan_support import ScanEnv, purge_project
+from tests.integration.scan_support import ScanEnv, lab_actor, purge_project, remove_lab_user
 from tests.integration.test_retest_reports import compute, render_worker, request_report
 from tests.integration.test_retests import (
     broken_rule,
@@ -87,10 +87,10 @@ def build_chain(env: ScanEnv) -> dict[str, str]:
                         "scan_id": str(scan_a),
                         "kind": "final",
                         "title": "A",
-                        "prepared_by": "T",
                         "formats": ["json", "html"],
                     }
                 ),
+                actor=env.actor,
             )
             .id
         )
@@ -234,6 +234,7 @@ def world(engine: Engine) -> Iterator[World]:
     live = Live(engine, factory, module_settings(), FrozenClock(utc_now()))
     projects: list[uuid.UUID] = []
     created: list[uuid.UUID] = []
+    lab = lab_actor(factory)
     with LabSite() as site:
         try:
             envs: dict[str, ScanEnv] = {}
@@ -243,7 +244,7 @@ def world(engine: Engine) -> Iterator[World]:
                         ProjectCreate(name=f"m4-{side}-{uuid.uuid4()}"), owner_id=None
                     )
                 projects.append(project.id)
-                envs[side] = ScanEnv(factory, site, project.id)
+                envs[side] = ScanEnv(factory, site, project.id, lab)
             ids = {side: build_chain(envs[side]) for side in ("a", "b")}
             client = live.client()
             w = World(live, client, site, envs, ids, created_projects=created)
@@ -272,6 +273,7 @@ def world(engine: Engine) -> Iterator[World]:
                 client_.__exit__(None, None, None)
             for project_id in [*projects, *created]:
                 purge_project(factory, project_id)
+            remove_lab_user(factory, lab.user_id)
             _cleanup(engine)
 
 

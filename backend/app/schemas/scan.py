@@ -41,6 +41,10 @@ class ScanRead(ReadModel):
     endpoints_count: int
     events_count: int
     evidence_count: int
+    requested_by_user_id: uuid.UUID | None = Field(
+        description="The user who requested the scan; null before Phase 9 M5. The worker "
+        "that ran it is not a user."
+    )
     created_at: datetime
     updated_at: datetime
 

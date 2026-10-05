@@ -5,6 +5,8 @@ or constraint except the obsolete uq_projects_name.
 
 Runs on its own scratch database so the shared test database is untouched."""
 
+import json
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -13,15 +15,9 @@ import pytest
 from alembic import command
 from sqlalchemy import URL, Connection, Engine, inspect, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import sessionmaker
 
-from app.api.deps import get_assessment_service, get_scan_service, get_target_service
-from app.core.clock import utc_now
 from app.db.session import make_engine
-from app.models import Project
-from app.schemas.assessment import AssessmentCreate
-from app.schemas.scan import ScanCreate
-from app.schemas.target import TargetCreate, TargetUpdate
+from app.services.scan_grants import scan_config_record
 from tests.integration.conftest import _alembic_config, _test_database_url
 
 pytestmark = pytest.mark.integration
@@ -63,12 +59,11 @@ def scratch() -> Iterator[tuple[URL, Engine]]:
 
 
 def _seed(engine: Engine) -> None:
-    """Representative Phase 1-3 data through the real services: projects, a
-    target with two authorization versions (self-asserted actor text), an
-    assessment and a queued scan. (Since Phase 9 M4 the API needs an
-    authenticated member, which this pre-M1 schema cannot have; projects are
-    inserted as they were before memberships existed.)"""
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    """Representative Phase 1-3 data as it was written before Phase 9:
+    projects, a target with two authorization versions (self-asserted actor
+    text), an in-progress assessment and a queued scan. Inserted directly: the
+    current services need an authenticated member and write actor columns
+    (Phase 9 M4/M5) that this pre-M1 schema does not have."""
     now = datetime.now(UTC)
     authorization: dict[str, Any] = {
         "authorized_by": "Lab Owner \u00e9\u202e",
@@ -79,33 +74,68 @@ def _seed(engine: Engine) -> None:
         "acknowledged_by": "Student Tester (self-asserted)",
         "acknowledge": True,
     }
-    with factory() as s:
-        project = Project(name="Legacy lab")
-        s.add_all([project, Project(name="Second legacy project", description="x")])
-        s.commit()
-        targets = get_target_service(s, utc_now)
-        target = targets.create(
-            project.id,
-            TargetCreate.model_validate(
+    project, target, v1, v2 = (uuid.uuid4() for _ in range(4))
+    assessment, scan = uuid.uuid4(), uuid.uuid4()
+    base = {k: v for k, v in authorization.items() if k not in ("acknowledge", "reference")}
+    insert_authorization = text(
+        "INSERT INTO target_authorizations (id, target_id, version, base_url, environment, "
+        "in_scope_hosts, allowed_ports, in_scope_path_prefixes, excluded_paths, authorized_by, "
+        "reference, notes, valid_from, valid_until, acknowledged_by, acknowledged_at) "
+        "VALUES (:id, :target, :version, 'http://lab-target/', 'local_lab', ARRAY['lab-target'], "
+        "ARRAY[80], ARRAY['/'], ARRAY[]::varchar[], :authorized_by, :reference, :notes, "
+        ":valid_from, :valid_until, :acknowledged_by, :now)"
+    )
+    with engine.begin() as conn:
+        conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
+        conn.execute(
+            text("INSERT INTO projects (id, name) VALUES (:p, 'Legacy lab')"), {"p": project}
+        )
+        conn.execute(
+            text(
+                "INSERT INTO projects (id, name, description) "
+                "VALUES (gen_random_uuid(), 'Second legacy project', 'x')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO targets (id, project_id, name, current_authorization_id) "
+                "VALUES (:t, :p, 'Lab target', :a)"
+            ),
+            {"t": target, "p": project, "a": v2},
+        )
+        for version, (auth_id, reference) in enumerate(((v1, "LAB-001"), (v2, "LAB-002")), 1):
+            conn.execute(
+                insert_authorization,
                 {
-                    "name": "Lab target",
-                    "base_url": "http://lab-target/",
-                    "environment": "local_lab",
-                    "in_scope_hosts": ["lab-target"],
-                    "authorization": authorization,
-                }
+                    **base,
+                    "id": auth_id,
+                    "target": target,
+                    "version": version,
+                    "reference": reference,
+                    "now": now,
+                },
+            )
+        conn.execute(
+            text(
+                "INSERT INTO assessments (id, target_id, authorization_id, name, "
+                "status, started_at) VALUES (:a, :t, :v, 'Baseline', 'in_progress', "
+                ":now)"
             ),
+            {"a": assessment, "t": target, "v": v2, "now": now},
         )
-        targets.update(
-            target.id,
-            TargetUpdate.model_validate(
-                {"authorization": {**authorization, "reference": "LAB-002"}}
+        conn.execute(
+            text(
+                "INSERT INTO scans (id, assessment_id, target_id, authorization_id, "
+                "status, config) VALUES (:s, :a, :t, :v, 'queued', CAST(:config AS jsonb))"
             ),
+            {
+                "s": scan,
+                "a": assessment,
+                "t": target,
+                "v": v2,
+                "config": json.dumps(scan_config_record(allow_untrusted_tls=False)),
+            },
         )
-        assessments = get_assessment_service(s, utc_now)
-        assessment = assessments.create(target.id, AssessmentCreate(name="Baseline"))
-        assessments.start(assessment.id)
-        get_scan_service(s, utc_now).create(assessment.id, ScanCreate())
 
 
 def _tables(conn: Connection) -> set[str]:

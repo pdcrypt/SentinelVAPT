@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import (
     DomainValidationError,
@@ -80,9 +81,16 @@ class RetestReportService:
     # --- creation -----------------------------------------------------------------------
 
     def create(
-        self, assessment_id: uuid.UUID, comparison_id: uuid.UUID, data: RetestReportCreate
+        self,
+        assessment_id: uuid.UUID,
+        comparison_id: uuid.UUID,
+        data: RetestReportCreate,
+        *,
+        actor: UserActor,
     ) -> tuple[RetestReport, bool]:
-        """Returns (report, created)."""
+        """Returns (report, created). An identical existing report keeps its
+        original requester."""
+        actor = require_user_actor(actor)
         assessment = self.assessments.get(assessment_id)
         if assessment is None:
             raise NotFoundError("assessment not found")
@@ -124,7 +132,7 @@ class RetestReportService:
                 title=data.title,
                 kind=data.kind.value,
                 classification=data.classification.value,
-                prepared_by=data.prepared_by,
+                prepared_by=actor.label,
                 reviewed_by=data.reviewed_by,
                 created_at=now,
                 template_id=template.id,
@@ -153,7 +161,8 @@ class RetestReportService:
                 "kind": data.kind.value,
                 "status": ReportStatus.QUEUED.value,
                 "title": data.title,
-                "prepared_by": data.prepared_by,
+                "prepared_by": actor.label,
+                "requested_by_user_id": actor.user_id,
                 "reviewed_by": data.reviewed_by,
                 "classification": data.classification.value,
                 "formats": [f.value for f in data.formats],

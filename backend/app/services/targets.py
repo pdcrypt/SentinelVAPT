@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError, NotFoundError
 from app.models import Target, TargetAuthorization
@@ -35,7 +36,8 @@ class TargetService:
         self.uow = uow
         self.clock = clock
 
-    def create(self, project_id: uuid.UUID, data: TargetCreate) -> Target:
+    def create(self, project_id: uuid.UUID, data: TargetCreate, *, actor: UserActor) -> Target:
+        actor = require_user_actor(actor)
         if self.projects.get(project_id) is None:
             raise NotFoundError("project not found")
         self._ensure_name_available(project_id, data.name)
@@ -51,7 +53,7 @@ class TargetService:
         )
         target_id = uuid.uuid4()
         authorization = self._new_authorization(
-            target_id, 1, scope, data.environment, data.authorization
+            target_id, 1, scope, data.environment, data.authorization, actor
         )
 
         # Target and its first authorization reference each other; the
@@ -86,7 +88,8 @@ class TargetService:
         self.get(target_id)
         return self.authorizations.list_for_target(target_id, limit=limit, offset=offset)
 
-    def update(self, target_id: uuid.UUID, data: TargetUpdate) -> Target:
+    def update(self, target_id: uuid.UUID, data: TargetUpdate, *, actor: UserActor) -> Target:
+        actor = require_user_actor(actor)
         # Lock first, then read: concurrent updates of this target wait here and
         # see the result of the previous one, so they cannot combine stale fields.
         target = self.targets.get_for_update(target_id)
@@ -123,7 +126,7 @@ class TargetService:
                 ),
             )
             new_authorization = self._new_authorization(
-                target.id, current.version + 1, scope, environment, data.authorization
+                target.id, current.version + 1, scope, environment, data.authorization, actor
             )
 
         # Apply.
@@ -159,6 +162,7 @@ class TargetService:
         scope: Scope,
         environment: TargetEnvironment,
         auth: TargetAuthorizationIn,
+        actor: UserActor,
     ) -> TargetAuthorization:
         now = self.clock()
         validate_authorization_window(auth.valid_from, auth.valid_until, now)
@@ -177,7 +181,10 @@ class TargetService:
             notes=auth.notes,
             valid_from=auth.valid_from,
             valid_until=auth.valid_until,
-            acknowledged_by=auth.acknowledged_by,
+            # Server-controlled (M5): the authenticated user acknowledges; the
+            # label is their display name, the identity their user id.
+            acknowledged_by=actor.label,
+            acknowledged_by_user_id=actor.user_id,
             # Server-controlled: the client cannot backdate an acknowledgment.
             acknowledged_at=now,
         )

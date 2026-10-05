@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import InvalidStateTransitionError, NotFoundError, ScanNotAllowedError
 from app.models import Asset, Endpoint, EndpointCookie, Evidence, Scan, ScanLog
@@ -38,7 +39,8 @@ class ScanService:
         self.uow = uow
         self.clock = clock
 
-    def create(self, assessment_id: uuid.UUID, data: ScanCreate) -> Scan:
+    def create(self, assessment_id: uuid.UUID, data: ScanCreate, *, actor: UserActor) -> Scan:
+        actor = require_user_actor(actor)
         # Lock order: assessment -> target (-> scan). Holding the assessment lock
         # also serializes concurrent requests for the same assessment.
         assessment = self.assessments.get_for_update(assessment_id)
@@ -62,6 +64,9 @@ class ScanService:
             authorization_id=assessment.authorization_id,
             status=ScanStatus.QUEUED,
             config=scan_config_record(allow_untrusted_tls=data.allow_untrusted_tls),
+            # Who requested the scan; the worker that runs it is recorded
+            # separately (claimed_by) and never changes this.
+            requested_by_user_id=actor.user_id,
         )
         self.scans.add(scan)
         self.uow.commit()

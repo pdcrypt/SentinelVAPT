@@ -5,12 +5,6 @@ export function ReportRequestFields({ defaultTitle }: { defaultTitle: string }) 
   return (
     <>
       <TextField name="title" label="Title" required defaultValue={defaultTitle} />
-      <TextField
-        name="prepared_by"
-        label="Prepared by"
-        required
-        hint="Self-asserted: there is no platform login yet."
-      />
       <TextField name="reviewed_by" label="Reviewed by" />
       <SelectField
         name="kind"

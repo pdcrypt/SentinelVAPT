@@ -72,12 +72,15 @@ def request_report(
             {
                 "scan_id": str(scan_id),
                 "title": "Golden lab assessment",
-                "prepared_by": "Tester",
                 "formats": list(formats),
                 **kw,
             }
         )
-        return get_report_service(s, utc_now).create(assessment_of(env, scan_id), data).id
+        return (
+            get_report_service(s, utc_now)
+            .create(assessment_of(env, scan_id), data, actor=env.actor)
+            .id
+        )
 
 
 def report_worker(env: ScanEnv, name: str = "report-worker", **kw: Any) -> Any:
@@ -227,7 +230,7 @@ def test_report_eligibility_rules(
     api = committed_api
     assessment_id = assessment_of(scan_env, golden)
     url = f"/api/v1/assessments/{assessment_id}/reports"
-    body = {"scan_id": str(golden), "title": "T", "prepared_by": "P", "formats": LOCAL_FORMATS}
+    body = {"scan_id": str(golden), "title": "T", "formats": LOCAL_FORMATS}
 
     final = api.post(url, json={**body, "kind": "final"})
     assert final.status_code == 409
@@ -255,7 +258,7 @@ def test_reports_require_a_completed_and_analysed_scan(
     golden_report_site(scan_env)
     _, assessment_id, scan_id = scan_env.queued_scan()
     url = f"/api/v1/assessments/{assessment_id}/reports"
-    body = {"scan_id": str(scan_id), "title": "T", "prepared_by": "P", "formats": LOCAL_FORMATS}
+    body = {"scan_id": str(scan_id), "title": "T", "formats": LOCAL_FORMATS}
 
     queued = committed_api.post(url, json=body)
     assert queued.status_code == 409 and queued.json()["reason"] == "scan_not_completed"
@@ -274,9 +277,9 @@ def test_reports_require_a_completed_and_analysed_scan(
 def test_a_scan_of_another_assessment_is_refused(scan_env: ScanEnv, golden: uuid.UUID) -> None:
     other_assessment = scan_env.started_assessment(scan_env.target())
     with scan_env.factory() as s:
-        data = ReportCreate(scan_id=golden, title="T", prepared_by="P")
+        data = ReportCreate(scan_id=golden, title="T")
         with pytest.raises(NotFoundError, match="scan not found"):
-            get_report_service(s, utc_now).create(other_assessment, data)
+            get_report_service(s, utc_now).create(other_assessment, data, actor=scan_env.actor)
 
 
 # --- snapshot semantics ------------------------------------------------------------------
@@ -296,7 +299,7 @@ def test_snapshot_is_frozen_when_the_report_is_requested(
     finding = findings_of(scan_env, golden)[0]
     with scan_env.factory() as s:
         get_finding_service(s, utc_now).triage(
-            finding.id, FindingStatus.FALSE_POSITIVE, "lab artefact", "Lead"
+            finding.id, FindingStatus.FALSE_POSITIVE, "lab artefact", actor=scan_env.actor
         )
     third = load(scan_env, request_report(scan_env, golden))
     assert third.content_sha256 != a.content_sha256
@@ -331,7 +334,7 @@ def test_a_report_request_waits_for_in_flight_triage(
     check would also wait, but only after a possibly torn read)."""
     finding = findings_of(scan_env, golden)[0]
     assessment_id = assessment_of(scan_env, golden)
-    data = ReportCreate(scan_id=golden, title="T", prepared_by="P", formats=["json"])
+    data = ReportCreate(scan_id=golden, title="T", formats=["json"])
 
     def reached_links(*_: Any, **__: Any) -> None:
         raise AssertionError("the snapshot was read without waiting for the triage")
@@ -342,10 +345,10 @@ def test_a_report_request_waits_for_in_flight_triage(
             m.setattr(ReportRepository, "add_links", reached_links)
             s.execute(text("SET LOCAL lock_timeout = '300ms'"))
             with pytest.raises(OperationalError, match="lock timeout"):
-                get_report_service(s, utc_now).create(assessment_id, data)
+                get_report_service(s, utc_now).create(assessment_id, data, actor=scan_env.actor)
         holder.rollback()
     with scan_env.factory() as s:
-        assert get_report_service(s, utc_now).create(assessment_id, data).id
+        assert get_report_service(s, utc_now).create(assessment_id, data, actor=scan_env.actor).id
 
 
 def test_report_cites_the_scans_authorization_not_the_targets_current_one(
@@ -697,7 +700,6 @@ def test_report_api(scan_env: ScanEnv, golden: uuid.UUID, committed_api: TestCli
         json={
             "scan_id": str(golden),
             "title": "<script>alert(1)</script> report",
-            "prepared_by": "Tester",
             "formats": LOCAL_FORMATS,
             "executive_summary_note": "Scope agreed with the lab owner.",
         },

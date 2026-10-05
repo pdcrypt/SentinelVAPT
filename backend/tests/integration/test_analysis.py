@@ -473,7 +473,7 @@ def test_concurrent_workers_analyse_each_run_exactly_once(scan_env: ScanEnv, att
 def tls_env(scan_env: ScanEnv) -> Iterator[ScanEnv]:
     with LabSite(tls=self_signed_server_context()) as site:
         site.html("/", "<title>TLS lab</title>")
-        yield ScanEnv(scan_env.factory, site, scan_env.project_id)
+        yield ScanEnv(scan_env.factory, site, scan_env.project_id, scan_env.actor)
 
 
 def test_untrusted_certificate_produces_the_documented_event_and_trn_002(
@@ -565,35 +565,35 @@ def test_triage_requires_reasons_and_records_history(
     finding_id = api.get(f"/api/v1/scans/{scan_id}/findings").json()[0]["id"]
     url = f"/api/v1/findings/{finding_id}/triage"
 
-    no_reason = api.post(url, json={"status": "false_positive", "triaged_by": "Tester"})
+    no_reason = api.post(url, json={"status": "false_positive"})
     assert no_reason.status_code == 422
-    blank = api.post(url, json={"status": "accepted_risk", "reason": "  ", "triaged_by": "T"})
+    blank = api.post(url, json={"status": "accepted_risk", "reason": "  "})
     assert blank.status_code == 422
-    assert api.post(url, json={"status": "fixed", "triaged_by": "T"}).status_code == 422
-    assert api.post(url, json={"status": "open", "triaged_by": "T"}).status_code == 409
-    assert (
-        api.post(url, json={"status": "confirmed", "triaged_by": "T", "extra": 1}).status_code
-        == 422
-    )
+    assert api.post(url, json={"status": "fixed"}).status_code == 422
+    assert api.post(url, json={"status": "open"}).status_code == 409
+    assert api.post(url, json={"status": "confirmed", "extra": 1}).status_code == 422
 
-    confirmed = api.post(url, json={"status": "confirmed", "triaged_by": "Tester"})
+    confirmed = api.post(url, json={"status": "confirmed"})
     assert confirmed.status_code == 200
     assert confirmed.json()["status"] == "confirmed"
-    fp = api.post(
-        url, json={"status": "false_positive", "reason": "lab artefact", "triaged_by": "Lead"}
-    )
+    fp = api.post(url, json={"status": "false_positive", "reason": "lab artefact"})
     assert fp.status_code == 200
     assert fp.json()["status_reason"] == "lab artefact"
 
-    # Since Phase 9 M4 the recorded actor is the authenticated user; the
-    # body's triaged_by is accepted but not trusted (M5 removes it).
-    actor = api.get("/api/v1/auth/me").json()["user"]["username"]
+    # The recorded actor is the authenticated user (Phase 9 M5): its id, and its
+    # display name as the descriptive label. The body cannot name anyone.
+    me = api.get("/api/v1/auth/me").json()["user"]
     history = api.get(f"/api/v1/findings/{finding_id}/history").json()
-    assert [(h["from_status"], h["to_status"], h["changed_by"]) for h in history] == [
-        ("open", "confirmed", actor),
-        ("confirmed", "false_positive", actor),
+    assert [
+        (h["from_status"], h["to_status"], h["changed_by"], h["changed_by_user_id"])
+        for h in history
+    ] == [
+        ("open", "confirmed", me["display_name"], me["id"]),
+        ("confirmed", "false_positive", me["display_name"], me["id"]),
     ]
-    assert fp.json()["status_changed_by"] == actor
+    assert fp.json()["status_changed_by_user_id"] == me["id"]
+    spoofed = api.post(url, json={"status": "confirmed", "triaged_by": "Lead"})
+    assert spoofed.status_code == 422
 
 
 def test_concurrent_triage_serializes_on_the_finding(
@@ -608,9 +608,7 @@ def test_concurrent_triage_serializes_on_the_finding(
 
     def triage() -> None:
         barrier.wait()
-        codes.append(
-            committed_api.post(url, json={"status": "confirmed", "triaged_by": "T"}).status_code
-        )
+        codes.append(committed_api.post(url, json={"status": "confirmed"}).status_code)
 
     threads = [threading.Thread(target=triage) for _ in range(2)]
     for t in threads:

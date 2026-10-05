@@ -147,7 +147,8 @@ export interface paths {
         /**
          * Create Report
          * @description Freeze a snapshot of the scan's findings and evidence and queue the
-         *     report. It is rendered by the report worker, not in this request.
+         *     report. It is rendered by the report worker, not in this request; it is
+         *     prepared by the authenticated user.
          */
         post: operations["create_report_api_v1_assessments__assessment_id__reports_post"];
         delete?: never;
@@ -207,7 +208,8 @@ export interface paths {
         put?: never;
         /**
          * Create Scan
-         * @description Queue a discovery scan. It is executed by the worker, not in this request.
+         * @description Queue a discovery scan. It is executed by the worker, not in this request;
+         *     the requester is the authenticated user.
          */
         post: operations["create_scan_api_v1_assessments__assessment_id__scans_post"];
         delete?: never;
@@ -1058,6 +1060,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Created By User Id
+             * @description The user who created the assessment (or retest); null before Phase 9 M5.
+             */
+            created_by_user_id: string | null;
             /** Description */
             description: string | null;
             /**
@@ -1427,6 +1434,11 @@ export interface components {
             status_changed_at: string | null;
             /** Status Changed By */
             status_changed_by: string | null;
+            /**
+             * Status Changed By User Id
+             * @description The user behind the latest triage; null before Phase 9 M5 or if never triaged.
+             */
+            status_changed_by_user_id: string | null;
             /** Status Reason */
             status_reason: string | null;
             /** Subject Key */
@@ -1509,6 +1521,11 @@ export interface components {
             status_changed_at: string | null;
             /** Status Changed By */
             status_changed_by: string | null;
+            /**
+             * Status Changed By User Id
+             * @description The user behind the latest triage; null before Phase 9 M5 or if never triaged.
+             */
+            status_changed_by_user_id: string | null;
             /** Status Reason */
             status_reason: string | null;
             /** Subject Key */
@@ -1546,6 +1563,11 @@ export interface components {
             changed_at: string;
             /** Changed By */
             changed_by: string;
+            /**
+             * Changed By User Id
+             * @description The user who made the change; null for history recorded before Phase 9 M5.
+             */
+            changed_by_user_id: string | null;
             /** From Status */
             from_status: string;
             /**
@@ -1588,8 +1610,6 @@ export interface components {
             /** Reason */
             reason?: string | null;
             status: components["schemas"]["FindingStatus"];
-            /** Triaged By */
-            triaged_by: string;
         };
         /**
          * GlobalRole
@@ -1734,8 +1754,6 @@ export interface components {
              * @default draft
              */
             kind: components["schemas"]["ReportKind"];
-            /** Prepared By */
-            prepared_by: string;
             /** Reviewed By */
             reviewed_by?: string | null;
             /**
@@ -1808,6 +1826,11 @@ export interface components {
             number: string;
             /** Prepared By */
             prepared_by: string;
+            /**
+             * Requested By User Id
+             * @description The user who requested the report; null before Phase 9 M5.
+             */
+            requested_by_user_id: string | null;
             /** Reviewed By */
             reviewed_by: string | null;
             /**
@@ -1880,8 +1903,6 @@ export interface components {
              * @default draft
              */
             kind: components["schemas"]["ReportKind"];
-            /** Prepared By */
-            prepared_by: string;
             /** Reviewed By */
             reviewed_by?: string | null;
             /** Scope Note */
@@ -1950,6 +1971,11 @@ export interface components {
             number: string;
             /** Prepared By */
             prepared_by: string;
+            /**
+             * Requested By User Id
+             * @description The user who requested the report; null before Phase 9 M5.
+             */
+            requested_by_user_id: string | null;
             /** Reviewed By */
             reviewed_by: string | null;
             /** Schema Version */
@@ -2066,6 +2092,11 @@ export interface components {
             id: string;
             /** Pages Count */
             pages_count: number;
+            /**
+             * Requested By User Id
+             * @description The user who requested the scan; null before Phase 9 M5. The worker that ran it is not a user.
+             */
+            requested_by_user_id: string | null;
             /** Requests Sent */
             requests_sent: number;
             /** Scanner Version */
@@ -2135,11 +2166,6 @@ export interface components {
              */
             acknowledge: boolean;
             /**
-             * Acknowledged By
-             * @description Person confirming the authorization.
-             */
-            acknowledged_by: string;
-            /**
              * Authorized By
              * @description Person or organization granting permission.
              */
@@ -2174,6 +2200,11 @@ export interface components {
             acknowledged_at: string;
             /** Acknowledged By */
             acknowledged_by: string;
+            /**
+             * Acknowledged By User Id
+             * @description The user who acknowledged it; null before Phase 9 M5.
+             */
+            acknowledged_by_user_id: string | null;
             /** Allowed Ports */
             allowed_ports: number[];
             /** Authorized By */
@@ -2234,6 +2265,11 @@ export interface components {
             acknowledged_at: string;
             /** Acknowledged By */
             acknowledged_by: string;
+            /**
+             * Acknowledged By User Id
+             * @description The user who acknowledged it; null for records made before Phase 9 M5 (whose acknowledged_by text is self-asserted).
+             */
+            acknowledged_by_user_id: string | null;
             /** Authorized By */
             authorized_by: string;
             /**

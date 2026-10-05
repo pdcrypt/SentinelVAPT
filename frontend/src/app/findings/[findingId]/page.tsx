@@ -117,12 +117,6 @@ export default async function FindingPage({ params }: { params: Promise<{ findin
             )}
           />
           <TextArea name="reason" label="Reason" maxLength={2000} />
-          <TextField
-            name="triaged_by"
-            label="Triaged by"
-            required
-            hint="Self-asserted: there is no platform login yet."
-          />
         </ActionForm>
         <h3>Triage history</h3>
         {!history.ok ? (

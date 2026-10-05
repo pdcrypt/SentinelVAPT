@@ -12,6 +12,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import (
     DomainValidationError,
@@ -73,7 +74,8 @@ class ReportService:
 
     # --- creation -----------------------------------------------------------------------
 
-    def create(self, assessment_id: uuid.UUID, data: ReportCreate) -> Report:
+    def create(self, assessment_id: uuid.UUID, data: ReportCreate, *, actor: UserActor) -> Report:
+        actor = require_user_actor(actor)
         assessment = self.assessments.get(assessment_id)
         if assessment is None:
             raise NotFoundError("assessment not found")
@@ -111,7 +113,7 @@ class ReportService:
                 title=data.title,
                 kind=data.kind.value,
                 classification=data.classification.value,
-                prepared_by=data.prepared_by,
+                prepared_by=actor.label,
                 reviewed_by=data.reviewed_by,
                 created_at=now,
                 template_id=template.id,
@@ -138,7 +140,8 @@ class ReportService:
             kind=data.kind,
             status=ReportStatus.QUEUED,
             title=data.title,
-            prepared_by=data.prepared_by,
+            prepared_by=actor.label,
+            requested_by_user_id=actor.user_id,
             reviewed_by=data.reviewed_by,
             classification=data.classification,
             formats=[f.value for f in data.formats],

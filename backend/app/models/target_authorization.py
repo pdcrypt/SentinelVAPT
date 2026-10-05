@@ -69,6 +69,11 @@ class TargetAuthorization(UUIDPrimaryKeyMixin, Base):
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     acknowledged_by: Mapped[str] = mapped_column(String(200))
     acknowledged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Who acknowledged it (M5, server-set; NULL for records made before M5,
+    # whose acknowledged_by text is self-asserted). Users are never deleted.
+    acknowledged_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

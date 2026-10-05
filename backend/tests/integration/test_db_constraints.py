@@ -1,6 +1,7 @@
 """The database must reject invalid data even if the service layer is bypassed."""
 
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,7 +12,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
-from app.models import Assessment, Project, Target, TargetAuthorization
+from app.models import Assessment, Project, Target, TargetAuthorization, User
 from app.models.enums import AssessmentStatus, TargetEnvironment
 
 pytestmark = pytest.mark.integration
@@ -34,6 +35,7 @@ def _authorization(target_id: uuid.UUID, **overrides: object) -> TargetAuthoriza
         "valid_from": NOW,
         "valid_until": NOW + timedelta(days=1),
         "acknowledged_by": "tester",
+        "acknowledged_by_user_id": ACTOR[0],
         "acknowledged_at": NOW,
     }
     values.update(overrides)
@@ -70,6 +72,21 @@ def _assert_rejected(
             db_session.flush()
         _check_now(db_session)
     db_session.execute(text("SET CONSTRAINTS ALL DEFERRED"))
+
+
+# The user the rows below are attributed to (Phase 9 M5 requires one on every
+# new authorization record and assessment); set per test by the fixture.
+ACTOR: list[uuid.UUID] = []
+
+
+@pytest.fixture(autouse=True)
+def actor(db_session: Session) -> Iterator[uuid.UUID]:
+    user = User(username=f"constraints-{uuid.uuid4().hex[:8]}", display_name="Constraints")
+    db_session.add(user)
+    db_session.flush()
+    ACTOR[:] = [user.id]
+    yield user.id
+    ACTOR.clear()
 
 
 @pytest.fixture
@@ -114,11 +131,11 @@ def test_environment_check_constraint(db_session: Session, project: Project) -> 
                 "INSERT INTO target_authorizations (id, target_id, version, base_url, "
                 "environment, in_scope_hosts, allowed_ports, in_scope_path_prefixes, "
                 "authorized_by, reference, valid_from, valid_until, acknowledged_by, "
-                "acknowledged_at) VALUES (gen_random_uuid(), :t, 2, 'http://lab/', "
-                "'production', '{lab}', '{80}', '{/}', 'o', 'r', now(), "
-                "now() + interval '1 day', 'a', now())"
+                "acknowledged_at, acknowledged_by_user_id) VALUES (gen_random_uuid(), :t, 2, "
+                "'http://lab/', 'production', '{lab}', '{80}', '{/}', 'o', 'r', now(), "
+                "now() + interval '1 day', 'a', now(), :u)"
             ),
-            {"t": target.id},
+            {"t": target.id, "u": ACTOR[0]},
         )
 
 
@@ -168,7 +185,12 @@ def test_assessment_authorization_must_belong_to_its_target(
     _, other_authorization = _insert_target(db_session, project, "b")
     _assert_rejected(
         db_session,
-        Assessment(target_id=target.id, authorization_id=other_authorization.id, name="x"),
+        Assessment(
+            target_id=target.id,
+            authorization_id=other_authorization.id,
+            name="x",
+            created_by_user_id=ACTOR[0],
+        ),
     )
 
 
@@ -182,6 +204,7 @@ def test_assessment_completed_requires_started(db_session: Session, project: Pro
             name="a",
             status=AssessmentStatus.COMPLETED,
             completed_at=NOW,
+            created_by_user_id=ACTOR[0],
         ),
     )
 
@@ -225,7 +248,14 @@ def test_authorization_used_by_an_assessment_cannot_be_removed(
     db_session: Session, project: Project
 ) -> None:
     target, authorization = _insert_target(db_session, project)
-    db_session.add(Assessment(target_id=target.id, authorization_id=authorization.id, name="a"))
+    db_session.add(
+        Assessment(
+            target_id=target.id,
+            authorization_id=authorization.id,
+            name="a",
+            created_by_user_id=ACTOR[0],
+        )
+    )
     db_session.flush()
     with pytest.raises(IntegrityError), db_session.begin_nested():
         db_session.execute(text("DELETE FROM targets WHERE id = :id"), {"id": target.id})

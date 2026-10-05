@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app import cli
 from app.api.deps import get_project_service, get_target_service
+from app.core.actors import UserActor
 from app.core.clock import utc_now
 from app.core.config import Settings
 from app.models.enums import GlobalRole
@@ -178,8 +179,9 @@ def test_concurrent_claims_produce_one_owner(live: Live, legacy: Any) -> None:
 
 
 def test_claiming_rewrites_no_history(live: Live, legacy: Any) -> None:
-    """Self-asserted actor text recorded before the claim stays exactly as it was."""
+    """Actor data recorded before the claim stays exactly as it was."""
     project = legacy("legacy with history")
+    acknowledger = live.user("acknowledger")
     with live.factory() as s:
         get_target_service(s, utc_now).create(
             project,
@@ -189,12 +191,10 @@ def test_claiming_rewrites_no_history(live: Live, legacy: Any) -> None:
                     "base_url": "http://lab-target/",
                     "environment": "local_lab",
                     "in_scope_hosts": ["lab-target"],
-                    "authorization": authorization(
-                        authorized_by="Lab Owner (self-asserted)",
-                        acknowledged_by="Student (self-asserted)",
-                    ),
+                    "authorization": authorization(authorized_by="Lab Owner (as stated)"),
                 }
             ),
+            actor=UserActor(acknowledger.id, acknowledger.display_name),
         )
     user = live.user("historian")
     queries = [
@@ -208,7 +208,8 @@ def test_claiming_rewrites_no_history(live: Live, legacy: Any) -> None:
     before = [live.rows(q, p=project) for q in queries]
     assert claim(live, project, user.username) == 0
     assert [live.rows(q, p=project) for q in queries] == before
-    assert before[2] and before[2][0].acknowledged_by == "Student (self-asserted)"
+    assert before[2] and before[2][0].acknowledged_by == acknowledger.display_name
+    assert before[2][0].acknowledged_by_user_id == acknowledger.id
 
 
 # --- authentication cutover ----------------------------------------------------------------------

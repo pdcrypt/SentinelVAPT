@@ -23,7 +23,8 @@ def _scan(db: Session, assessment: dict[str, Any]) -> uuid.UUID:
     db.execute(
         text(
             "INSERT INTO scans (id, assessment_id, target_id, authorization_id, status, "
-            "finished_at, config) VALUES (:id, :a, :t, :z, 'cancelled', now(), '{}')"
+            "finished_at, config, requested_by_user_id) VALUES (:id, :a, :t, :z, 'cancelled', "
+            "now(), '{}', (SELECT created_by_user_id FROM assessments WHERE id = :a))"
         ),
         {
             "id": scan_id,

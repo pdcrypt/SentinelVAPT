@@ -104,7 +104,7 @@ export const listFindingHistory = (findingId: string) =>
   apiGet<T.FindingStatusChange[]>(`/findings/${id(findingId)}/history`);
 export const triageFinding = (
   findingId: string,
-  body: { status: T.FindingStatus; reason: string | null; triaged_by: string },
+  body: { status: T.FindingStatus; reason: string | null },
 ) => apiWrite<T.FindingDetail>("POST", `/findings/${id(findingId)}/triage`, body);
 export const getRules = () => apiGet<T.RuleCatalog>("/rules");
 

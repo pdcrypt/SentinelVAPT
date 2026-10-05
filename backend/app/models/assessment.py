@@ -95,6 +95,11 @@ class Assessment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[str | None] = mapped_column(String(200))
+    # Who created it (M5, server-set; NULL before M5). `created_by` is unused
+    # legacy text.
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
     # Set once when a retest is created; a trigger keeps them immutable.
     retest_of_assessment_id: Mapped[uuid.UUID | None]
     baseline_scan_id: Mapped[uuid.UUID | None]

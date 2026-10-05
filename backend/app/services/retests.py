@@ -13,6 +13,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import NotFoundError, RetestNotAllowedError
 from app.models import Assessment, Comparison
@@ -47,7 +48,8 @@ class RetestService:
         self.uow = uow
         self.clock = clock
 
-    def create(self, parent_id: uuid.UUID, data: RetestCreate) -> Assessment:
+    def create(self, parent_id: uuid.UUID, data: RetestCreate, *, actor: UserActor) -> Assessment:
+        actor = require_user_actor(actor)
         # Lock order: assessment -> target. Holding the parent's lock serializes
         # concurrent retest requests for it (the partial unique index is the
         # database backstop).
@@ -116,6 +118,7 @@ class RetestService:
                 description=data.description,
                 retest_of_assessment_id=parent.id,
                 baseline_scan_id=baseline.id,
+                created_by_user_id=actor.user_id,
             )
         )
         self.uow.commit()

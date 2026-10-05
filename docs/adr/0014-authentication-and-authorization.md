@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery) and M4 (authorization enforcement) are implemented; M5–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement) and M5 (trusted actor identity) are implemented; M6–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -670,6 +670,105 @@ is classified conservatively in the same way. No migration was needed.
 | Membership and user administration APIs; ownership transfer API | M7 |
 | Browser login, session cookie held by the Next.js server, 401/403 handling in the console | M8 |
 
+### Trusted actor identity (implemented in M5)
+
+**Client input never determines who performed a security-sensitive
+action.** Four questions stay separate:
+
+- authentication: who is calling (the session);
+- authorization: may they do it (M3/M4);
+- actor identity: who is recorded as having done it (M5);
+- target authorization: may the target be tested at all (Phase 1).
+
+#### The actor model (`app/core/actors.py`)
+
+- **`UserActor(user_id, label)`** is built only from the authenticated
+  Principal, with `UserActor.of(principal)`.
+  - `user_id` is the durable identity.
+  - `label` is the display name at the time of the action. It is descriptive
+    only and never used to identify anyone.
+- **`SystemActor`** (`system:worker`, `system:command`) is a fixed value, not
+  a user row. It cannot log in, hold memberships or be named by a client.
+- **Workers** record themselves in `claimed_by`, their instance id. They
+  never write the requester columns and never stand in for the requester.
+- **Service methods** take `actor: UserActor` as an explicit keyword argument
+  with no default. `require_user_actor` refuses anything else, including a
+  system actor. Nothing is read from global or request-local state.
+
+#### Actor columns
+
+Migration `b8d2f4a6c1e3` is one additive revision. Each new column is a
+nullable foreign key to `users`, `ON DELETE RESTRICT`. Users are never
+deleted, only disabled; disabled users stay valid actors.
+
+| Operation | Canonical actor (new) | Descriptive text (existing) |
+|---|---|---|
+| Acknowledge a target authorization (create, re-authorize) | `target_authorizations.acknowledged_by_user_id` | `acknowledged_by` = the actor's display name |
+| Create an assessment or a retest | `assessments.created_by_user_id` | none (`created_by` is unused legacy text) |
+| Request a scan | `scans.requested_by_user_id` | none; the worker that runs it is `claimed_by` |
+| Triage a finding | `finding_status_changes.changed_by_user_id`, `findings.status_changed_by_user_id` | `changed_by`, `status_changed_by` = display name |
+| Request a report / retest report | `reports.requested_by_user_id`, `retest_reports.requested_by_user_id` | `prepared_by` = display name (also in the snapshot) |
+
+The trigger `enforce_actor_column(column)` makes the database refuse:
+
+- a new row without its actor;
+- any later change of the actor, including a change to NULL.
+
+The exception is `findings.status_changed_by_user_id`, which follows the
+latest triage; a triage (a new `status_changed_at`) must name its user.
+
+Rows written before M5 keep NULL. Their text was self-asserted, and no user
+is derived from it, because that would be a guess. The text is untouched.
+The downgrade drops the columns and their values.
+
+Operations without a durable actor column keep their provenance elsewhere:
+
+- **Projects:** the first owner's membership records the creator.
+- **Lifecycle transitions** (start, complete, cancel), **scan cancellation**,
+  **comparison requests** (derived data, shared between identical requests)
+  and **deletions** have no actor column. Their actors become audit events
+  in M6.
+- **Password change and logout** act only on the caller's own account and
+  session, and already record the session's user in `audit_events` (M2).
+
+#### API contract
+
+The request fields `acknowledged_by`, `prepared_by` and `triaged_by` are
+removed. A body naming any actor-like field is refused with 422, whatever
+the value: another user's id or username, an admin, a nonexistent id, the
+system actor, null or empty, top-level or nested. Duplicate keys are refused
+too. Authorization runs first, so a caller without access still gets 404 or
+403.
+
+Identity headers (`X-User`, `X-User-Id`, `X-Actor` and similar) are never
+read. Responses expose the canonical ids: `acknowledged_by_user_id`,
+`created_by_user_id`, `requested_by_user_id`, `changed_by_user_id` and
+`status_changed_by_user_id`.
+
+Two client-supplied texts remain, because they name people who are not
+platform actors:
+
+- `authorized_by`: the external party granting permission to test;
+- `reviewed_by`: the reviewer named on a report.
+
+There is no review workflow yet, so `reviewed_by` is an unverified label.
+
+#### Reports
+
+The snapshot schema, templates, renderers and artifact bytes are unchanged.
+New reports carry the requester's display name as `prepared_by`.
+Retest-report deduplication still compares content, which includes
+`prepared_by`. So identical requests from two users with the same display
+name return the first report, which keeps its original requester.
+
+#### Not in M5
+
+| Deferred | Milestone |
+|---|---|
+| Audit events for every state change and for denials; audit read endpoints | M6 |
+| User and membership administration (display-name changes, disabling through the API) | M7 |
+| Browser sessions; the console sends no actor fields any more and shows the stored labels | M8 |
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -693,7 +792,7 @@ Phase 9 does not change:
 | M2 | Identity core: Argon2id, admin CLI, login, logout, `me`, password change, sessions, throttling (implemented) |
 | M3 | Authorization machinery: `Permission`, role tables, `ResourceType`, resolver, access service, dependencies, password-change gate, default-deny guard (implemented; attached to no route) |
 | M4 | Enforcement on all 66 routes, route inventory meta-tests, 404/403, membership-filtered lists, IDOR and role-matrix suites, legacy claim and cutover commands, per-member project names (implemented) |
-| M5 | Actor identity columns and server-set actors (snapshots unchanged) |
+| M5 | Server-owned actor identity: `*_user_id` columns with write-once triggers, actor fields refused, workers as system actors (implemented) |
 | M6 | Audit emission and read endpoints |
 | M7 | Membership and user administration APIs; admin self-grant; legacy claim command |
 | M8 | Frontend login and logout, account, members, admin, audit; 401/403 handling |

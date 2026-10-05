@@ -7,6 +7,7 @@ from sentinel_analysis import REGISTRY, RULESET_VERSION
 
 from app.api.authz import authorize, require_global
 from app.api.deps import FindingServiceDep, Limit, Offset
+from app.core.actors import UserActor
 from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
@@ -153,9 +154,10 @@ def triage_finding(
         AccessDecision, Depends(authorize(P.FINDING_TRIAGE, R.FINDING, "finding_id"))
     ],
 ) -> FindingDetail:
-    # The actor is the authenticated user. `triaged_by` in the body is still
-    # accepted for compatibility but no longer recorded (M5 removes it).
-    finding = service.triage(finding_id, data.status, data.reason, access.principal.username)
+    # The actor is the authenticated user (Phase 9 M5); the body cannot name one.
+    finding = service.triage(
+        finding_id, data.status, data.reason, actor=UserActor.of(access.principal)
+    )
     return _detail(service, finding)
 
 

@@ -2,6 +2,7 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
+from app.core.actors import UserActor, require_user_actor
 from app.core.clock import Clock
 from app.core.errors import InvalidStateTransitionError, NotFoundError
 from app.models import AnalysisRun, Evidence, Finding, FindingStatusChange
@@ -89,10 +90,11 @@ class FindingService:
         return self.analysis.runs_for_scan(scan_id)
 
     def triage(
-        self, finding_id: uuid.UUID, status: FindingStatus, reason: str | None, triaged_by: str
+        self, finding_id: uuid.UUID, status: FindingStatus, reason: str | None, *, actor: UserActor
     ) -> Finding:
         """Change a finding's triage status and append the change to its
         history, under the finding's row lock (concurrent triage serializes)."""
+        actor = require_user_actor(actor)
         finding = self.analysis.get_finding_for_update(finding_id)
         if finding is None:
             raise NotFoundError("finding not found")
@@ -107,14 +109,16 @@ class FindingService:
                 from_status=FindingStatus(finding.status).value,
                 to_status=status.value,
                 reason=reason,
-                changed_by=triaged_by,
+                changed_by=actor.label,
+                changed_by_user_id=actor.user_id,
                 changed_at=now,
             )
         )
         finding.status = status
         finding.status_reason = reason
         finding.status_changed_at = now
-        finding.status_changed_by = triaged_by
+        finding.status_changed_by = actor.label
+        finding.status_changed_by_user_id = actor.user_id
         self.analysis.flush()
         self.uow.commit()
         return finding

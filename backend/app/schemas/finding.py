@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import Field, StringConstraints, model_validator
 
 from app.models.enums import STATUSES_REQUIRING_REASON, AnalysisStatus, FindingStatus
-from app.schemas.common import InputModel, NameStr, ReadModel
+from app.schemas.common import InputModel, ReadModel
 
 SeverityLiteral = Literal["critical", "high", "medium", "low", "informational"]
 ConfidenceLiteral = Literal["high", "medium", "low"]
@@ -41,6 +41,9 @@ class FindingRead(ReadModel):
     status_reason: str | None
     status_changed_at: datetime | None
     status_changed_by: str | None
+    status_changed_by_user_id: uuid.UUID | None = Field(
+        description="The user behind the latest triage; null before Phase 9 M5 or if never triaged."
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -56,7 +59,8 @@ class FindingDetail(FindingRead):
 class FindingTriage(InputModel):
     status: FindingStatus
     reason: ReasonStr | None = None
-    triaged_by: NameStr
+    # No triaged_by: the authenticated user is recorded (Phase 9 M5); a body
+    # naming someone is refused as an unknown field.
 
     @model_validator(mode="after")
     def _reason_when_required(self) -> Self:
@@ -71,6 +75,9 @@ class FindingStatusChangeRead(ReadModel):
     to_status: str
     reason: str | None
     changed_by: str
+    changed_by_user_id: uuid.UUID | None = Field(
+        description="The user who made the change; null for history recorded before Phase 9 M5."
+    )
     changed_at: datetime
 
 

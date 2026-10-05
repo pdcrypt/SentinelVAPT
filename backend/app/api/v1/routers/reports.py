@@ -1,10 +1,12 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Response, status
 
 from app.api.authz import authorize, require_global
 from app.api.deps import Limit, Offset, ReportServiceDep
+from app.core.actors import UserActor
+from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import Report
@@ -43,16 +45,21 @@ def _security_headers(sha256: str) -> dict[str, str]:
 
 @router.post(
     "/assessments/{assessment_id}/reports",
-    dependencies=[Depends(authorize(P.REPORT_REQUEST, R.ASSESSMENT, "assessment_id"))],
     response_model=ReportRead,
     status_code=status.HTTP_202_ACCEPTED,
 )
 def create_report(
-    assessment_id: uuid.UUID, data: ReportCreate, service: ReportServiceDep
+    assessment_id: uuid.UUID,
+    data: ReportCreate,
+    service: ReportServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.REPORT_REQUEST, R.ASSESSMENT, "assessment_id"))
+    ],
 ) -> ReportRead:
     """Freeze a snapshot of the scan's findings and evidence and queue the
-    report. It is rendered by the report worker, not in this request."""
-    report = service.create(assessment_id, data)
+    report. It is rendered by the report worker, not in this request; it is
+    prepared by the authenticated user."""
+    report = service.create(assessment_id, data, actor=UserActor.of(access.principal))
     return _read(report, [])
 
 

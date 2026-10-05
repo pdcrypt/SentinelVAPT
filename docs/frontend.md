@@ -132,6 +132,10 @@ console cannot sign in until M8 (ADR 0014), so until then it receives 401
 from the API, and the live-stack workflow spec is skipped (it runs only with
 `E2E_BROWSER_SESSIONS` set). The other specs and checks are unaffected.
 
+Since M5 the forms no longer ask who acknowledged an authorization,
+prepared a report or made a triage. The server records the signed-in
+user, and the pages show the stored labels.
+
 The end-to-end suite runs the whole workflow (A → B → C) through the UI
 against a temporary nginx lab target it starts on the compose network
 (`tests/e2e/support/lab.ts`). It also runs the browser-facing security

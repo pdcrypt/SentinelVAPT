@@ -79,10 +79,10 @@ def request_report(
 ) -> tuple[uuid.UUID, bool]:
     with env.factory() as s:
         data = RetestReportCreate.model_validate(
-            {"title": "Retest report", "prepared_by": "Tester", "formats": list(formats), **kw}
+            {"title": "Retest report", "formats": list(formats), **kw}
         )
         report, created = get_retest_report_service(s, utc_now).create(
-            assessment_id, comparison_id, data
+            assessment_id, comparison_id, data, actor=env.actor
         )
         return report.id, created
 
@@ -365,7 +365,9 @@ def test_identical_requests_return_the_existing_report(
         finding = s.scalars(
             select(Finding).where(Finding.scan_id == retest_b["scan_b"]).limit(1)
         ).one()
-        get_finding_service(s, utc_now).triage(finding.id, FindingStatus.CONFIRMED, None, "Lead")
+        get_finding_service(s, utc_now).triage(
+            finding.id, FindingStatus.CONFIRMED, None, actor=env.actor
+        )
     after_triage, created = request_report(env, retest_b["b"], comparison.id)
     assert created and after_triage != first
     assert load(env, first).snapshot != load(env, after_triage).snapshot
@@ -415,9 +417,11 @@ def test_report_request_waits_for_in_flight_triage(
         with monkeypatch.context() as m, scan_env.factory() as s:
             m.setattr(RetestReportRepository, "insert_if_new", reached)
             s.execute(text("SET LOCAL lock_timeout = '300ms'"))
-            data = RetestReportCreate(title="T", prepared_by="P", formats=["json"])
+            data = RetestReportCreate(title="T", formats=["json"])
             with pytest.raises(OperationalError, match="lock timeout"):
-                get_retest_report_service(s, utc_now).create(retest_b["b"], comparison.id, data)
+                get_retest_report_service(s, utc_now).create(
+                    retest_b["b"], comparison.id, data, actor=scan_env.actor
+                )
         holder.rollback()
 
 
@@ -468,8 +472,8 @@ def _copy_report_sql(**changes: str) -> str:
     columns = (
         "number", "comparison_id", "target_id", "baseline_assessment_id", "baseline_scan_id",
         "current_assessment_id", "current_scan_id", "kind", "title", "prepared_by",
-        "classification", "formats", "template_id", "template_version", "template_hash",
-        "schema_version", "snapshot", "snapshot_sha256", "content_sha256",
+        "requested_by_user_id", "classification", "formats", "template_id", "template_version",
+        "template_hash", "schema_version", "snapshot", "snapshot_sha256", "content_sha256",
     )  # fmt: skip
     values = [changes.get(c, c) for c in columns]
     return (
@@ -706,9 +710,9 @@ def test_history_is_untouched(scan_env: ScanEnv, chain: dict[str, Any]) -> None:
         p5 = get_report_service(s, utc_now).create(
             chain["a"],
             ReportCreate.model_validate(
-                {"scan_id": str(chain["scan_a"]), "title": "A", "prepared_by": "T",
-                 "formats": LOCAL}
+                {"scan_id": str(chain["scan_a"]), "title": "A", "formats": LOCAL}
             ),
+            actor=env.actor,
         ).id  # fmt: skip
     assert render_worker(env).run_once()
     with env.factory() as s:
@@ -728,7 +732,7 @@ def test_history_is_untouched(scan_env: ScanEnv, chain: dict[str, Any]) -> None:
             select(Finding).where(Finding.scan_id == chain["scan_b"]).limit(1)
         ).one()
         get_finding_service(s, utc_now).triage(
-            finding.id, FindingStatus.FALSE_POSITIVE, "later", "Lead"
+            finding.id, FindingStatus.FALSE_POSITIVE, "later", actor=env.actor
         )
     d = create_retest(env, chain["c"])
     start(env, d)
@@ -757,7 +761,7 @@ def test_retest_report_api(
 ) -> None:
     api = committed_api
     url = f"/api/v1/assessments/{chain['b']}/comparisons/{chain['cmp_b']}/reports"
-    body = {"title": "<script>x</script> retest", "prepared_by": "Tester", "formats": LOCAL}
+    body = {"title": "<script>x</script> retest", "formats": LOCAL}
     first = api.post(url, json=body)
     assert first.status_code == 202, first.text
     again = api.post(url, json=body)

@@ -21,8 +21,9 @@ from app.api.deps import (
     get_scan_service,
     get_target_service,
 )
+from app.core.actors import UserActor
 from app.core.clock import utc_now
-from app.models import Scan
+from app.models import Scan, User
 from app.schemas.assessment import AssessmentCreate
 from app.schemas.project import ProjectCreate
 from app.schemas.scan import ScanCreate
@@ -76,7 +77,6 @@ def authorization(**overrides: Any) -> dict[str, Any]:
         "reference": "LAB-SCAN",
         "valid_from": (now - timedelta(hours=1)).isoformat(),
         "valid_until": (now + timedelta(hours=1)).isoformat(),
-        "acknowledged_by": "Tester",
         "acknowledge": True,
     }
     values.update(overrides)
@@ -91,6 +91,7 @@ class ScanEnv:
     factory: sessionmaker[Session]
     site: LabSite
     project_id: uuid.UUID
+    actor: UserActor  # the lab user every human action of these helpers is attributed to
 
     def target(self, *, name: str | None = None, **auth: Any) -> uuid.UUID:
         name = name or f"Lab {uuid.uuid4().hex[:8]}"
@@ -107,20 +108,25 @@ class ScanEnv:
                         "authorization": authorization(**auth),
                     }
                 ),
+                actor=self.actor,
             )
             return created.id
 
     def started_assessment(self, target_id: uuid.UUID) -> uuid.UUID:
         with self.factory() as s:
             service = get_assessment_service(s, utc_now)
-            assessment = service.create(target_id, AssessmentCreate(name="Assessment"))
+            assessment = service.create(
+                target_id, AssessmentCreate(name="Assessment"), actor=self.actor
+            )
             service.start(assessment.id)
             return assessment.id
 
     def scan(self, assessment_id: uuid.UUID, *, allow_untrusted_tls: bool = False) -> uuid.UUID:
         with self.factory() as s:
             scan = get_scan_service(s, utc_now).create(
-                assessment_id, ScanCreate(allow_untrusted_tls=allow_untrusted_tls)
+                assessment_id,
+                ScanCreate(allow_untrusted_tls=allow_untrusted_tls),
+                actor=self.actor,
             )
             return scan.id
 
@@ -132,7 +138,9 @@ class ScanEnv:
     def reauthorize(self, target_id: uuid.UUID, **auth: Any) -> None:
         with self.factory() as s:
             get_target_service(s, utc_now).update(
-                target_id, TargetUpdate.model_validate({"authorization": authorization(**auth)})
+                target_id,
+                TargetUpdate.model_validate({"authorization": authorization(**auth)}),
+                actor=self.actor,
             )
 
     def cancel_assessment(self, assessment_id: uuid.UUID) -> None:
@@ -258,9 +266,35 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
         s.commit()
 
 
+def lab_actor(factory: sessionmaker[Session], display_name: str = "Tester") -> UserActor:
+    """A committed platform user standing for the human behind the helpers'
+    actions (Phase 9 M5: every acknowledgment, scan request, triage and report
+    request names its user). Removed with remove_lab_user."""
+    with factory() as s:
+        user = User(username=f"lab-{uuid.uuid4().hex[:12]}", display_name=display_name)
+        s.add(user)
+        s.commit()
+        return UserActor(user_id=user.id, label=user.display_name)
+
+
+def remove_lab_user(factory: sessionmaker[Session], user_id: uuid.UUID) -> None:
+    """Test cleanup only, after the user's projects are purged: users cannot be
+    deleted normally (ADR 0014), so this bypasses the triggers."""
+    with factory() as s:
+        s.execute(text("SET LOCAL session_replication_role = replica"))
+        for table, column in (
+            ("finding_status_changes", "changed_by_user_id"),
+            ("project_members", "user_id"),
+        ):
+            s.execute(text(f"DELETE FROM {table} WHERE {column} = :u"), {"u": user_id})  # noqa: S608
+        s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
+        s.commit()
+
+
 @pytest.fixture
 def scan_env(engine: Engine) -> Iterator[ScanEnv]:
     factory = sessionmaker(bind=engine, expire_on_commit=False)
+    actor = lab_actor(factory)
     with factory() as s:
         project = get_project_service(s).create(
             ProjectCreate(name=f"scan-{uuid.uuid4()}"), owner_id=None
@@ -280,6 +314,7 @@ def scan_env(engine: Engine) -> Iterator[ScanEnv]:
             '<title>About</title><input type="hidden" name="csrf_token" value="LAB-CSRF-SECRET">',
         )
         try:
-            yield ScanEnv(factory, site, project.id)
+            yield ScanEnv(factory, site, project.id, actor)
         finally:
             purge_project(factory, project.id)
+            remove_lab_user(factory, actor.user_id)

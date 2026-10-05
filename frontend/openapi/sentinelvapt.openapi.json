@@ -202,6 +202,19 @@
       "title": "Created At",
       "type": "string"
      },
+     "created_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who created the assessment (or retest); null before Phase 9 M5.",
+      "title": "Created By User Id"
+     },
      "description": {
       "anyOf": [
        {
@@ -269,6 +282,7 @@
      "status",
      "started_at",
      "completed_at",
+     "created_by_user_id",
      "created_at",
      "updated_at"
     ],
@@ -1202,6 +1216,19 @@
       ],
       "title": "Status Changed By"
      },
+     "status_changed_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user behind the latest triage; null before Phase 9 M5 or if never triaged.",
+      "title": "Status Changed By User Id"
+     },
      "status_reason": {
       "anyOf": [
        {
@@ -1263,6 +1290,7 @@
      "status_reason",
      "status_changed_at",
      "status_changed_by",
+     "status_changed_by_user_id",
      "created_at",
      "updated_at",
      "rule",
@@ -1393,6 +1421,19 @@
       ],
       "title": "Status Changed By"
      },
+     "status_changed_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user behind the latest triage; null before Phase 9 M5 or if never triaged.",
+      "title": "Status Changed By User Id"
+     },
      "status_reason": {
       "anyOf": [
        {
@@ -1454,6 +1495,7 @@
      "status_reason",
      "status_changed_at",
      "status_changed_by",
+     "status_changed_by_user_id",
      "created_at",
      "updated_at"
     ],
@@ -1481,6 +1523,19 @@
      "changed_by": {
       "title": "Changed By",
       "type": "string"
+     },
+     "changed_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who made the change; null for history recorded before Phase 9 M5.",
+      "title": "Changed By User Id"
      },
      "from_status": {
       "title": "From Status",
@@ -1513,6 +1568,7 @@
      "to_status",
      "reason",
      "changed_by",
+     "changed_by_user_id",
      "changed_at"
     ],
     "title": "FindingStatusChangeRead",
@@ -1588,17 +1644,10 @@
      },
      "status": {
       "$ref": "#/components/schemas/FindingStatus"
-     },
-     "triaged_by": {
-      "maxLength": 200,
-      "minLength": 1,
-      "title": "Triaged By",
-      "type": "string"
      }
     },
     "required": [
-     "status",
-     "triaged_by"
+     "status"
     ],
     "title": "FindingTriage",
     "type": "object"
@@ -1951,12 +2000,6 @@
       "default": "draft",
       "description": "final requires the assessment to be completed."
      },
-     "prepared_by": {
-      "maxLength": 200,
-      "minLength": 1,
-      "title": "Prepared By",
-      "type": "string"
-     },
      "reviewed_by": {
       "anyOf": [
        {
@@ -2003,8 +2046,7 @@
     },
     "required": [
      "scan_id",
-     "title",
-     "prepared_by"
+     "title"
     ],
     "title": "ReportCreate",
     "type": "object"
@@ -2105,6 +2147,19 @@
       "title": "Prepared By",
       "type": "string"
      },
+     "requested_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who requested the report; null before Phase 9 M5.",
+      "title": "Requested By User Id"
+     },
      "reviewed_by": {
       "anyOf": [
        {
@@ -2165,6 +2220,7 @@
      "status",
      "title",
      "prepared_by",
+     "requested_by_user_id",
      "reviewed_by",
      "classification",
      "formats",
@@ -2299,12 +2355,6 @@
       "default": "draft",
       "description": "final requires the retest assessment to be completed."
      },
-     "prepared_by": {
-      "maxLength": 200,
-      "minLength": 1,
-      "title": "Prepared By",
-      "type": "string"
-     },
      "reviewed_by": {
       "anyOf": [
        {
@@ -2344,8 +2394,7 @@
      }
     },
     "required": [
-     "title",
-     "prepared_by"
+     "title"
     ],
     "title": "RetestReportCreate",
     "type": "object"
@@ -2443,6 +2492,19 @@
       "title": "Prepared By",
       "type": "string"
      },
+     "requested_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who requested the report; null before Phase 9 M5.",
+      "title": "Requested By User Id"
+     },
      "reviewed_by": {
       "anyOf": [
        {
@@ -2500,6 +2562,7 @@
      "status",
      "title",
      "prepared_by",
+     "requested_by_user_id",
      "reviewed_by",
      "classification",
      "formats",
@@ -2740,6 +2803,19 @@
       "title": "Pages Count",
       "type": "integer"
      },
+     "requested_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who requested the scan; null before Phase 9 M5. The worker that ran it is not a user.",
+      "title": "Requested By User Id"
+     },
      "requests_sent": {
       "title": "Requests Sent",
       "type": "integer"
@@ -2814,6 +2890,7 @@
      "endpoints_count",
      "events_count",
      "evidence_count",
+     "requested_by_user_id",
      "created_at",
      "updated_at",
      "cancel_requested"
@@ -2894,13 +2971,6 @@
       "title": "Acknowledge",
       "type": "boolean"
      },
-     "acknowledged_by": {
-      "description": "Person confirming the authorization.",
-      "maxLength": 200,
-      "minLength": 1,
-      "title": "Acknowledged By",
-      "type": "string"
-     },
      "authorized_by": {
       "description": "Person or organization granting permission.",
       "maxLength": 200,
@@ -2943,7 +3013,6 @@
      "reference",
      "valid_from",
      "valid_until",
-     "acknowledged_by",
      "acknowledge"
     ],
     "title": "TargetAuthorizationIn",
@@ -2960,6 +3029,19 @@
      "acknowledged_by": {
       "title": "Acknowledged By",
       "type": "string"
+     },
+     "acknowledged_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who acknowledged it; null before Phase 9 M5.",
+      "title": "Acknowledged By User Id"
      },
      "allowed_ports": {
       "items": {
@@ -3070,6 +3152,7 @@
      "valid_from",
      "valid_until",
      "acknowledged_by",
+     "acknowledged_by_user_id",
      "acknowledged_at",
      "created_at"
     ],
@@ -3087,6 +3170,19 @@
      "acknowledged_by": {
       "title": "Acknowledged By",
       "type": "string"
+     },
+     "acknowledged_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The user who acknowledged it; null for records made before Phase 9 M5 (whose acknowledged_by text is self-asserted).",
+      "title": "Acknowledged By User Id"
      },
      "authorized_by": {
       "title": "Authorized By",
@@ -3139,6 +3235,7 @@
      "valid_from",
      "valid_until",
      "acknowledged_by",
+     "acknowledged_by_user_id",
      "acknowledged_at",
      "status"
     ],
@@ -4097,7 +4194,7 @@
     ]
    },
    "post": {
-    "description": "Freeze a snapshot of the scan's findings and evidence and queue the\nreport. It is rendered by the report worker, not in this request.",
+    "description": "Freeze a snapshot of the scan's findings and evidence and queue the\nreport. It is rendered by the report worker, not in this request; it is\nprepared by the authenticated user.",
     "operationId": "create_report_api_v1_assessments__assessment_id__reports_post",
     "parameters": [
      {
@@ -4413,7 +4510,7 @@
     ]
    },
    "post": {
-    "description": "Queue a discovery scan. It is executed by the worker, not in this request.",
+    "description": "Queue a discovery scan. It is executed by the worker, not in this request;\nthe requester is the authenticated user.",
     "operationId": "create_scan_api_v1_assessments__assessment_id__scans_post",
     "parameters": [
      {

@@ -163,6 +163,10 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status_reason: Mapped[str | None] = mapped_column(Text)
     status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status_changed_by: Mapped[str | None] = mapped_column(String(200))
+    # The user behind the latest triage (M5; NULL before M5 or never triaged).
+    status_changed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
 
 
 class FindingEvidence(Base):
@@ -198,4 +202,9 @@ class FindingStatusChange(UUIDPrimaryKeyMixin, Base):
     to_status: Mapped[str] = mapped_column(String(32))
     reason: Mapped[str | None] = mapped_column(Text)
     changed_by: Mapped[str] = mapped_column(String(200))
+    # Who made this change (M5, server-set; NULL for history recorded before
+    # M5, whose changed_by text is self-asserted).
+    changed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

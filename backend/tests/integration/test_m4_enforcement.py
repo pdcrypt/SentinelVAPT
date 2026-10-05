@@ -52,7 +52,6 @@ RETEST_REPORT_CREATE = (
 )
 RETEST_REPORT_BODY = {
     "title": "Retest report",
-    "prepared_by": "Tester",
     "formats": ["json", "html"],
 }
 
@@ -68,7 +67,6 @@ def target_body(w: World, **overrides: Any) -> dict[str, Any]:
         "reference": "LAB-M4",
         "valid_from": (now - timedelta(days=1)).isoformat(),
         "valid_until": (now + timedelta(days=30)).isoformat(),
-        "acknowledged_by": "Tester",
         "acknowledge": True,
     }
     body = {
@@ -106,10 +104,11 @@ PROBES: dict[tuple[str, str], tuple[Body | None, int]] = {
         lambda w, i: {"scan_id": i["scan"]},
         409,  # not a retest
     ),
-    RETEST_REPORT_CREATE: (lambda w, i: RETEST_REPORT_BODY, 200),  # identical: the existing one
+    # A new report per requester: the report is prepared by the authenticated user (M5).
+    RETEST_REPORT_CREATE: (lambda w, i: RETEST_REPORT_BODY, 202),
     ("POST", "/api/v1/scans/{scan_id}/cancel"): (None, 409),  # completed
     ("POST", "/api/v1/findings/{finding_id}/triage"): (
-        lambda w, i: {"status": "open", "triaged_by": "x"},
+        lambda w, i: {"status": "open"},
         409,  # already open
     ),
 }
@@ -392,7 +391,7 @@ def test_nested_and_body_id_substitution(world: World) -> None:
         ),
     )
     # Project A assessment + project B scan in the body.
-    report = {"kind": "draft", "title": "x", "prepared_by": "y", "formats": ["json"]}
+    report = {"kind": "draft", "title": "x", "formats": ["json"]}
     same_404(
         ("POST", f"{API}/assessments/{a['assessment']}/reports", {**report, "scan_id": b["scan"]}),
         ("POST", f"{API}/assessments/{a['assessment']}/reports", {**report, "scan_id": rnd}),
@@ -679,9 +678,7 @@ def test_scan_run_cannot_bypass_target_authorization(world: World) -> None:
 def test_target_authorization_text_grants_no_platform_access(world: World) -> None:
     project = world.ids["a"]["project"]
     outsider = world.users["viewer_b"].username
-    body = target_body(
-        world, authorization={"authorized_by": outsider, "acknowledged_by": outsider}
-    )
+    body = target_body(world, authorization={"authorized_by": outsider})
     tid = world.request("owner_a", "POST", f"{API}/projects/{project}/targets", body).json()["id"]
     for path in (f"/targets/{tid}", f"/targets/{tid}/authorizations"):
         assert world.request("viewer_b", "GET", f"{API}{path}").status_code == 404
@@ -720,14 +717,13 @@ def test_membership_removal_does_not_cancel_authorized_work(world: World) -> Non
 def test_actor_is_the_authenticated_user_and_history_is_untouched(world: World) -> None:
     a = world.ids["a"]
     url = f"{API}/findings/{a['finding_2']}/triage"
-    resp = world.request(
-        "operator_a", "POST", url, {"status": "confirmed", "triaged_by": "Mallory"}
-    )
+    resp = world.request("operator_a", "POST", url, {"status": "confirmed"})
     assert resp.status_code == 200, resp.text
-    username = world.users["operator_a"].username
-    assert resp.json()["status_changed_by"] == username
+    operator = world.users["operator_a"]
+    assert resp.json()["status_changed_by_user_id"] == str(operator.id)
+    assert resp.json()["status_changed_by"] == operator.display_name
     history = world.request("viewer_a", "GET", f"{API}/findings/{a['finding_2']}/history").json()
-    assert history[-1]["changed_by"] == username
+    assert history[-1]["changed_by_user_id"] == str(operator.id)
     # Self-asserted text recorded before (by the workflow) is unchanged.
     authorizations = world.request("viewer_a", "GET", f"{API}/targets/{a['target']}/authorizations")
     assert {r["acknowledged_by"] for r in authorizations.json()} == {"Tester"}

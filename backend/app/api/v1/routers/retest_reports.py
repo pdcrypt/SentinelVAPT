@@ -1,11 +1,13 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Response, status
 
 from app.api.authz import authorize, require_global
 from app.api.deps import Limit, Offset, RetestReportServiceDep
 from app.api.v1.routers.reports import DOWNLOAD_CSP, EXTENSIONS, PREVIEW_CSP
+from app.core.actors import UserActor
+from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import RetestReport
@@ -36,15 +38,6 @@ def _headers(sha256: str) -> dict[str, str]:
 
 @router.post(
     "/assessments/{assessment_id}/comparisons/{comparison_id}/reports",
-    dependencies=[
-        Depends(
-            authorize(
-                P.REPORT_REQUEST,
-                R.ASSESSMENT_COMPARISON,
-                key={"assessment_id": "assessment_id", "comparison_id": "comparison_id"},
-            )
-        )
-    ],
     response_model=RetestReportRead,
     status_code=status.HTTP_202_ACCEPTED,
     responses={200: {"description": "An identical report already exists."}},
@@ -55,10 +48,22 @@ def create_retest_report(
     data: RetestReportCreate,
     service: RetestReportServiceDep,
     response: Response,
+    access: Annotated[
+        AccessDecision,
+        Depends(
+            authorize(
+                P.REPORT_REQUEST,
+                R.ASSESSMENT_COMPARISON,
+                key={"assessment_id": "assessment_id", "comparison_id": "comparison_id"},
+            )
+        ),
+    ],
 ) -> RetestReportRead:
     """Freeze a snapshot of a completed comparison and queue its report. An
     identical request returns the existing report (200)."""
-    report, created = service.create(assessment_id, comparison_id, data)
+    report, created = service.create(
+        assessment_id, comparison_id, data, actor=UserActor.of(access.principal)
+    )
     if not created:
         response.status_code = status.HTTP_200_OK
     return _read(report, service.artifacts([report.id])[report.id])

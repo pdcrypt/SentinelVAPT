@@ -317,6 +317,16 @@ M4 enforces it on all 66 routes:
   (`python -m app.cli claim-project`).
 - The cutover is recorded once (`python -m app.cli enforce-authentication`).
 
+M5 makes actors server-owned:
+
+- Each acknowledgment, assessment, scan request, triage and report request
+  records the authenticated user's id. The new `*_user_id` columns are
+  write-once foreign keys to `users`.
+- Request bodies can no longer name an actor (422).
+- Workers record themselves in `claimed_by` and never stand in for the
+  requester.
+- Pre-M5 actor text stays as written.
+
 The console cannot sign in until M8. The API remains localhost-only
 (ADR 0005).
 

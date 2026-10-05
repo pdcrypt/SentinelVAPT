@@ -47,7 +47,10 @@ def test_create_target_normalizes_scope_and_records_acknowledgment(
     auth = target["authorization"]
     assert auth["status"] == "active"
     assert auth["reference"] == "LAB-001"
-    assert auth["acknowledged_by"] == "Student Tester"
+    # The acknowledging user is the authenticated one (Phase 9 M5).
+    me = api.get("/api/v1/auth/me").json()["user"]
+    assert auth["acknowledged_by"] == me["display_name"]
+    assert auth["acknowledged_by_user_id"] == me["id"]
     # Set by the server from its clock, not by the client.
     assert auth["acknowledged_at"].startswith("2026-10-04T12:00:00")
 
@@ -159,13 +162,14 @@ def test_scope_change_requires_reacknowledgment(
         url,
         json={
             "in_scope_hosts": ["juice-shop", "dvwa"],
-            "authorization": authorization_payload(acknowledged_by="Second Tester"),
+            "authorization": authorization_payload(),
         },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["in_scope_hosts"] == ["juice-shop", "dvwa"]
-    assert body["authorization"]["acknowledged_by"] == "Second Tester"
+    me = api.get("/api/v1/auth/me").json()["user"]
+    assert body["authorization"]["acknowledged_by_user_id"] == me["id"]
     assert body["authorization"]["acknowledged_at"].startswith("2026-10-04T13:00:00")
 
 

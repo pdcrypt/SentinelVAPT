@@ -1,10 +1,13 @@
 import uuid
 from collections.abc import Sequence
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
 from app.api.authz import authorize
 from app.api.deps import AssessmentServiceDep, Limit, Offset
+from app.core.actors import UserActor
+from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import Assessment
@@ -15,14 +18,18 @@ router = APIRouter(tags=["assessments"])
 
 @router.post(
     "/targets/{target_id}/assessments",
-    dependencies=[Depends(authorize(P.ASSESSMENT_WRITE, R.TARGET, "target_id"))],
     response_model=AssessmentRead,
     status_code=status.HTTP_201_CREATED,
 )
 def create_assessment(
-    target_id: uuid.UUID, data: AssessmentCreate, service: AssessmentServiceDep
+    target_id: uuid.UUID,
+    data: AssessmentCreate,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_WRITE, R.TARGET, "target_id"))
+    ],
 ) -> Assessment:
-    return service.create(target_id, data)
+    return service.create(target_id, data, actor=UserActor.of(access.principal))
 
 
 @router.get(

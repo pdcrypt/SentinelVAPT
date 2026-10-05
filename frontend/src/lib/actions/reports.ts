@@ -39,7 +39,6 @@ function reportFields(
     kind: kind as "draft" | "final",
     formats,
     title: text(form, "title"),
-    prepared_by: text(form, "prepared_by"),
     reviewed_by: optionalText(form, "reviewed_by"),
     classification: classification as "internal" | "confidential" | "restricted",
     executive_summary_note: optionalText(form, "executive_summary_note"),
@@ -138,7 +137,6 @@ export async function triageAction(
     await triageFinding(findingId, {
       status,
       reason: optionalText(form, "reason"),
-      triaged_by: text(form, "triaged_by"),
     });
   } catch (error) {
     return failed(error);

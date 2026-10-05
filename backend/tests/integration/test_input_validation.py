@@ -61,7 +61,6 @@ def test_nul_inside_lists_and_nested_objects(api: TestClient) -> None:
             "reference": "REF-1",
             "valid_from": "2026-01-01T00:00:00Z",
             "valid_until": "2030-01-01T00:00:00Z",
-            "acknowledged_by": "Tester",
             "acknowledge": True,
         },
     }

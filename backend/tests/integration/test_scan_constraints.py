@@ -33,8 +33,9 @@ def _rejected(db_session: Session, sql: str, params: dict[str, Any], match: str)
 
 INSERT_SCAN = (
     "INSERT INTO scans (id, assessment_id, target_id, authorization_id, status, started_at, "
-    "finished_at, claimed_by, config) VALUES (gen_random_uuid(), :a, :t, :z, :status, "
-    ":started, :finished, :worker, '{}')"
+    "finished_at, claimed_by, config, requested_by_user_id) VALUES (gen_random_uuid(), :a, "
+    ":t, :z, :status, :started, :finished, :worker, '{}', "
+    "(SELECT created_by_user_id FROM assessments WHERE id = :a))"
 )
 
 

@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -92,3 +93,8 @@ class Scan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     evidence_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     created_by: Mapped[str | None] = mapped_column(String(200))
+    # Who requested it (M5, server-set; NULL before M5). The worker that
+    # performs it is recorded separately (claimed_by) and never changes this.
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )

@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.authz import authorize
 from app.api.deps import Limit, Offset, ScanServiceDep
+from app.core.actors import UserActor
+from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import Asset, Evidence, Scan, ScanLog
@@ -25,15 +27,20 @@ router = APIRouter(tags=["scans"])
 
 @router.post(
     "/assessments/{assessment_id}/scans",
-    dependencies=[Depends(authorize(P.SCAN_RUN, R.ASSESSMENT, "assessment_id"))],
     response_model=ScanRead,
     status_code=status.HTTP_201_CREATED,
 )
 def create_scan(
-    assessment_id: uuid.UUID, service: ScanServiceDep, data: ScanCreate | None = None
+    assessment_id: uuid.UUID,
+    service: ScanServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.SCAN_RUN, R.ASSESSMENT, "assessment_id"))
+    ],
+    data: ScanCreate | None = None,
 ) -> Scan:
-    """Queue a discovery scan. It is executed by the worker, not in this request."""
-    return service.create(assessment_id, data or ScanCreate())
+    """Queue a discovery scan. It is executed by the worker, not in this request;
+    the requester is the authenticated user."""
+    return service.create(assessment_id, data or ScanCreate(), actor=UserActor.of(access.principal))
 
 
 @router.get(

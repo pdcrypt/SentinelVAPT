@@ -24,7 +24,8 @@ class RetestReportCreate(InputModel):
         description="Must include json.",
     )
     title: NameStr
-    prepared_by: NameStr
+    # No prepared_by: the report is prepared by the authenticated user who
+    # requests it (Phase 9 M5); a body naming someone is refused.
     reviewed_by: NameStr | None = None
     classification: ReportClassification = ReportClassification.CONFIDENTIAL
     template: TemplateRef = "sv-retest@1"
@@ -62,6 +63,9 @@ class RetestReportRead(ReadModel):
     status: ReportStatus
     title: str
     prepared_by: str
+    requested_by_user_id: uuid.UUID | None = Field(
+        description="The user who requested the report; null before Phase 9 M5."
+    )
     reviewed_by: str | None
     classification: ReportClassification
     formats: list[str]

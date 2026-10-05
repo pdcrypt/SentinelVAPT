@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime
 from typing import ClassVar
 
+from pydantic import Field
+
 from app.models.enums import AssessmentStatus
 from app.schemas.common import DescriptionStr, InputModel, NameStr, PatchModel, ReadModel
 
@@ -31,5 +33,8 @@ class AssessmentRead(ReadModel):
     # Retests (ADR 0011): the assessment retested and the scan measured against.
     retest_of_assessment_id: uuid.UUID | None = None
     baseline_scan_id: uuid.UUID | None = None
+    created_by_user_id: uuid.UUID | None = Field(
+        description="The user who created the assessment (or retest); null before Phase 9 M5."
+    )
     created_at: datetime
     updated_at: datetime

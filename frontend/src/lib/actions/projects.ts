@@ -46,7 +46,6 @@ function authorization(form: FormData): AuthorizationIn | ActionState {
     notes: optionalText(form, "notes"),
     valid_from: validFrom,
     valid_until: validUntil,
-    acknowledged_by: text(form, "acknowledged_by"),
     acknowledge: form.get("acknowledge") === "true",
   };
 }

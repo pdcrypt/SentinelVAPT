@@ -22,6 +22,7 @@ from typing import Any
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -125,6 +126,11 @@ class RetestReport(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     title: Mapped[str] = mapped_column(String(200))
     prepared_by: Mapped[str] = mapped_column(String(200))
+    # Who requested it (M5, server-set; NULL before M5). The worker that
+    # performs it is recorded separately (claimed_by) and never changes this.
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
     reviewed_by: Mapped[str | None] = mapped_column(String(200))
     classification: Mapped[ReportClassification] = mapped_column(
         str_enum_column(ReportClassification, "report_classification")

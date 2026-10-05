@@ -217,7 +217,6 @@ def authorization_payload(**overrides: Any) -> dict[str, Any]:
         "notes": "Local Docker lab",
         "valid_from": (NOW - timedelta(days=1)).isoformat(),
         "valid_until": (NOW + timedelta(days=30)).isoformat(),
-        "acknowledged_by": "Student Tester",
         "acknowledge": True,
     }
     payload.update(overrides)

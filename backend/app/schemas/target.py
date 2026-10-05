@@ -44,7 +44,8 @@ class TargetAuthorizationIn(InputModel):
     notes: DescriptionStr | None = None
     valid_from: AwareDatetime
     valid_until: AwareDatetime
-    acknowledged_by: NameStr = Field(description="Person confirming the authorization.")
+    # No acknowledged_by: the authenticated user acknowledging is recorded by the
+    # server (Phase 9 M5); a body naming someone is refused as an unknown field.
     acknowledge: Acknowledgment = Field(
         description="Must be true: confirms testing this target's scope is explicitly "
         "authorized by its owner."
@@ -94,6 +95,10 @@ class TargetAuthorizationSummary(BaseModel):
     valid_from: datetime
     valid_until: datetime
     acknowledged_by: str
+    acknowledged_by_user_id: uuid.UUID | None = Field(
+        description="The user who acknowledged it; null for records made before Phase 9 M5 "
+        "(whose acknowledged_by text is self-asserted)."
+    )
     acknowledged_at: datetime
     status: AuthorizationStatus
 
@@ -134,6 +139,7 @@ class TargetRead(BaseModel):
                 valid_from=auth.valid_from,
                 valid_until=auth.valid_until,
                 acknowledged_by=auth.acknowledged_by,
+                acknowledged_by_user_id=auth.acknowledged_by_user_id,
                 acknowledged_at=auth.acknowledged_at,
                 status=status,
             ),
@@ -162,6 +168,9 @@ class TargetAuthorizationRead(BaseModel):
     valid_from: datetime
     valid_until: datetime
     acknowledged_by: str
+    acknowledged_by_user_id: uuid.UUID | None = Field(
+        description="The user who acknowledged it; null before Phase 9 M5."
+    )
     acknowledged_at: datetime
     created_at: datetime
 
@@ -187,6 +196,7 @@ class TargetAuthorizationRead(BaseModel):
             valid_from=record.valid_from,
             valid_until=record.valid_until,
             acknowledged_by=record.acknowledged_by,
+            acknowledged_by_user_id=record.acknowledged_by_user_id,
             acknowledged_at=record.acknowledged_at,
             created_at=record.created_at,
         )

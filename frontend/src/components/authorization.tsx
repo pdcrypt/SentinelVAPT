@@ -45,12 +45,6 @@ export function AuthorizationFields() {
         label="Valid until"
         defaultValue={toDateTimeLocal(inThirtyDays)}
       />
-      <TextField
-        name="acknowledged_by"
-        label="Acknowledged by"
-        required
-        hint="Your name (self-asserted: there is no platform login yet)."
-      />
       <CheckboxField name="acknowledge" required>
         I confirm this testing is explicitly authorized for the scope above, and that I will only
         test it within the stated window.

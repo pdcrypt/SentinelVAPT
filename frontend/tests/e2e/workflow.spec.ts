@@ -195,7 +195,6 @@ test("project, target and authorization", async ({ page }) => {
   await t.locator('[name="in_scope_hosts"]').fill(LAB_HOST);
   await t.locator('[name="authorized_by"]').fill("Lab Owner");
   await t.locator('[name="reference"]').fill(`LAB-${RUN}`);
-  await t.locator('[name="acknowledged_by"]').fill("E2E Tester");
   // The acknowledgement is required: without it nothing is sent.
   await submit(page, "create-target");
   expect(page.url()).toContain("/targets");
@@ -247,7 +246,6 @@ test("baseline assessment, scan, findings and triage", async ({ page }) => {
   const triage = page.getByTestId("triage");
   await triage.locator('[name="status"]').selectOption("false_positive");
   await triage.locator('[name="reason"]').fill("Framing is handled by the lab proxy.");
-  await triage.locator('[name="triaged_by"]').fill("E2E Tester");
   await submit(page, "triage");
   await expect(page.getByText("Triage recorded.")).toBeVisible();
   await expect(page.getByTestId("triage-history").locator("tbody tr")).toHaveCount(1);
@@ -258,7 +256,6 @@ test("scan report: request, artifacts, downloads and sandboxed preview", async (
   test.setTimeout(5 * 60_000);
   await page.goto(`/assessments/${state.a}`);
   const form = page.getByTestId("request-report");
-  await form.locator('[name="prepared_by"]').fill("E2E Tester");
   await submit(page, "request-report");
   await page.waitForURL(new RegExp(`/reports/${UUID}$`));
   state.report = idFrom(page, "/reports");
@@ -326,7 +323,6 @@ test("retest B: comparison states, dismissal, coverage and retest report", async
 
   // A final retest report needs the retest to be completed (409).
   const report = page.getByTestId("request-retest-report");
-  await report.locator('[name="prepared_by"]').fill("E2E Tester");
   await report.locator('[name="kind"]').selectOption("final");
   await submit(page, "request-retest-report");
   await expect(report.getByRole("alert")).toContainText("assessment_not_completed");
@@ -334,7 +330,6 @@ test("retest B: comparison states, dismissal, coverage and retest report", async
   await transition(page, state.b, "complete", "Completed");
   await page.goto(`/comparisons/${state.cmpB}`);
   const again = page.getByTestId("request-retest-report");
-  await again.locator('[name="prepared_by"]').fill("E2E Tester");
   await again.locator('[name="kind"]').selectOption("final");
   await submit(page, "request-retest-report");
   await page.waitForURL(new RegExp(`/retest-reports/${UUID}$`)); // 202: new
@@ -355,7 +350,6 @@ test("retest B: comparison states, dismissal, coverage and retest report", async
   // An identical request returns the existing report (200).
   await page.goto(`/comparisons/${state.cmpB}`);
   const same = page.getByTestId("request-retest-report");
-  await same.locator('[name="prepared_by"]').fill("E2E Tester");
   await same.locator('[name="kind"]').selectOption("final");
   await submit(page, "request-retest-report");
   await page.waitForURL(new RegExp(`/retest-reports/${state.rrB}\\?existing=1$`));
@@ -395,7 +389,6 @@ test("retest C: reopened findings and the A → B → C lineage", async ({ page 
   await transition(page, state.c, "complete", "Completed");
   await page.goto(`/comparisons/${state.cmpC}`);
   const form = page.getByTestId("request-retest-report");
-  await form.locator('[name="prepared_by"]').fill("E2E Tester");
   await submit(page, "request-retest-report");
   await page.waitForURL(new RegExp(`/retest-reports/${UUID}$`));
   await verifyDownloads(page, "retest-reports", idFrom(page, "/retest-reports"), [

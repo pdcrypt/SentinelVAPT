@@ -1,11 +1,13 @@
 import uuid
 from collections.abc import Sequence
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Response, status
 
 from app.api.authz import authorize
 from app.api.deps import ComparisonServiceDep, Limit, Offset, RetestServiceDep
+from app.core.actors import UserActor
+from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import Assessment, Comparison
@@ -26,16 +28,20 @@ router = APIRouter(tags=["retests"])
 
 @router.post(
     "/assessments/{assessment_id}/retests",
-    dependencies=[Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))],
     response_model=AssessmentRead,
     status_code=status.HTTP_201_CREATED,
 )
 def create_retest(
-    assessment_id: uuid.UUID, data: RetestCreate, service: RetestServiceDep
+    assessment_id: uuid.UUID,
+    data: RetestCreate,
+    service: RetestServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
 ) -> Assessment:
     """Plan a retest of a completed assessment, measured against one of its
     analysed scans. It then follows the normal assessment lifecycle."""
-    return service.create(assessment_id, data)
+    return service.create(assessment_id, data, actor=UserActor.of(access.principal))
 
 
 @router.get(

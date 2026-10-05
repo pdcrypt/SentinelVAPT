@@ -21,6 +21,7 @@ from sqlalchemy import Engine, delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.actors import UserActor
 from app.core.errors import DomainValidationError, InvalidStateTransitionError
 from app.models import Assessment, Target
 from app.models.enums import AssessmentStatus
@@ -38,6 +39,7 @@ from app.services.base import UnitOfWork
 from app.services.projects import ProjectService
 from app.services.targets import TargetService
 from tests.integration.conftest import NOW, authorization_payload, target_payload
+from tests.integration.scan_support import lab_actor, remove_lab_user
 
 pytestmark = pytest.mark.integration
 
@@ -96,8 +98,21 @@ def factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
+# The user these tests act as (Phase 9 M5: acknowledgments and assessments
+# name their user). Set per test by the autouse fixture below.
+ACTOR: list[UserActor] = []
+
+
+@pytest.fixture(autouse=True)
+def lab_user(factory: sessionmaker[Session]) -> Iterator[UserActor]:
+    actor = lab_actor(factory)
+    ACTOR[:] = [actor]
+    yield actor
+    ACTOR.clear()
+
+
 @pytest.fixture
-def project_id(factory: sessionmaker[Session]) -> Iterator[uuid.UUID]:
+def project_id(factory: sessionmaker[Session], lab_user: UserActor) -> Iterator[uuid.UUID]:
     with factory() as session:
         project = ProjectService(ProjectRepository(session), session).create(
             ProjectCreate(name=f"concurrency-{uuid.uuid4()}"), owner_id=None
@@ -113,6 +128,7 @@ def project_id(factory: sessionmaker[Session]) -> Iterator[uuid.UUID]:
         for target in service.list_for_project(project.id, limit=100, offset=0):
             service.delete(target.id)
         ProjectService(ProjectRepository(session), session).delete(project.id)
+    remove_lab_user(factory, lab_user.user_id)
 
 
 def _create_target(
@@ -120,7 +136,7 @@ def _create_target(
 ) -> uuid.UUID:
     with factory() as session:
         payload = TargetCreate.model_validate(target_payload(**overrides))
-        return _service(session).create(project_id, payload).id
+        return _service(session).create(project_id, payload, actor=ACTOR[0]).id
 
 
 def _update(
@@ -131,7 +147,7 @@ def _update(
 ) -> None:
     with factory() as session:
         uow = PausingCommit(session, reached) if reached else None
-        _service(session, uow).update(target_id, TargetUpdate.model_validate(body))
+        _service(session, uow).update(target_id, TargetUpdate.model_validate(body), actor=ACTOR[0])
 
 
 def test_concurrent_updates_cannot_combine_stale_fields(
@@ -224,7 +240,7 @@ def test_concurrent_duplicate_creation_is_stopped_by_the_database(
         with factory() as session:
             uow = PausingCommit(session, reached) if reached else None
             payload = TargetCreate.model_validate(target_payload(name="duplicate"))
-            return _service(session, uow).create(project_id, payload).id
+            return _service(session, uow).create(project_id, payload, actor=ACTOR[0]).id
 
     thread_a, a = _start(lambda: create(a_inserted))
     assert a_inserted.wait(TIMEOUT_SECONDS)
@@ -256,7 +272,7 @@ def _plan(factory: sessionmaker[Session], project_id: uuid.UUID, *, started: boo
     target_id = _create_target(factory, project_id)
     with factory() as session:
         service = _assessments(session)
-        assessment = service.create(target_id, AssessmentCreate(name="lifecycle"))
+        assessment = service.create(target_id, AssessmentCreate(name="lifecycle"), actor=ACTOR[0])
         if started:
             service.start(assessment.id)
         return assessment.id
