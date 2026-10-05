@@ -27,6 +27,9 @@ from sentinel_analysis.comparison import ComparisonRecord as ComparisonRecordOut
 from sentinel_analysis.comparison import summarize
 from sqlalchemy.orm import Session
 
+from app.core.actors import UserActor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.errors import ComparisonNotAllowedError, NotFoundError
 from app.models import AnalysisRun, Assessment, Comparison, ComparisonRecord, Finding, Scan
 from app.models.comparison import MAX_COVERAGE_EVIDENCE
@@ -38,6 +41,7 @@ from app.repositories import (
     ScanRepository,
 )
 from app.services.analysis import build_observations
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.scope import DEFAULT_PORTS, path_matches
 
@@ -60,13 +64,28 @@ class ComparisonService:
         assessments: AssessmentRepository,
         scans: ScanRepository,
         uow: UnitOfWork,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.comparisons = comparisons
         self.assessments = assessments
         self.scans = scans
         self.uow = uow
+        self.audit = audit or AuditService(comparisons.session)
 
-    def request(self, assessment_id: uuid.UUID, scan_id: uuid.UUID) -> tuple[Comparison, bool]:
+    def _audit(
+        self, actor: UserActor, comparison_id: uuid.UUID, scan_id: uuid.UUID, *, created: bool
+    ) -> None:
+        self.audit.user(
+            AuditAction.COMPARISON_REQUESTED,
+            actor,
+            resource=(ResourceType.COMPARISON, comparison_id),
+            metadata={"created": created, "scan_id": str(scan_id)},
+        )
+
+    def request(
+        self, assessment_id: uuid.UUID, scan_id: uuid.UUID, *, actor: UserActor
+    ) -> tuple[Comparison, bool]:
         """Queue the comparison of a retest scan. Idempotent per (scan, policy):
         returns (comparison, created)."""
         assessment = self.assessments.get(assessment_id)
@@ -82,6 +101,8 @@ class ComparisonService:
 
         existing = self.comparisons.for_scan(scan.id, POLICY_VERSION)
         if existing is not None:
+            self._audit(actor, existing.id, scan.id, created=False)
+            self.uow.commit()
             return existing, False
 
         if scan.status is not ScanStatus.COMPLETED:
@@ -130,9 +151,10 @@ class ComparisonService:
                 "policy_version": POLICY_VERSION,
             }
         )
-        self.uow.commit()
         comparison = self.comparisons.for_scan(scan.id, POLICY_VERSION)
         assert comparison is not None  # noqa: S101  # inserted or already present
+        self._audit(actor, comparison.id, scan.id, created=new_id is not None)
+        self.uow.commit()
         return comparison, new_id is not None
 
     def get(self, comparison_id: uuid.UUID) -> Comparison:

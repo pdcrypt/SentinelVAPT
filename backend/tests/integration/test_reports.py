@@ -104,7 +104,7 @@ def artifacts(env: ScanEnv, report_id: uuid.UUID) -> dict[str, ReportArtifact]:
 
 def complete_assessment(env: ScanEnv, assessment_id: uuid.UUID) -> None:
     with env.factory() as s:
-        get_assessment_service(s, utc_now).complete(assessment_id)
+        get_assessment_service(s, utc_now).complete(assessment_id, actor=env.actor)
 
 
 @pytest.fixture

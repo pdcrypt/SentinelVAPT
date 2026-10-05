@@ -59,6 +59,15 @@ from tests.integration.test_retest_reports import (  # fixtures, re-exported bel
 
 pytestmark = pytest.mark.integration
 
+
+class NullAudit:
+    """These machinery tests use principals without session rows; audit
+    recording is covered by tests/integration/test_m6_audit.py."""
+
+    def denial(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
 __all__ = ["baseline", "chain", "committed_api", "completed", "live"]
 
 P = Permission
@@ -189,9 +198,7 @@ def remove_members(engine: Engine, projects: list[uuid.UUID]) -> None:
 def new_project(env: ScanEnv) -> uuid.UUID:
     with env.factory() as s:
         return (
-            get_project_service(s)
-            .create(ProjectCreate(name=f"m3-{uuid.uuid4()}"), owner_id=None)
-            .id
+            get_project_service(s).create(ProjectCreate(name=f"m3-{uuid.uuid4()}"), owner=None).id
         )
 
 
@@ -617,7 +624,7 @@ def test_wrong_parent_and_wrong_kind_never_resolve(
         ]
         for resource, key in wrong:
             assert resolver.resolve(resource, key, member) is None, (resource, key)
-        access = AccessService(resolver)
+        access = AccessService(resolver, NullAudit())  # type: ignore[arg-type]
         principal = _principal(member)
         for resource, key in wrong:
             with pytest.raises(NotFoundError):
@@ -711,7 +718,7 @@ def test_authorization_during_concurrent_membership_changes(world: World) -> Non
             while not stop.is_set():
                 with factory() as s:
                     try:
-                        d = AccessService(ProjectResolver(s)).authorize_project(
+                        d = AccessService(ProjectResolver(s), NullAudit()).authorize_project(  # type: ignore[arg-type]
                             who, P.SCAN_RUN, R.TARGET, key
                         )
                         result = f"allowed:{d.role}"
@@ -735,7 +742,7 @@ def test_authorization_during_concurrent_membership_changes(world: World) -> Non
     assert outcomes
     assert set(outcomes) <= {"allowed:operator", "allowed:owner", "forbidden", "not_found"}
     with factory() as s, pytest.raises(NotFoundError):
-        AccessService(ProjectResolver(s)).authorize_project(
+        AccessService(ProjectResolver(s), NullAudit()).authorize_project(  # type: ignore[arg-type]
             _principal(user), P.PROJECT_READ, R.TARGET, key
         )
 

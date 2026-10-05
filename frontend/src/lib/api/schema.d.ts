@@ -235,6 +235,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Events
+         * @description The whole platform's security history, newest first.
+         */
+        get: operations["list_audit_events_api_v1_audit_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -546,6 +566,26 @@ export interface paths {
         };
         /** List Project Assessments */
         get: operations["list_project_assessments_api_v1_projects__project_id__assessments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Project Audit Events
+         * @description This project's security history, newest first.
+         */
+        get: operations["list_project_audit_events_api_v1_projects__project_id__audit_events_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1118,6 +1158,62 @@ export interface components {
             /** Scheme */
             scheme: string;
         };
+        /**
+         * AuditAction
+         * @enum {string}
+         */
+        AuditAction: "auth.login" | "auth.login_failed" | "auth.logout" | "auth.password_changed" | "auth.password_change_failed" | "auth.session_rejected" | "auth.password_change_required" | "user.created" | "user.disabled" | "platform.auth_enforced" | "authz.denied" | "project.created" | "project.updated" | "project.deleted" | "project.claim" | "target.created" | "target.updated" | "target.deleted" | "target_authorization.created" | "assessment.created" | "assessment.updated" | "assessment.deleted" | "assessment.started" | "assessment.start_refused" | "assessment.completed" | "assessment.cancelled" | "retest.created" | "scan.requested" | "scan.request_refused" | "scan.cancel_requested" | "scan.refused" | "scan.started" | "scan.completed" | "scan.cancelled" | "scan.failed" | "analysis.completed" | "analysis.failed" | "finding.triaged" | "comparison.requested" | "comparison.completed" | "comparison.failed" | "report.requested" | "report.completed" | "report.failed" | "retest_report.requested" | "retest_report.completed" | "retest_report.failed";
+        /**
+         * AuditActorType
+         * @enum {string}
+         */
+        AuditActorType: "user" | "system" | "anonymous";
+        /**
+         * AuditEventRead
+         * @description An audit event as a global audit reader sees it (with the session row
+         *     id of a human action; never a token).
+         */
+        AuditEventRead: {
+            action: components["schemas"]["AuditAction"];
+            /**
+             * Actor Label
+             * @description The actor's display name or username at the time, or the worker / command; descriptive only (actor_user_id identifies users).
+             */
+            actor_label: string | null;
+            actor_type: components["schemas"]["AuditActorType"];
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            outcome: components["schemas"]["AuditOutcome"];
+            /** Project Id */
+            project_id: string | null;
+            /** Request Id */
+            request_id: string | null;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Resource Type */
+            resource_type: string | null;
+            /** Session Id */
+            session_id: string | null;
+        };
+        /**
+         * AuditOutcome
+         * @enum {string}
+         */
+        AuditOutcome: "success" | "denied" | "failure";
         /**
          * AuthorizationStatus
          * @description Computed from the authorization window; not stored.
@@ -1696,6 +1792,44 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /**
+         * ProjectAuditEventRead
+         * @description An audit event as a project owner sees it.
+         */
+        ProjectAuditEventRead: {
+            action: components["schemas"]["AuditAction"];
+            /**
+             * Actor Label
+             * @description The actor's display name or username at the time, or the worker / command; descriptive only (actor_user_id identifies users).
+             */
+            actor_label: string | null;
+            actor_type: components["schemas"]["AuditActorType"];
+            /** Actor User Id */
+            actor_user_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            outcome: components["schemas"]["AuditOutcome"];
+            /** Project Id */
+            project_id: string | null;
+            /** Request Id */
+            request_id: string | null;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Resource Type */
+            resource_type: string | null;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -3005,6 +3139,47 @@ export interface operations {
             };
         };
     };
+    list_audit_events_api_v1_audit_events_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                limit?: number;
+                offset?: number;
+                action?: components["schemas"]["AuditAction"] | null;
+                outcome?: components["schemas"]["AuditOutcome"] | null;
+                actor_type?: components["schemas"]["AuditActorType"] | null;
+                actor_user_id?: string | null;
+                resource_type?: string | null;
+                resource_id?: string | null;
+                occurred_from?: string | null;
+                occurred_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_v1_auth_login_post: {
         parameters: {
             query?: never;
@@ -3602,6 +3777,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssessmentRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_project_audit_events_api_v1_projects__project_id__audit_events_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                action?: components["schemas"]["AuditAction"] | null;
+                outcome?: components["schemas"]["AuditOutcome"] | null;
+                actor_type?: components["schemas"]["AuditActorType"] | null;
+                actor_user_id?: string | null;
+                resource_type?: string | null;
+                resource_id?: string | null;
+                occurred_from?: string | null;
+                occurred_to?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectAuditEventRead"][];
                 };
             };
             /** @description Validation Error */

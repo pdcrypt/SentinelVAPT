@@ -63,13 +63,13 @@ def get_scan(scan_id: uuid.UUID, service: ScanServiceDep) -> Scan:
     return service.get(scan_id)
 
 
-@router.post(
-    "/scans/{scan_id}/cancel",
-    dependencies=[Depends(authorize(P.SCAN_RUN, R.SCAN, "scan_id"))],
-    response_model=ScanRead,
-)
-def cancel_scan(scan_id: uuid.UUID, service: ScanServiceDep) -> Scan:
-    return service.cancel(scan_id)
+@router.post("/scans/{scan_id}/cancel", response_model=ScanRead)
+def cancel_scan(
+    scan_id: uuid.UUID,
+    service: ScanServiceDep,
+    access: Annotated[AccessDecision, Depends(authorize(P.SCAN_RUN, R.SCAN, "scan_id"))],
+) -> Scan:
+    return service.cancel(scan_id, actor=UserActor.of(access.principal))
 
 
 @router.get(

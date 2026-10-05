@@ -10,6 +10,7 @@ from app.models.analysis import (
 from app.models.assessment import Assessment
 from app.models.comparison import Comparison, ComparisonCoverageEvidence, ComparisonRecord
 from app.models.identity import (
+    AuditActionDefinition,
     AuditEvent,
     PlatformSettings,
     ProjectMember,
@@ -29,6 +30,7 @@ __all__ = [
     "AnalysisRun",
     "Assessment",
     "Asset",
+    "AuditActionDefinition",
     "AuditEvent",
     "Comparison",
     "ComparisonCoverageEvidence",

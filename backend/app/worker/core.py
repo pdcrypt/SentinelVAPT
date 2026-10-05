@@ -55,12 +55,15 @@ from sentinel_analysis import RULESET_VERSION
 from sqlalchemy import func
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock, utc_now
 from app.core.errors import ScanNotAllowedError
 from app.models import Assessment, ReportArtifact, RetestReportArtifact, Target
 from app.models.enums import (
     AnalysisStatus,
     AssessmentStatus,
+    AuditOutcome,
     ComparisonStatus,
     ReportStatus,
     ScanStatus,
@@ -77,6 +80,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.services.analysis import AnalysisError, execute_run, fail_run
+from app.services.audit import WORKER, AuditService
 from app.services.comparisons import ComparisonError, execute_comparison, fail_comparison
 from app.services.scan_grants import build_scan_grant, discovery_config, grant_snapshot
 from app.services.scan_results import (
@@ -247,6 +251,22 @@ class Worker:
 
     # --- 1. claim -------------------------------------------------------------------
 
+    def _audit(
+        self,
+        session: Session,
+        action: AuditAction,
+        resource: tuple[ResourceType, uuid.UUID],
+        *,
+        outcome: AuditOutcome = AuditOutcome.SUCCESS,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """A lifecycle event of this worker (a system actor named by its worker
+        id; never the user who requested the work), in the same transaction as
+        the transition it records."""
+        AuditService(session, WORKER).system(
+            action, self.worker_id, resource=resource, outcome=outcome, metadata=metadata
+        )
+
     def claim(self) -> ClaimedScan | None:
         with self.session_factory() as session:
             candidates = ScanRepository(session).queued_candidates(self.candidate_batch)
@@ -292,6 +312,13 @@ class Worker:
                         )
                     ],
                 )
+                self._audit(
+                    session,
+                    AuditAction.SCAN_REFUSED,
+                    (ResourceType.SCAN, scan.id),
+                    outcome=AuditOutcome.DENIED,
+                    metadata={"reason": exc.reason[:64]},
+                )
                 session.commit()
                 logger.info("scan %s refused at claim: %s", scan.id, exc.reason)
                 return None
@@ -303,6 +330,7 @@ class Worker:
             scan.scanner_version = scanner_version
             scan.grant_snapshot = grant_snapshot(grant)  # audit record only
             config = discovery_config(scan.config)
+            self._audit(session, AuditAction.SCAN_STARTED, (ResourceType.SCAN, scan.id))
             session.commit()
             logger.info("scan %s claimed by %s", scan.id, self.worker_id)
             return ClaimedScan(
@@ -469,6 +497,26 @@ class Worker:
                 # Same transaction as the results: a finalized scan always has
                 # its analysis queued, and a dropped finalize queues nothing.
                 AnalysisRepository(session).queue_run(scan.id, RULESET_VERSION)
+            if scan.status is ScanStatus.COMPLETED:
+                self._audit(
+                    session,
+                    AuditAction.SCAN_COMPLETED,
+                    (ResourceType.SCAN, scan.id),
+                    metadata={
+                        "requests_sent": scan.requests_sent,
+                        "endpoints_count": scan.endpoints_count,
+                    },
+                )
+            elif scan.status is ScanStatus.CANCELLED:
+                self._audit(session, AuditAction.SCAN_CANCELLED, (ResourceType.SCAN, scan.id))
+            else:
+                self._audit(
+                    session,
+                    AuditAction.SCAN_FAILED,
+                    (ResourceType.SCAN, scan.id),
+                    outcome=AuditOutcome.FAILURE,
+                    metadata={"reason": (scan.error_code or "failed")[:64]},
+                )
             session.commit()
             logger.info("scan %s finished: %s", scan.id, scan.status)
             return True
@@ -501,6 +549,21 @@ class Worker:
                     logger.exception("analysis run %s failed", run_id)
                 session.refresh(run)
                 fail_run(run, code, now)
+            if AnalysisStatus(run.status) is AnalysisStatus.COMPLETED:  # changed above
+                self._audit(
+                    session,
+                    AuditAction.ANALYSIS_COMPLETED,
+                    (ResourceType.ANALYSIS_RUN, run.id),
+                    metadata={"scan_id": str(run.scan_id)},
+                )
+            else:
+                self._audit(
+                    session,
+                    AuditAction.ANALYSIS_FAILED,
+                    (ResourceType.ANALYSIS_RUN, run.id),
+                    outcome=AuditOutcome.FAILURE,
+                    metadata={"scan_id": str(run.scan_id)},
+                )
             session.commit()
             logger.info("analysis run %s finished: %s", run_id, run.status)
             return True
@@ -531,6 +594,20 @@ class Worker:
                     logger.exception("comparison %s failed", comparison_id)
                 session.refresh(comparison)
                 fail_comparison(comparison, code, now)
+            if ComparisonStatus(comparison.status) is ComparisonStatus.COMPLETED:  # changed above
+                self._audit(
+                    session,
+                    AuditAction.COMPARISON_COMPLETED,
+                    (ResourceType.COMPARISON, comparison.id),
+                )
+            else:
+                self._audit(
+                    session,
+                    AuditAction.COMPARISON_FAILED,
+                    (ResourceType.COMPARISON, comparison.id),
+                    outcome=AuditOutcome.FAILURE,
+                    metadata={"reason": (comparison.error_code or "failed")[:64]},
+                )
             session.commit()
             logger.info("comparison %s finished: %s", comparison_id, comparison.status)
             return True
@@ -619,13 +696,42 @@ class Worker:
                 report.status = ReportStatus.FAILED
                 report.error_code = error[:64]
             report.finished_at = now
+            self._report_event(
+                session, ResourceType.REPORT, report.id, report.status, report.error_code
+            )
             session.commit()
             logger.info("report %s finished: %s", claimed.report_id, report.status)
             return True
 
+    def _report_event(
+        self,
+        session: Session,
+        kind: ResourceType,
+        report_id: uuid.UUID,
+        status: ReportStatus,
+        error_code: str | None,
+    ) -> None:
+        retest = kind is ResourceType.RETEST_REPORT
+        if status is ReportStatus.COMPLETED:
+            action = AuditAction.RETEST_REPORT_COMPLETED if retest else AuditAction.REPORT_COMPLETED
+            self._audit(session, action, (kind, report_id))
+        else:
+            action = AuditAction.RETEST_REPORT_FAILED if retest else AuditAction.REPORT_FAILED
+            self._audit(
+                session,
+                action,
+                (kind, report_id),
+                outcome=AuditOutcome.FAILURE,
+                metadata={"reason": (error_code or "failed")[:64]},
+            )
+
     def reap_stale_reports(self) -> int:
         with self.session_factory() as session:
             reaped = ReportRepository(session).reap_stale(self.report_stale_after, self.clock())
+            for report_id in reaped:
+                self._report_event(
+                    session, ResourceType.REPORT, report_id, ReportStatus.FAILED, "worker_lost"
+                )
             session.commit()
         for report_id in reaped:
             logger.warning("report %s failed: worker_lost", report_id)
@@ -711,6 +817,9 @@ class Worker:
                 report.status = ReportStatus.FAILED
                 report.error_code = error[:64]
             report.finished_at = now
+            self._report_event(
+                session, ResourceType.RETEST_REPORT, report.id, report.status, report.error_code
+            )
             session.commit()
             logger.info("retest report %s finished: %s", claimed.report_id, report.status)
             return True
@@ -720,6 +829,14 @@ class Worker:
             reaped = RetestReportRepository(session).reap_stale(
                 self.report_stale_after, self.clock()
             )
+            for report_id in reaped:
+                self._report_event(
+                    session,
+                    ResourceType.RETEST_REPORT,
+                    report_id,
+                    ReportStatus.FAILED,
+                    "worker_lost",
+                )
             session.commit()
         for report_id in reaped:
             logger.warning("retest report %s failed: worker_lost", report_id)
@@ -742,6 +859,13 @@ class Worker:
                         )
                     ],
                     start=10_000,  # after anything the lost worker might have written
+                )
+                self._audit(
+                    session,
+                    AuditAction.SCAN_FAILED,
+                    (ResourceType.SCAN, scan_id),
+                    outcome=AuditOutcome.FAILURE,
+                    metadata={"reason": "worker_lost"},
                 )
             session.commit()
         for scan_id in reaped:

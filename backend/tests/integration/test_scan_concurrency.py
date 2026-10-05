@@ -149,7 +149,7 @@ def test_claim_skips_a_scan_being_cancelled(scan_env: ScanEnv) -> None:
                 service.targets,
                 PausingCommit(s),
                 utc_now,
-            ).cancel(scan_id)
+            ).cancel(scan_id, actor=scan_env.actor)
 
     cancel_thread, cancelled = start(cancel)
     assert cancel_holds_lock.wait(TIMEOUT)
@@ -310,8 +310,8 @@ def test_completing_the_assessment_is_refused_while_a_scan_runs(scan_env: ScanEn
 
     _, assessment_id, scan_id = scan_env.queued_scan()
     with scan_env.factory() as s, pytest.raises(Exception, match="queued or running scan"):
-        get_assessment_service(s, utc_now).complete(assessment_id)
+        get_assessment_service(s, utc_now).complete(assessment_id, actor=scan_env.actor)
     scan_env.worker().run_once()
     with scan_env.factory() as s:
-        get_assessment_service(s, utc_now).complete(assessment_id)
+        get_assessment_service(s, utc_now).complete(assessment_id, actor=scan_env.actor)
     assert scan_env.get_scan(scan_id).status is ScanStatus.COMPLETED

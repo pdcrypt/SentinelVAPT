@@ -118,7 +118,7 @@ class ScanEnv:
             assessment = service.create(
                 target_id, AssessmentCreate(name="Assessment"), actor=self.actor
             )
-            service.start(assessment.id)
+            service.start(assessment.id, actor=self.actor)
             return assessment.id
 
     def scan(self, assessment_id: uuid.UUID, *, allow_untrusted_tls: bool = False) -> uuid.UUID:
@@ -145,11 +145,11 @@ class ScanEnv:
 
     def cancel_assessment(self, assessment_id: uuid.UUID) -> None:
         with self.factory() as s:
-            get_assessment_service(s, utc_now).cancel(assessment_id)
+            get_assessment_service(s, utc_now).cancel(assessment_id, actor=self.actor)
 
     def cancel_scan(self, scan_id: uuid.UUID) -> None:
         with self.factory() as s:
-            get_scan_service(s, utc_now).cancel(scan_id)
+            get_scan_service(s, utc_now).cancel(scan_id, actor=self.actor)
 
     def get_scan(self, scan_id: uuid.UUID) -> Scan:
         with self.factory() as s:
@@ -263,6 +263,9 @@ def purge_project(factory: sessionmaker[Session], project_id: uuid.UUID) -> None
         )
         s.execute(text("DELETE FROM targets WHERE project_id = :p"), {"p": project_id})
         s.execute(text("DELETE FROM projects WHERE id = :p"), {"p": project_id})
+        # The project's audit trail is append-only; test cleanup alone removes it.
+        s.execute(text("SET LOCAL session_replication_role = replica"))
+        s.execute(text("DELETE FROM audit_events WHERE project_id = :p"), {"p": project_id})
         s.commit()
 
 
@@ -285,6 +288,7 @@ def remove_lab_user(factory: sessionmaker[Session], user_id: uuid.UUID) -> None:
         for table, column in (
             ("finding_status_changes", "changed_by_user_id"),
             ("project_members", "user_id"),
+            ("audit_events", "actor_user_id"),
         ):
             s.execute(text(f"DELETE FROM {table} WHERE {column} = :u"), {"u": user_id})  # noqa: S608
         s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user_id})
@@ -297,7 +301,7 @@ def scan_env(engine: Engine) -> Iterator[ScanEnv]:
     actor = lab_actor(factory)
     with factory() as s:
         project = get_project_service(s).create(
-            ProjectCreate(name=f"scan-{uuid.uuid4()}"), owner_id=None
+            ProjectCreate(name=f"scan-{uuid.uuid4()}"), owner=None
         )
     with LabSite() as site:
         site.html(

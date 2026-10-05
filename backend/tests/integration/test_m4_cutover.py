@@ -51,7 +51,7 @@ def legacy(live: Live) -> Iterator[list[uuid.UUID]]:
     def make(name: str | None = None) -> uuid.UUID:
         with live.factory() as s:
             project = get_project_service(s).create(
-                ProjectCreate(name=name or f"legacy-{uuid.uuid4()}"), owner_id=None
+                ProjectCreate(name=name or f"legacy-{uuid.uuid4()}"), owner=None
             )
         created.append(project.id)
         return project.id

@@ -59,7 +59,7 @@ def principal(display: str = "Alice A.") -> Principal:
 def test_user_actor_comes_from_the_principal() -> None:
     who = principal()
     actor = UserActor.of(who)
-    assert actor == UserActor(user_id=who.user_id, label="Alice A.")
+    assert actor == UserActor(user_id=who.user_id, label="Alice A.", session_id=who.session_id)
     assert UserActor.of(principal()).user_id != actor.user_id  # never cached or shared
 
 

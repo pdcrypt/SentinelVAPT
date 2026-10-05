@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -56,6 +57,16 @@ def principal(role: GlobalRole = GlobalRole.USER, *, pending: bool = False) -> P
     return Principal(uuid.uuid4(), "u", "U", role, pending, uuid.uuid4(), now, now, now)
 
 
+class FakeAudit:
+    """Records the refusals the access service reports (M6)."""
+
+    def __init__(self) -> None:
+        self.denials: list[tuple[Any, ...]] = []
+
+    def denial(self, action: Any, actor: Any, **kw: Any) -> None:
+        self.denials.append((action, actor.user_id, kw.get("metadata", {}).get("reason")))
+
+
 class FakeResolver:
     """Answers with a fixed resolution and records what it was asked."""
 
@@ -71,7 +82,7 @@ class FakeResolver:
 
 
 def service(resolution: Resolution | None) -> AccessService:
-    return AccessService(FakeResolver(resolution))  # type: ignore[arg-type]
+    return AccessService(FakeResolver(resolution), FakeAudit())  # type: ignore[arg-type]
 
 
 # --- permission model ----------------------------------------------------------------------
@@ -239,7 +250,8 @@ def test_admin_membership_counts_only_as_that_membership() -> None:
 def test_resolver_receives_the_principal_and_the_route_key() -> None:
     fake = FakeResolver(Resolution(PROJECT, ProjectRole.OWNER))
     who = principal()
-    AccessService(fake).authorize_project(who, P.PROJECT_READ, ResourceType.TARGET, KEY)  # type: ignore[arg-type]
+    access = AccessService(fake, FakeAudit())  # type: ignore[arg-type]
+    access.authorize_project(who, P.PROJECT_READ, ResourceType.TARGET, KEY)
     assert fake.calls == [(ResourceType.TARGET, KEY, who.user_id)]
 
 

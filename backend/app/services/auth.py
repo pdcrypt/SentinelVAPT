@@ -28,6 +28,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.audit import AuditAction
 from app.core.clock import Clock
 from app.core.config import Settings
 from app.core.errors import (
@@ -194,7 +195,7 @@ class AuthService:
 
     # --- session validation ----------------------------------------------------------------
 
-    def authenticate(self, token: str | None) -> Principal:
+    def authenticate(self, token: str | None, context: AuditContext | None = None) -> Principal:
         if not token or len(token) > MAX_TOKEN_LENGTH:
             raise AuthenticationError()
         found = self.sessions.by_token_hash_for_update(hash_token(token))
@@ -202,12 +203,27 @@ class AuthService:
             raise AuthenticationError()
         row, user = found
         now = self.clock()
-        if (
-            row.revoked_at is not None
-            or not user.is_active
-            or now >= row.idle_expires_at
-            or now >= row.expires_at
-        ):
+        # A revoked session, or one of a disabled account, being presented is
+        # security history (a token kept after logout, a password change or
+        # disablement). Plain expiry is routine and is not recorded.
+        rejected = (
+            "user_disabled"
+            if not user.is_active
+            else ("revoked" if row.revoked_at is not None else None)
+        )
+        if rejected is not None:
+            self.audit.record(
+                AuditAction.AUTH_SESSION_REJECTED,
+                AuditOutcome.DENIED,
+                context=context or AuditContext(request_id=None, source="internal"),
+                actor_type=AuditActorType.ANONYMOUS,
+                resource_type="session",
+                resource_id=row.id,
+                metadata={"reason": rejected, "user_id": str(user.id)},
+            )
+            self.session.commit()
+            raise AuthenticationError()
+        if now >= row.idle_expires_at or now >= row.expires_at:
             raise AuthenticationError()
         if now - row.last_seen_at >= LAST_SEEN_RESOLUTION:
             # Activity only moves forward (the database refuses otherwise).

@@ -115,7 +115,7 @@ def lab_user(factory: sessionmaker[Session]) -> Iterator[UserActor]:
 def project_id(factory: sessionmaker[Session], lab_user: UserActor) -> Iterator[uuid.UUID]:
     with factory() as session:
         project = ProjectService(ProjectRepository(session), session).create(
-            ProjectCreate(name=f"concurrency-{uuid.uuid4()}"), owner_id=None
+            ProjectCreate(name=f"concurrency-{uuid.uuid4()}"), owner=None
         )
     yield project.id
     with factory() as session:
@@ -126,8 +126,8 @@ def project_id(factory: sessionmaker[Session], lab_user: UserActor) -> Iterator[
         session.commit()
         service = _service(session)
         for target in service.list_for_project(project.id, limit=100, offset=0):
-            service.delete(target.id)
-        ProjectService(ProjectRepository(session), session).delete(project.id)
+            service.delete(target.id, actor=ACTOR[0])
+        ProjectService(ProjectRepository(session), session).delete(project.id, actor=ACTOR[0])
     remove_lab_user(factory, lab_user.user_id)
 
 
@@ -274,7 +274,7 @@ def _plan(factory: sessionmaker[Session], project_id: uuid.UUID, *, started: boo
         service = _assessments(session)
         assessment = service.create(target_id, AssessmentCreate(name="lifecycle"), actor=ACTOR[0])
         if started:
-            service.start(assessment.id)
+            service.start(assessment.id, actor=ACTOR[0])
         return assessment.id
 
 
@@ -286,7 +286,8 @@ def _transition(
 ) -> AssessmentStatus:
     with factory() as session:
         uow = PausingCommit(session, reached) if reached else None
-        result: AssessmentStatus = getattr(_assessments(session, uow), action)(assessment_id).status
+        service = _assessments(session, uow)
+        result: AssessmentStatus = getattr(service, action)(assessment_id, actor=ACTOR[0]).status
         return result
 
 

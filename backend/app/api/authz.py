@@ -26,7 +26,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Request
 from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 
-from app.api.deps import PrincipalDep, SessionDep
+from app.api.deps import AuditContextDep, PrincipalDep, SessionDep
 from app.core.authz import (
     DESCRIPTOR_TYPES,
     GLOBAL_PERMISSIONS,
@@ -44,13 +44,14 @@ from app.core.authz import (
 from app.core.errors import PasswordChangeRequiredError
 from app.repositories.authz import RESOLVERS, ProjectResolver
 from app.services.access import AccessService
+from app.services.audit import AuditService
 from app.services.auth import Principal
 
 ACCESS_ATTR = "__sv_access__"
 
 
-def get_access_service(session: SessionDep) -> AccessService:
-    return AccessService(ProjectResolver(session))
+def get_access_service(session: SessionDep, context: AuditContextDep) -> AccessService:
+    return AccessService(ProjectResolver(session), AuditService(session, context))
 
 
 AccessServiceDep = Annotated[AccessService, Depends(get_access_service)]
@@ -61,8 +62,9 @@ def _mark[F: Callable[..., Any]](dependency: F, descriptor: AccessDescriptor) ->
     return dependency
 
 
-def _password_gate(principal: Principal, *, allow_pending: bool) -> None:
+def _password_gate(principal: Principal, access: AccessService, *, allow_pending: bool) -> None:
     if principal.must_change_password and not allow_pending:
+        access.password_change_required(principal)  # recorded before the refusal
         raise PasswordChangeRequiredError()
 
 
@@ -74,8 +76,8 @@ def public() -> Callable[[], None]:
 
 
 def authenticated(*, allow_password_change_pending: bool = False) -> Callable[..., Principal]:
-    def dependency(principal: PrincipalDep) -> Principal:
-        _password_gate(principal, allow_pending=allow_password_change_pending)
+    def dependency(principal: PrincipalDep, access: AccessServiceDep) -> Principal:
+        _password_gate(principal, access, allow_pending=allow_password_change_pending)
         return principal
 
     return _mark(dependency, Authenticated(allow_password_change_pending))
@@ -86,7 +88,7 @@ def require_global(permission: Permission) -> Callable[..., AccessDecision]:
         raise AuthorizationConfigError(f"not a global permission: {permission!r}")
 
     def dependency(principal: PrincipalDep, access: AccessServiceDep) -> AccessDecision:
-        _password_gate(principal, allow_pending=False)
+        _password_gate(principal, access, allow_pending=False)
         return access.authorize_global(principal, permission)
 
     return _mark(dependency, GlobalAccess(permission))
@@ -118,7 +120,7 @@ def authorize(
     def dependency(
         request: Request, principal: PrincipalDep, access: AccessServiceDep
     ) -> AccessDecision:
-        _password_gate(principal, allow_pending=False)
+        _password_gate(principal, access, allow_pending=False)
         values: dict[str, str] = {}
         for name, path_parameter in frozen.items():
             if path_parameter not in request.path_params:

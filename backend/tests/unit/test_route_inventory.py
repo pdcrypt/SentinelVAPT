@@ -51,12 +51,16 @@ EXPECTED: dict[tuple[str, str], AccessDescriptor] = {
     ("GET", "/api/v1/rules"): GlobalAccess(P.CATALOG_READ),
     ("GET", "/api/v1/report-templates"): GlobalAccess(P.CATALOG_READ),
     ("GET", "/api/v1/retest-report-templates"): GlobalAccess(P.CATALOG_READ),
+    ("GET", "/api/v1/audit-events"): GlobalAccess(P.AUDIT_READ_GLOBAL),  # M6: global admins
     # projects
     ("GET", "/api/v1/projects/{project_id}"): project(READ, R.PROJECT, "project_id"),
     ("PATCH", "/api/v1/projects/{project_id}"): project(P.PROJECT_UPDATE, R.PROJECT, "project_id"),
     ("DELETE", "/api/v1/projects/{project_id}"): project(P.PROJECT_DELETE, R.PROJECT, "project_id"),
     ("GET", "/api/v1/projects/{project_id}/assessments"): project(READ, R.PROJECT, "project_id"),
     ("GET", "/api/v1/projects/{project_id}/targets"): project(READ, R.PROJECT, "project_id"),
+    ("GET", "/api/v1/projects/{project_id}/audit-events"): project(
+        P.AUDIT_READ_PROJECT, R.PROJECT, "project_id"
+    ),
     ("POST", "/api/v1/projects/{project_id}/targets"): project(
         P.TARGET_MANAGE, R.PROJECT, "project_id"
     ),
@@ -194,7 +198,7 @@ def test_every_route_is_classified_exactly_once(production_app: FastAPI) -> None
     assert seen == set(EXPECTED), (
         f"unclassified: {sorted(seen - set(EXPECTED))}; gone: {sorted(set(EXPECTED) - seen)}"
     )
-    assert len(seen) == 66
+    assert len(seen) == 68
     for method, path, context in routes(production_app):
         descriptors = route_descriptors(context)
         assert descriptors == [EXPECTED[(method, path)]], (method, path, descriptors)
@@ -230,7 +234,10 @@ def test_every_path_resource_parameter_is_covered(production_app: FastAPI) -> No
 def test_project_routes_never_use_global_admin_permissions() -> None:
     for key, descriptor in EXPECTED.items():
         if isinstance(descriptor, GlobalAccess):
-            assert descriptor.permission in {P.PROJECT_CREATE, P.CATALOG_READ}, key
+            allowed = {P.PROJECT_CREATE, P.CATALOG_READ}
+            if key == ("GET", "/api/v1/audit-events"):
+                allowed = {P.AUDIT_READ_GLOBAL}  # the one global admin route
+            assert descriptor.permission in allowed, key
         if key[1].startswith(("/api/v1/projects/", "/api/v1/targets/")):
             assert isinstance(descriptor, ProjectAccess), key
 

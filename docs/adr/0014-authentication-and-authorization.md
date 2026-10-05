@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement) and M5 (trusted actor identity) are implemented; M6–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity) and M6 (audit logging) are implemented; M7–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -769,6 +769,146 @@ name return the first report, which keeps its original requester.
 | User and membership administration (display-name changes, disabling through the API) | M7 |
 | Browser sessions; the console sends no actor fields any more and shows the stored labels | M8 |
 
+### Audit logging and integrity (implemented in M6)
+
+The audit log is the platform's security history. It records:
+
+- **who** acted;
+- **when** they acted;
+- **what** they did;
+- **which** project and resource it concerned;
+- **whether** the action was allowed, denied or failed;
+- **through which** authenticated session.
+
+Only the server writes it. M6 builds on the M1 `audit_events` table and the
+M2 recorder rather than adding a second system.
+
+#### Trust model
+
+- **Who writes events:** the server, from trusted context only. No endpoint
+  creates, changes or deletes an event.
+- **Human actor:** `actor_user_id` comes from the authenticated Principal
+  (`UserActor`). `session_id` is that Principal's session row (never a
+  token). `actor_label` is the display name at the time.
+- **System actor:** `actor_type = system`. `actor_label` is the worker's id or
+  the server command. No user and no session.
+- **Anonymous actor:** failed sign-ins and rejected sessions. No user and no
+  session; the account or session concerned is the event's resource.
+- **Project:** `project_id` is derived from the resource's own rows by the M3
+  resolver, never supplied by the caller.
+- **Identity input:** request bodies and headers never contribute identity.
+  M5 refuses actor fields, and no code reads identity headers.
+
+#### Event taxonomy
+
+The vocabulary is closed: `AuditAction` in `app/core/audit.py`, which is also
+the `audit_actions` table. `audit_events.action` is a foreign key to that
+table, so an unknown action cannot be stored. The vocabulary is insert-only
+and is extended by migrations.
+
+| Area | Actions |
+|---|---|
+| Authentication | `auth.login`, `auth.login_failed`, `auth.logout`, `auth.password_changed`, `auth.password_change_failed`, `auth.session_rejected`, `auth.password_change_required` |
+| Accounts and platform | `user.created`, `user.disabled`, `platform.auth_enforced` |
+| Authorization | `authz.denied` |
+| Projects | `project.created`, `project.updated`, `project.deleted`, `project.claim` |
+| Targets | `target.created`, `target.updated`, `target.deleted`, `target_authorization.created` |
+| Assessments | `assessment.created`, `.updated`, `.deleted`, `.started`, `.start_refused`, `.completed`, `.cancelled`; `retest.created` |
+| Scans | `scan.requested`, `scan.request_refused`, `scan.cancel_requested` (users); `scan.refused`, `scan.started`, `scan.completed`, `scan.cancelled`, `scan.failed` (workers); `analysis.completed`, `analysis.failed` |
+| Findings | `finding.triaged` (from/to status; false positives included) |
+| Comparisons and reports | `comparison.requested` / `.completed` / `.failed`; `report.requested` / `.completed` / `.failed`; `retest_report.requested` / `.completed` / `.failed` |
+
+The `.requested` events of idempotent requests (comparisons, retest reports)
+are recorded every time, with `created` saying whether anything new was
+made. Membership and user administration events arrive with their APIs (M7).
+
+#### Coverage policy (what is not recorded)
+
+These are not recorded:
+
+- successful reads;
+- polling and heartbeats;
+- analysis progress;
+- report claiming (only the outcome is recorded);
+- refused lifecycle steps (409);
+- validation errors (422);
+- anonymous 401s for missing or unknown tokens;
+- naturally expired sessions;
+- requests for resources that do not exist.
+
+#### Denials
+
+These refusals are recorded with outcome `denied`:
+
+| Refusal | Event | Status | Metadata |
+|---|---|---|---|
+| A member whose role lacks the permission | `authz.denied` | 403 | permission, reason `insufficient_role`, role |
+| A non-member, including a global admin, reaching for a resource that exists in another project | `authz.denied` | 404 | reason `not_member` |
+| A missing global permission | `authz.denied` | 403 | reason `insufficient_global_role` |
+| A request blocked by the password-change gate | `auth.password_change_required` | 403 | none |
+| A scan request refused (target authorization, lifecycle or an active scan) | `scan.request_refused` | 409 | reason |
+| An assessment start refused because its target authorization is not usable | `assessment.start_refused` | 409 | reason |
+| A worker's claim-time grant check refusing a queued scan | `scan.refused` (system actor) | none | reason |
+| A revoked session, or one of a disabled account, presented | `auth.session_rejected` (anonymous actor) | 401 | reason |
+
+A `not_member` denial is filed under the probed resource's project, so that
+project's owners see probes of their project. The prober sees nothing.
+
+#### Integrity (database-enforced)
+
+From M1:
+
+- `audit_events` refuses UPDATE, DELETE and TRUNCATE;
+- the database sets `occurred_at` itself;
+- metadata must be a flat object of scalars, at most 4 KB, with strings of at
+  most 256 characters and without secret-like keys.
+
+Added by M6 (migration `c4f7a2e9d1b6`):
+
+- the vocabulary foreign key;
+- `session_id` only on human events;
+- system events must name their actor;
+- the trigger `check_audit_event_actor`: a human event's user must be active,
+  and its session must exist and belong to that user.
+
+The service adds a per-action metadata allowlist, which rejects unknown keys,
+nested values, control characters and long strings. It also refuses events
+from disabled users, checked under a share lock so that it serializes with
+disabling the account.
+
+#### Transactions
+
+- **Successful changes:** a change and its event are flushed into the same
+  session and committed by the operation's own commit, so they commit
+  together or not at all. If the event cannot be written, the change is
+  rolled back (fail closed).
+- **Denials:** a denial rolls back any unfinished work and commits the event
+  alone, then raises, as M2 does for failed logins.
+- **Workers:** worker events share the transaction of the transition they
+  record.
+- **Locks:** no new lock order is introduced. The share lock on the acting
+  user is taken last; workers take no user locks.
+
+#### Visibility
+
+| Endpoint | Who | Scope |
+|---|---|---|
+| `GET /projects/{id}/audit-events` | project owners (`audit.read_project`) | always that project; operators, viewers, non-members and admins without membership are refused as for any project resource; no `session_id` |
+| `GET /audit-events` | global admins (`audit.read_global`) | all events, optional `project_id` filter; includes `session_id` |
+
+- **Filters:** action, outcome, actor type, actor user, resource type,
+  resource id and a time range. All are typed and closed; unknown values are
+  422.
+- **Ordering:** time then id, descending.
+- **Pagination:** `limit` is at most 100.
+- **No counts:** totals are never returned.
+
+#### History
+
+Existing events are never rewritten, and no actor or session is invented for
+them. The migration only adds the vocabulary, constraints and a trigger. An
+upgrade, downgrade and upgrade leaves every row identical.
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -793,7 +933,7 @@ Phase 9 does not change:
 | M3 | Authorization machinery: `Permission`, role tables, `ResourceType`, resolver, access service, dependencies, password-change gate, default-deny guard (implemented; attached to no route) |
 | M4 | Enforcement on all 66 routes, route inventory meta-tests, 404/403, membership-filtered lists, IDOR and role-matrix suites, legacy claim and cutover commands, per-member project names (implemented) |
 | M5 | Server-owned actor identity: `*_user_id` columns with write-once triggers, actor fields refused, workers as system actors (implemented) |
-| M6 | Audit emission and read endpoints |
+| M6 | Audit emission for state changes, denials and worker transitions; closed vocabulary; database-enforced integrity; owner/admin read endpoints (implemented) |
 | M7 | Membership and user administration APIs; admin self-grant; legacy claim command |
 | M8 | Frontend login and logout, account, members, admin, audit; 401/403 handling |
 | M9 | Mutation suite, full regression, live Compose as owner, operator and viewer, documentation |

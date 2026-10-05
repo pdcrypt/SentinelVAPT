@@ -327,6 +327,16 @@ M5 makes actors server-owned:
   requester.
 - Pre-M5 actor text stays as written.
 
+M6 records security history in `audit_events`:
+
+- every state change, with the user, session and project;
+- security-relevant refusals;
+- worker transitions, attributed to the worker.
+
+Events come from a closed vocabulary and are append-only in the database.
+Each event commits with the change it records. Project owners read their
+project's events, and global admins read all of them.
+
 The console cannot sign in until M8. The API remains localhost-only
 (ADR 0005).
 

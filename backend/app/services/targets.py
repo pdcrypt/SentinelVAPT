@@ -2,12 +2,15 @@ import uuid
 from collections.abc import Sequence
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import ConflictError, DomainValidationError, NotFoundError
 from app.models import Target, TargetAuthorization
 from app.models.enums import AuthorizationStatus, TargetEnvironment
 from app.repositories import ProjectRepository, TargetAuthorizationRepository, TargetRepository
 from app.schemas.target import SCOPE_FIELDS, TargetAuthorizationIn, TargetCreate, TargetUpdate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.scope import (
     Scope,
@@ -29,12 +32,15 @@ class TargetService:
         projects: ProjectRepository,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.targets = targets
         self.authorizations = authorizations
         self.projects = projects
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(targets.session)
 
     def create(self, project_id: uuid.UUID, data: TargetCreate, *, actor: UserActor) -> Target:
         actor = require_user_actor(actor)
@@ -66,6 +72,10 @@ class TargetService:
         )
         self.targets.add(target)
         self.authorizations.add(authorization)
+        self.audit.user(
+            AuditAction.TARGET_CREATED, actor, resource=(ResourceType.TARGET, target.id)
+        )
+        self._audit_authorization(actor, authorization)
         self.uow.commit()
         return target
 
@@ -136,10 +146,19 @@ class TargetService:
         if new_authorization is not None:
             self.authorizations.add(new_authorization)
             self.targets.set_current_authorization(target, new_authorization)
+        if new_name is not None or scope_changed:
+            self.audit.user(
+                AuditAction.TARGET_UPDATED,
+                actor,
+                resource=(ResourceType.TARGET, target.id),
+                metadata={"renamed": new_name is not None, "scope_changed": scope_changed},
+            )
+        if new_authorization is not None:
+            self._audit_authorization(actor, new_authorization)
         self.uow.commit()
         return target
 
-    def delete(self, target_id: uuid.UUID) -> None:
+    def delete(self, target_id: uuid.UUID, *, actor: UserActor) -> None:
         target = self.targets.get_for_update(target_id)
         if target is None:
             raise NotFoundError("target not found")
@@ -147,8 +166,24 @@ class TargetService:
         # ever assessed under them; assessments keep the target (and history) alive.
         if self.targets.has_assessments(target.id):
             raise ConflictError("target still has assessments; delete them first")
+        self.audit.user(
+            AuditAction.TARGET_DELETED, actor, resource=(ResourceType.TARGET, target.id)
+        )
         self.targets.delete(target)
         self.uow.commit()
+
+    def _audit_authorization(self, actor: UserActor, record: TargetAuthorization) -> None:
+        self.authorizations.flush()
+        self.audit.user(
+            AuditAction.TARGET_AUTHORIZATION_CREATED,
+            actor,
+            resource=(ResourceType.TARGET_AUTHORIZATION, record.id),
+            metadata={
+                "target_id": str(record.target_id),
+                "version": record.version,
+                "valid_until": record.valid_until.isoformat(),
+            },
+        )
 
     def authorization_status(self, authorization: TargetAuthorization) -> AuthorizationStatus:
         return authorization_status(

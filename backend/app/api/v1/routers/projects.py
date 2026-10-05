@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.authz import authenticated, authorize, require_global
 from app.api.deps import Limit, Offset, ProjectServiceDep
+from app.core.actors import UserActor
 from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
@@ -24,7 +25,7 @@ def create_project(
 ) -> Project:
     """The authenticated user becomes the project's first owner, in the same
     transaction. Nothing in the body names an owner."""
-    return service.create(data, owner_id=access.principal.user_id)
+    return service.create(data, owner=UserActor.of(access.principal))
 
 
 @router.get("", response_model=list[ProjectRead])
@@ -56,13 +57,15 @@ def update_project(
         AccessDecision, Depends(authorize(P.PROJECT_UPDATE, R.PROJECT, "project_id"))
     ],
 ) -> Project:
-    return service.update(project_id, data, member_id=access.principal.user_id)
+    return service.update(project_id, data, actor=UserActor.of(access.principal))
 
 
-@router.delete(
-    "/{project_id}",
-    dependencies=[Depends(authorize(P.PROJECT_DELETE, R.PROJECT, "project_id"))],
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_project(project_id: uuid.UUID, service: ProjectServiceDep) -> None:
-    service.delete(project_id)
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: uuid.UUID,
+    service: ProjectServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.PROJECT_DELETE, R.PROJECT, "project_id"))
+    ],
+) -> None:
+    service.delete(project_id, actor=UserActor.of(access.principal))

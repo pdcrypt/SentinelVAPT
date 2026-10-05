@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.authz import authorize
+from app.api.authz import AccessServiceDep, authorize
 from app.api.deps import Limit, Offset, TargetServiceDep
 from app.core.actors import UserActor
 from app.core.authz import AccessDecision
@@ -16,7 +16,6 @@ from app.schemas.target import (
     TargetRead,
     TargetUpdate,
 )
-from app.services.access import AccessService
 from app.services.targets import TargetService
 
 router = APIRouter(tags=["targets"])
@@ -36,12 +35,13 @@ def create_target(
     data: TargetCreate,
     service: TargetServiceDep,
     access: Annotated[AccessDecision, Depends(authorize(P.TARGET_MANAGE, R.PROJECT, "project_id"))],
+    access_service: AccessServiceDep,
 ) -> TargetRead:
     # A new target always carries an authorization acknowledgment. Project
     # membership never stands in for it: the acknowledgment itself is still
     # validated and recorded by the target service (Phase 1), attributed to the
     # authenticated user (Phase 9 M5).
-    AccessService.require_also(access, P.TARGET_AUTHORIZE)
+    access_service.require_also(access, P.TARGET_AUTHORIZE)
     return _read(service.create(project_id, data, actor=UserActor.of(access.principal)), service)
 
 
@@ -72,19 +72,20 @@ def update_target(
     data: TargetUpdate,
     service: TargetServiceDep,
     access: Annotated[AccessDecision, Depends(authorize(P.TARGET_MANAGE, R.TARGET, "target_id"))],
+    access_service: AccessServiceDep,
 ) -> TargetRead:
     if data.authorization is not None:
-        AccessService.require_also(access, P.TARGET_AUTHORIZE)
+        access_service.require_also(access, P.TARGET_AUTHORIZE)
     return _read(service.update(target_id, data, actor=UserActor.of(access.principal)), service)
 
 
-@router.delete(
-    "/targets/{target_id}",
-    dependencies=[Depends(authorize(P.TARGET_MANAGE, R.TARGET, "target_id"))],
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_target(target_id: uuid.UUID, service: TargetServiceDep) -> None:
-    service.delete(target_id)
+@router.delete("/targets/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_target(
+    target_id: uuid.UUID,
+    service: TargetServiceDep,
+    access: Annotated[AccessDecision, Depends(authorize(P.TARGET_MANAGE, R.TARGET, "target_id"))],
+) -> None:
+    service.delete(target_id, actor=UserActor.of(access.principal))
 
 
 @router.get(

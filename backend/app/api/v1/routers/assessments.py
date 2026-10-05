@@ -63,52 +63,61 @@ def get_assessment(assessment_id: uuid.UUID, service: AssessmentServiceDep) -> A
     return service.get(assessment_id)
 
 
-@router.patch(
-    "/assessments/{assessment_id}",
-    dependencies=[Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))],
-    response_model=AssessmentRead,
-)
+@router.patch("/assessments/{assessment_id}", response_model=AssessmentRead)
 def update_assessment(
-    assessment_id: uuid.UUID, data: AssessmentUpdate, service: AssessmentServiceDep
+    assessment_id: uuid.UUID,
+    data: AssessmentUpdate,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
 ) -> Assessment:
-    return service.update(assessment_id, data)
+    return service.update(assessment_id, data, actor=UserActor.of(access.principal))
 
 
-@router.delete(
-    "/assessments/{assessment_id}",
-    dependencies=[Depends(authorize(P.ASSESSMENT_DELETE, R.ASSESSMENT, "assessment_id"))],
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_assessment(assessment_id: uuid.UUID, service: AssessmentServiceDep) -> None:
-    service.delete(assessment_id)
+@router.delete("/assessments/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_assessment(
+    assessment_id: uuid.UUID,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_DELETE, R.ASSESSMENT, "assessment_id"))
+    ],
+) -> None:
+    service.delete(assessment_id, actor=UserActor.of(access.principal))
 
 
 # Status changes are explicit actions rather than a writable `status` field, so
 # each transition goes through its own rules (e.g. start requires active authorization).
 
 
-@router.post(
-    "/assessments/{assessment_id}/start",
-    dependencies=[Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))],
-    response_model=AssessmentRead,
-)
-def start_assessment(assessment_id: uuid.UUID, service: AssessmentServiceDep) -> Assessment:
-    return service.start(assessment_id)
+@router.post("/assessments/{assessment_id}/start", response_model=AssessmentRead)
+def start_assessment(
+    assessment_id: uuid.UUID,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
+) -> Assessment:
+    return service.start(assessment_id, actor=UserActor.of(access.principal))
 
 
-@router.post(
-    "/assessments/{assessment_id}/complete",
-    dependencies=[Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))],
-    response_model=AssessmentRead,
-)
-def complete_assessment(assessment_id: uuid.UUID, service: AssessmentServiceDep) -> Assessment:
-    return service.complete(assessment_id)
+@router.post("/assessments/{assessment_id}/complete", response_model=AssessmentRead)
+def complete_assessment(
+    assessment_id: uuid.UUID,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
+) -> Assessment:
+    return service.complete(assessment_id, actor=UserActor.of(access.principal))
 
 
-@router.post(
-    "/assessments/{assessment_id}/cancel",
-    dependencies=[Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))],
-    response_model=AssessmentRead,
-)
-def cancel_assessment(assessment_id: uuid.UUID, service: AssessmentServiceDep) -> Assessment:
-    return service.cancel(assessment_id)
+@router.post("/assessments/{assessment_id}/cancel", response_model=AssessmentRead)
+def cancel_assessment(
+    assessment_id: uuid.UUID,
+    service: AssessmentServiceDep,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.ASSESSMENT_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
+) -> Assessment:
+    return service.cancel(assessment_id, actor=UserActor.of(access.principal))

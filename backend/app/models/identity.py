@@ -156,6 +156,15 @@ class ProjectMember(Base):
     )
 
 
+class AuditActionDefinition(Base):
+    """The audit vocabulary (M6): insert-only, extended by migrations."""
+
+    __tablename__ = "audit_actions"
+
+    action: Mapped[str] = mapped_column(String(65), primary_key=True)
+    description: Mapped[str] = mapped_column(Text)
+
+
 class AuditEvent(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "audit_events"
     __table_args__ = (
@@ -164,6 +173,12 @@ class AuditEvent(UUIDPrimaryKeyMixin, Base):
             "ix_audit_events_actor_user_id_occurred_at", "actor_user_id", text("occurred_at DESC")
         ),
         Index("ix_audit_events_action_occurred_at", "action", text("occurred_at DESC")),
+        Index("ix_audit_events_occurred_at", text("occurred_at DESC")),
+        # M6: a session only on human events; system events name their actor.
+        CheckConstraint("session_id IS NULL OR actor_type = 'user'", name="session_only_for_users"),
+        CheckConstraint(
+            "actor_type <> 'system' OR actor_label IS NOT NULL", name="system_actor_named"
+        ),
         CheckConstraint(
             "(actor_type = 'user') = (actor_user_id IS NOT NULL)", name="user_actor_has_user"
         ),
@@ -190,7 +205,10 @@ class AuditEvent(UUIDPrimaryKeyMixin, Base):
     # The session row's id (never the token). Not a foreign key: expired
     # sessions are pruned, audit events are kept.
     session_id: Mapped[uuid.UUID | None]
-    action: Mapped[str] = mapped_column(String(65))
+    # One of the closed vocabulary (audit_actions, app/core/audit.py).
+    action: Mapped[str] = mapped_column(
+        String(65), ForeignKey("audit_actions.action", onupdate="RESTRICT", ondelete="RESTRICT")
+    )
     outcome: Mapped[AuditOutcome] = mapped_column(str_enum_column(AuditOutcome, "audit_outcome"))
     # Historical identifiers, not foreign keys: an audit trail must outlive
     # the project or resource it describes.

@@ -173,7 +173,7 @@ def test_round_trip_keeps_phase_5_and_7_artifacts_byte_identical(
 ) -> None:
     url, engine = scratch
     cfg = _alembic_config(url)
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, M5)  # the revision under test (later ones add their own tables)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     actor = lab_actor(factory)
     with factory() as s:

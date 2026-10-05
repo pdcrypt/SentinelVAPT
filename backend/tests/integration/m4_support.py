@@ -241,7 +241,7 @@ def world(engine: Engine) -> Iterator[World]:
             for side in ("a", "b"):
                 with factory() as s:
                     project = get_project_service(s).create(
-                        ProjectCreate(name=f"m4-{side}-{uuid.uuid4()}"), owner_id=None
+                        ProjectCreate(name=f"m4-{side}-{uuid.uuid4()}"), owner=None
                     )
                 projects.append(project.id)
                 envs[side] = ScanEnv(factory, site, project.id, lab)

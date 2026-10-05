@@ -14,6 +14,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import NotFoundError, RetestNotAllowedError
 from app.models import Assessment, Comparison
@@ -25,6 +27,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.schemas.retest import RetestCreate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.scope import authorization_status, scope_expansion
 
@@ -40,6 +43,8 @@ class RetestService:
         comparisons: ComparisonRepository,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.assessments = assessments
         self.targets = targets
@@ -47,6 +52,7 @@ class RetestService:
         self.comparisons = comparisons
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(assessments.session)
 
     def create(self, parent_id: uuid.UUID, data: RetestCreate, *, actor: UserActor) -> Assessment:
         actor = require_user_actor(actor)
@@ -120,6 +126,12 @@ class RetestService:
                 baseline_scan_id=baseline.id,
                 created_by_user_id=actor.user_id,
             )
+        )
+        self.audit.user(
+            AuditAction.RETEST_CREATED,
+            actor,
+            resource=(ResourceType.ASSESSMENT, retest.id),
+            metadata={"parent_assessment_id": str(parent.id), "baseline_scan_id": str(baseline.id)},
         )
         self.uow.commit()
         return retest

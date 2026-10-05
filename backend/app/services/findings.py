@@ -3,11 +3,14 @@ from collections.abc import Sequence
 from typing import Any
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import InvalidStateTransitionError, NotFoundError
 from app.models import AnalysisRun, Evidence, Finding, FindingStatusChange
 from app.models.enums import FindingStatus
 from app.repositories import AnalysisRepository, AssessmentRepository, ScanRepository
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 
 _SUMMARY_COLUMNS = {
@@ -30,12 +33,15 @@ class FindingService:
         assessments: AssessmentRepository,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.analysis = analysis
         self.scans = scans
         self.assessments = assessments
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(analysis.session)
 
     def _require_scan(self, scan_id: uuid.UUID) -> None:
         if self.scans.get(scan_id) is None:
@@ -103,6 +109,7 @@ class FindingService:
                 f"the finding is already {status.value}", field="status"
             )
         now = self.clock()
+        previous = FindingStatus(finding.status).value
         self.analysis.add_status_change(
             FindingStatusChange(
                 finding_id=finding.id,
@@ -120,5 +127,11 @@ class FindingService:
         finding.status_changed_by = actor.label
         finding.status_changed_by_user_id = actor.user_id
         self.analysis.flush()
+        self.audit.user(
+            AuditAction.FINDING_TRIAGED,
+            actor,
+            resource=(ResourceType.FINDING, finding.id),
+            metadata={"from_status": previous, "to_status": status.value},
+        )
         self.uow.commit()
         return finding

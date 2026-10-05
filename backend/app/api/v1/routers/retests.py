@@ -64,7 +64,6 @@ def get_lineage(assessment_id: uuid.UUID, service: RetestServiceDep) -> list[dic
 
 @router.post(
     "/assessments/{assessment_id}/comparisons",
-    dependencies=[Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))],
     response_model=ComparisonRead,
     status_code=status.HTTP_202_ACCEPTED,
     responses={200: {"description": "The comparison already exists for this scan and policy."}},
@@ -74,10 +73,15 @@ def request_comparison(
     data: ComparisonCreate,
     service: ComparisonServiceDep,
     response: Response,
+    access: Annotated[
+        AccessDecision, Depends(authorize(P.RETEST_WRITE, R.ASSESSMENT, "assessment_id"))
+    ],
 ) -> Comparison:
     """Queue the comparison of a retest scan with its baseline (computed by the
     worker, offline, from persisted data). Idempotent per scan and policy."""
-    comparison, created = service.request(assessment_id, data.scan_id)
+    comparison, created = service.request(
+        assessment_id, data.scan_id, actor=UserActor.of(access.principal)
+    )
     if not created:
         response.status_code = status.HTTP_200_OK
     return comparison

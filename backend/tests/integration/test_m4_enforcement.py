@@ -21,9 +21,10 @@ from app.core.authz import (
     GlobalAccess,
     Permission,
     ProjectAccess,
+    global_role_grants,
     project_role_grants,
 )
-from app.models.enums import ProjectRole
+from app.models.enums import GlobalRole, ProjectRole
 from tests.integration.auth_support import PASSWORD, Live, bearer, login
 from tests.integration.conftest import FrozenClock
 from tests.integration.m4_support import (
@@ -264,6 +265,10 @@ def test_public_authenticated_and_global_routes(world: World, key: tuple[str, st
             )
         ):
             assert (resp.status_code, resp.json()) == (403, PASSWORD_CHANGE), key
+        elif isinstance(descriptor, GlobalAccess) and not global_role_grants(
+            GlobalRole.ADMIN if actor == "admin" else GlobalRole.USER, descriptor.permission
+        ):
+            assert (resp.status_code, resp.json()) == (403, FORBIDDEN), (key, actor)
         else:
             assert resp.status_code == 200, (key, actor, resp.text)
 
@@ -492,6 +497,8 @@ def test_no_list_or_detail_leaks_another_projects_resources(world: World) -> Non
         if key[0] != "GET":
             continue
         for actor in ("owner_a", "operator_a", "viewer_a"):
+            if not all(project_role_grants(MEMBERS[actor][1], p) for p in required(key)):
+                continue  # e.g. the project audit is for owners only (M6)
             resp = world.request(
                 actor,
                 "GET",

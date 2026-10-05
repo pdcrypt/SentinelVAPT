@@ -24,7 +24,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.services.assessments import AssessmentService
-from app.services.audit import AuditContext
+from app.services.audit import INTERNAL, AuditContext, AuditService
 from app.services.auth import AuthService, Principal
 from app.services.comparisons import ComparisonService
 from app.services.findings import FindingService
@@ -97,31 +97,41 @@ _bearer = HTTPBearer(auto_error=False, description="Opaque session token from PO
 def get_principal(
     auth: AuthServiceDep,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    context: AuditContextDep,
 ) -> Principal:
     """The authenticated platform user. In M2 only the /auth endpoints use it;
     M3/M4 attach it (with project authorization) to every route."""
     token = credentials.credentials if credentials is not None else None
-    return auth.authenticate(token)
+    return auth.authenticate(token, context)
 
 
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
 
 
-def get_project_service(session: SessionDep) -> ProjectService:
-    return ProjectService(ProjectRepository(session), session)
+def get_project_service(session: SessionDep, context: AuditContextDep = INTERNAL) -> ProjectService:
+    return ProjectService(
+        ProjectRepository(session),
+        session,
+        audit=AuditService(session, context),
+    )
 
 
-def get_target_service(session: SessionDep, clock: ClockDep) -> TargetService:
+def get_target_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> TargetService:
     return TargetService(
         TargetRepository(session),
         TargetAuthorizationRepository(session),
         ProjectRepository(session),
         session,
         clock,
+        audit=AuditService(session, context),
     )
 
 
-def get_assessment_service(session: SessionDep, clock: ClockDep) -> AssessmentService:
+def get_assessment_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> AssessmentService:
     return AssessmentService(
         AssessmentRepository(session),
         TargetRepository(session),
@@ -129,10 +139,13 @@ def get_assessment_service(session: SessionDep, clock: ClockDep) -> AssessmentSe
         session,
         clock,
         scans=ScanRepository(session),
+        audit=AuditService(session, context),
     )
 
 
-def get_scan_service(session: SessionDep, clock: ClockDep) -> ScanService:
+def get_scan_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> ScanService:
     return ScanService(
         ScanRepository(session),
         ScanResultRepository(session),
@@ -140,20 +153,26 @@ def get_scan_service(session: SessionDep, clock: ClockDep) -> ScanService:
         TargetRepository(session),
         session,
         clock,
+        audit=AuditService(session, context),
     )
 
 
-def get_finding_service(session: SessionDep, clock: ClockDep) -> FindingService:
+def get_finding_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> FindingService:
     return FindingService(
         AnalysisRepository(session),
         ScanRepository(session),
         AssessmentRepository(session),
         session,
         clock,
+        audit=AuditService(session, context),
     )
 
 
-def get_report_service(session: SessionDep, clock: ClockDep) -> ReportService:
+def get_report_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> ReportService:
     return ReportService(
         ReportRepository(session),
         ScanRepository(session),
@@ -161,10 +180,13 @@ def get_report_service(session: SessionDep, clock: ClockDep) -> ReportService:
         session,
         session,
         clock,
+        audit=AuditService(session, context),
     )
 
 
-def get_retest_service(session: SessionDep, clock: ClockDep) -> RetestService:
+def get_retest_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> RetestService:
     return RetestService(
         AssessmentRepository(session),
         TargetRepository(session),
@@ -172,21 +194,32 @@ def get_retest_service(session: SessionDep, clock: ClockDep) -> RetestService:
         ComparisonRepository(session),
         session,
         clock,
+        audit=AuditService(session, context),
     )
 
 
-def get_comparison_service(session: SessionDep) -> ComparisonService:
+def get_comparison_service(
+    session: SessionDep, context: AuditContextDep = INTERNAL
+) -> ComparisonService:
     return ComparisonService(
         ComparisonRepository(session),
         AssessmentRepository(session),
         ScanRepository(session),
         session,
+        audit=AuditService(session, context),
     )
 
 
-def get_retest_report_service(session: SessionDep, clock: ClockDep) -> RetestReportService:
+def get_retest_report_service(
+    session: SessionDep, clock: ClockDep, context: AuditContextDep = INTERNAL
+) -> RetestReportService:
     return RetestReportService(
-        RetestReportRepository(session), AssessmentRepository(session), session, session, clock
+        RetestReportRepository(session),
+        AssessmentRepository(session),
+        session,
+        session,
+        clock,
+        audit=AuditService(session, context),
     )
 
 

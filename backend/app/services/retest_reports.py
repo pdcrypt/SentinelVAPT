@@ -15,6 +15,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import (
     DomainValidationError,
@@ -36,6 +38,7 @@ from app.models import (
 from app.models.enums import AssessmentStatus, ComparisonStatus, ReportKind, ReportStatus
 from app.repositories import AssessmentRepository, ReportRepository, RetestReportRepository
 from app.schemas.retest_report import RetestReportCreate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.retest_report_snapshot import (
     LineageEntry,
@@ -71,14 +74,33 @@ class RetestReportService:
         session: Session,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.reports = reports
         self.assessments = assessments
         self.session = session
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(session)
 
     # --- creation -----------------------------------------------------------------------
+
+    def _audit(
+        self,
+        actor: UserActor,
+        report_id: uuid.UUID,
+        comparison_id: uuid.UUID,
+        kind: str,
+        *,
+        created: bool,
+    ) -> None:
+        self.audit.user(
+            AuditAction.RETEST_REPORT_REQUESTED,
+            actor,
+            resource=(ResourceType.RETEST_REPORT, report_id),
+            metadata={"kind": kind, "created": created, "comparison_id": str(comparison_id)},
+        )
 
     def create(
         self,
@@ -179,6 +201,7 @@ class RetestReportService:
         if new_id is None:
             existing = self.reports.identical(comparison.id, data.kind.value, content)
             assert existing is not None  # noqa: S101  # the conflict means it exists
+            self._audit(actor, existing.id, comparison.id, data.kind.value, created=False)
             self.uow.commit()
             return existing, False
         self.reports.add_evidence_links(
@@ -197,6 +220,7 @@ class RetestReportService:
                 for e in snapshot["evidence"]
             ]
         )
+        self._audit(actor, report_id, comparison.id, data.kind.value, created=True)
         self.uow.commit()
         report = self.reports.get(report_id)
         assert report is not None  # noqa: S101  # just inserted

@@ -43,10 +43,17 @@ class UserActor:
 
     user_id: uuid.UUID
     label: str  # display name at the time of the action (descriptive only)
+    # The authenticated session the action came through (M6 audit), from the
+    # Principal; None outside a request (tests, server code).
+    session_id: uuid.UUID | None = None
 
     @classmethod
     def of(cls, principal: "Principal") -> "UserActor":
-        return cls(user_id=principal.user_id, label=principal.display_name)
+        return cls(
+            user_id=principal.user_id,
+            label=principal.display_name,
+            session_id=principal.session_id,
+        )
 
 
 def require_user_actor(actor: object) -> UserActor:

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from app.api.authz import require_access_descriptor
 from app.api.v1.routers import (
     assessments,
+    audit,
     auth,
     findings,
     health,
@@ -28,3 +29,4 @@ api_router.include_router(findings.router)
 api_router.include_router(reports.router)
 api_router.include_router(retests.router)
 api_router.include_router(retest_reports.router)
+api_router.include_router(audit.router)

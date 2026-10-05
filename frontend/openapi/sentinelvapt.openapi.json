@@ -368,6 +368,206 @@
     "title": "AssetRead",
     "type": "object"
    },
+   "AuditAction": {
+    "enum": [
+     "auth.login",
+     "auth.login_failed",
+     "auth.logout",
+     "auth.password_changed",
+     "auth.password_change_failed",
+     "auth.session_rejected",
+     "auth.password_change_required",
+     "user.created",
+     "user.disabled",
+     "platform.auth_enforced",
+     "authz.denied",
+     "project.created",
+     "project.updated",
+     "project.deleted",
+     "project.claim",
+     "target.created",
+     "target.updated",
+     "target.deleted",
+     "target_authorization.created",
+     "assessment.created",
+     "assessment.updated",
+     "assessment.deleted",
+     "assessment.started",
+     "assessment.start_refused",
+     "assessment.completed",
+     "assessment.cancelled",
+     "retest.created",
+     "scan.requested",
+     "scan.request_refused",
+     "scan.cancel_requested",
+     "scan.refused",
+     "scan.started",
+     "scan.completed",
+     "scan.cancelled",
+     "scan.failed",
+     "analysis.completed",
+     "analysis.failed",
+     "finding.triaged",
+     "comparison.requested",
+     "comparison.completed",
+     "comparison.failed",
+     "report.requested",
+     "report.completed",
+     "report.failed",
+     "retest_report.requested",
+     "retest_report.completed",
+     "retest_report.failed"
+    ],
+    "title": "AuditAction",
+    "type": "string"
+   },
+   "AuditActorType": {
+    "enum": [
+     "user",
+     "system",
+     "anonymous"
+    ],
+    "title": "AuditActorType",
+    "type": "string"
+   },
+   "AuditEventRead": {
+    "description": "An audit event as a global audit reader sees it (with the session row\nid of a human action; never a token).",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/AuditAction"
+     },
+     "actor_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The actor's display name or username at the time, or the worker / command; descriptive only (actor_user_id identifies users).",
+      "title": "Actor Label"
+     },
+     "actor_type": {
+      "$ref": "#/components/schemas/AuditActorType"
+     },
+     "actor_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor User Id"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+     },
+     "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+     },
+     "outcome": {
+      "$ref": "#/components/schemas/AuditOutcome"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
+     },
+     "request_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request Id"
+     },
+     "resource_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resource Id"
+     },
+     "resource_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resource Type"
+     },
+     "session_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Session Id"
+     }
+    },
+    "required": [
+     "id",
+     "occurred_at",
+     "request_id",
+     "actor_type",
+     "actor_user_id",
+     "actor_label",
+     "action",
+     "outcome",
+     "project_id",
+     "resource_type",
+     "resource_id",
+     "metadata",
+     "session_id"
+    ],
+    "title": "AuditEventRead",
+    "type": "object"
+   },
+   "AuditOutcome": {
+    "enum": [
+     "success",
+     "denied",
+     "failure"
+    ],
+    "title": "AuditOutcome",
+    "type": "string"
+   },
    "AuthorizationStatus": {
     "description": "Computed from the authorization window; not stored.",
     "enum": [
@@ -1852,6 +2052,122 @@
      "new_password"
     ],
     "title": "PasswordChangeRequest",
+    "type": "object"
+   },
+   "ProjectAuditEventRead": {
+    "description": "An audit event as a project owner sees it.",
+    "properties": {
+     "action": {
+      "$ref": "#/components/schemas/AuditAction"
+     },
+     "actor_label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The actor's display name or username at the time, or the worker / command; descriptive only (actor_user_id identifies users).",
+      "title": "Actor Label"
+     },
+     "actor_type": {
+      "$ref": "#/components/schemas/AuditActorType"
+     },
+     "actor_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor User Id"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+     },
+     "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+     },
+     "outcome": {
+      "$ref": "#/components/schemas/AuditOutcome"
+     },
+     "project_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Id"
+     },
+     "request_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request Id"
+     },
+     "resource_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resource Id"
+     },
+     "resource_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resource Type"
+     }
+    },
+    "required": [
+     "id",
+     "occurred_at",
+     "request_id",
+     "actor_type",
+     "actor_user_id",
+     "actor_label",
+     "action",
+     "outcome",
+     "project_id",
+     "resource_type",
+     "resource_id",
+     "metadata"
+    ],
+    "title": "ProjectAuditEventRead",
     "type": "object"
    },
    "ProjectCreate": {
@@ -4622,6 +4938,222 @@
     ]
    }
   },
+  "/api/v1/audit-events": {
+   "get": {
+    "description": "The whole platform's security history, newest first.",
+    "operationId": "list_audit_events_api_v1_audit_events_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "project_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Project Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "action",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditAction"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Action"
+      }
+     },
+     {
+      "in": "query",
+      "name": "outcome",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditOutcome"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Outcome"
+      }
+     },
+     {
+      "in": "query",
+      "name": "actor_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditActorType"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Actor Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "actor_user_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Actor User Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "resource_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^[a-z_]{1,32}$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Resource Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "resource_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Resource Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "occurred_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Occurred From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "occurred_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Occurred To"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AuditEventRead"
+         },
+         "title": "Response List Audit Events Api V1 Audit Events Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Audit Events",
+    "tags": [
+     "audit"
+    ]
+   }
+  },
   "/api/v1/auth/login": {
    "post": {
     "description": "Start a session. Unknown user, wrong password, disabled account and\nthrottling all return the same 401.",
@@ -5606,6 +6138,215 @@
     "summary": "List Project Assessments",
     "tags": [
      "assessments"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/audit-events": {
+   "get": {
+    "description": "This project's security history, newest first.",
+    "operationId": "list_project_audit_events_api_v1_projects__project_id__audit_events_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "action",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditAction"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Action"
+      }
+     },
+     {
+      "in": "query",
+      "name": "outcome",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditOutcome"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Outcome"
+      }
+     },
+     {
+      "in": "query",
+      "name": "actor_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AuditActorType"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Actor Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "actor_user_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Actor User Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "resource_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "pattern": "^[a-z_]{1,32}$",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Resource Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "resource_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "uuid",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Resource Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "occurred_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Occurred From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "occurred_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Occurred To"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ProjectAuditEventRead"
+         },
+         "title": "Response List Project Audit Events Api V1 Projects  Project Id  Audit Events Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Project Audit Events",
+    "tags": [
+     "audit"
     ]
    }
   },

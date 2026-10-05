@@ -13,6 +13,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import (
     DomainValidationError,
@@ -32,6 +34,7 @@ from app.models import (
 from app.models.enums import AssessmentStatus, ReportKind, ReportStatus, ScanStatus
 from app.repositories import AssessmentRepository, ReportRepository, ScanRepository
 from app.schemas.report import ReportCreate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.report_snapshot import (
     ReportRequest,
@@ -64,6 +67,8 @@ class ReportService:
         session: Session,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.reports = reports
         self.scans = scans
@@ -71,6 +76,7 @@ class ReportService:
         self.session = session
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(session)
 
     # --- creation -----------------------------------------------------------------------
 
@@ -160,6 +166,12 @@ class ReportService:
             scan.id,
             [(f.id, str(f.status)) for f in sources.findings],
             [uuid.UUID(e["id"]) for e in snapshot["evidence"]],
+        )
+        self.audit.user(
+            AuditAction.REPORT_REQUESTED,
+            actor,
+            resource=(ResourceType.REPORT, report.id),
+            metadata={"kind": data.kind.value, "scan_id": str(scan.id)},
         )
         self.uow.commit()
         return report

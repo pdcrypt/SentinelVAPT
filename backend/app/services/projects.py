@@ -1,10 +1,14 @@
 import uuid
 from collections.abc import Sequence
 
+from app.core.actors import UserActor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.errors import ConflictError, NotFoundError
 from app.models import Project
 from app.repositories import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 
 
@@ -12,21 +16,28 @@ class ProjectService:
     """Projects. Access is decided before these methods run (app/api/authz.py);
     `member_id` is always the authenticated user, never request data."""
 
-    def __init__(self, projects: ProjectRepository, uow: UnitOfWork) -> None:
+    def __init__(
+        self, projects: ProjectRepository, uow: UnitOfWork, *, audit: AuditService | None = None
+    ) -> None:
         self.projects = projects
         self.uow = uow
+        self.audit = audit or AuditService(projects.session)
 
-    def create(self, data: ProjectCreate, *, owner_id: uuid.UUID | None) -> Project:
+    def create(self, data: ProjectCreate, *, owner: UserActor | None) -> Project:
         """Creates the project and, in the same transaction, makes `owner_id`
         its first owner. `owner_id=None` (server-side commands and tests
         only) leaves it without members: it is then visible to nobody until
         it is explicitly claimed (python -m app.cli claim-project)."""
+        owner_id = owner.user_id if owner is not None else None
         self.projects.lock_names(owner_id)
         self._ensure_name_available(data.name, member_id=owner_id)
         project = self.projects.add(Project(name=data.name, description=data.description))
-        if owner_id is not None:
-            self.projects.add_owner(project.id, owner_id)
+        if owner is not None:
+            self.projects.add_owner(project.id, owner.user_id)
             self.projects.flush()
+            self.audit.user(
+                AuditAction.PROJECT_CREATED, owner, resource=(ResourceType.PROJECT, project.id)
+            )
         self.uow.commit()
         return project
 
@@ -41,9 +52,8 @@ class ProjectService:
     ) -> Sequence[Project]:
         return self.projects.list_for_member(member_id, limit=limit, offset=offset)
 
-    def update(
-        self, project_id: uuid.UUID, data: ProjectUpdate, *, member_id: uuid.UUID
-    ) -> Project:
+    def update(self, project_id: uuid.UUID, data: ProjectUpdate, *, actor: UserActor) -> Project:
+        member_id = actor.user_id
         project = self.get(project_id)
         changes = data.model_dump(exclude_unset=True)
         if "name" in changes and changes["name"] != project.name:
@@ -52,13 +62,22 @@ class ProjectService:
         for field, value in changes.items():
             setattr(project, field, value)
         self.projects.flush()
+        self.audit.user(
+            AuditAction.PROJECT_UPDATED,
+            actor,
+            resource=(ResourceType.PROJECT, project.id),
+            metadata={"renamed": "name" in changes},
+        )
         self.uow.commit()
         return project
 
-    def delete(self, project_id: uuid.UUID) -> None:
+    def delete(self, project_id: uuid.UUID, *, actor: UserActor) -> None:
         project = self.get(project_id)
         if self.projects.has_targets(project.id):
             raise ConflictError("project still has targets; delete them first")
+        self.audit.user(
+            AuditAction.PROJECT_DELETED, actor, resource=(ResourceType.PROJECT, project.id)
+        )
         self.projects.delete(project)
         self.uow.commit()
 

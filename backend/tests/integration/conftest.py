@@ -44,7 +44,7 @@ from app.api.deps import get_clock, get_principal
 from app.core.config import Settings, get_settings
 from app.db.session import get_session, make_engine
 from app.main import create_app
-from app.models import User
+from app.models import User, UserSession
 from app.models.enums import GlobalRole
 from app.services.auth import Principal
 
@@ -163,16 +163,17 @@ def clock() -> FrozenClock:
     return FrozenClock(NOW)
 
 
-def principal_for(user: User) -> Principal:
-    """A principal for `user` without a session row (tests overriding
-    get_principal only; the authentication suites log in for real)."""
+def principal_for(user: User, session_id: uuid.UUID) -> Principal:
+    """A principal for `user` and one of their session rows (tests overriding
+    get_principal only; the authentication suites log in for real). The
+    session must exist: audit events name it (M6)."""
     return Principal(
         user_id=user.id,
         username=user.username,
         display_name=user.display_name,
         global_role=GlobalRole(user.global_role),
         must_change_password=False,
-        session_id=uuid.uuid4(),
+        session_id=session_id,
         session_created_at=NOW,
         idle_expires_at=NOW + timedelta(minutes=30),
         expires_at=NOW + timedelta(hours=12),
@@ -189,12 +190,38 @@ def api_user(db_connection: Connection) -> User:
     return user
 
 
+def session_row(session: Session, user_id: uuid.UUID) -> uuid.UUID:
+    """A session row for a test principal (never presented as a token)."""
+    now = datetime.now(UTC)
+    row = UserSession(
+        user_id=user_id,
+        token_sha256=uuid.uuid4().hex * 2,
+        idle_expires_at=now + timedelta(minutes=30),
+        expires_at=now + timedelta(hours=12),
+    )
+    session.add(row)
+    session.flush()
+    return row.id
+
+
+@pytest.fixture
+def api_session_id(db_connection: Connection, api_user: User) -> uuid.UUID:
+    with open_session(db_connection) as session:
+        session_id = session_row(session, api_user.id)
+        session.commit()
+    return session_id
+
+
 @pytest.fixture
 def api(
-    settings: Settings, db_connection: Connection, clock: FrozenClock, api_user: User
+    settings: Settings,
+    db_connection: Connection,
+    clock: FrozenClock,
+    api_user: User,
+    api_session_id: uuid.UUID,
 ) -> Iterator[TestClient]:
     app = create_app(settings)
-    app.dependency_overrides[get_principal] = lambda: principal_for(api_user)
+    app.dependency_overrides[get_principal] = lambda: principal_for(api_user, api_session_id)
 
     def request_session() -> Iterator[Session]:
         # A fresh session per request; closing it without commit rolls back.

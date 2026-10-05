@@ -2,6 +2,8 @@ import uuid
 from collections.abc import Sequence
 
 from app.core.actors import UserActor, require_user_actor
+from app.core.audit import AuditAction
+from app.core.authz import ResourceType
 from app.core.clock import Clock
 from app.core.errors import InvalidStateTransitionError, NotFoundError, ScanNotAllowedError
 from app.models import Asset, Endpoint, EndpointCookie, Evidence, Scan, ScanLog
@@ -13,6 +15,7 @@ from app.repositories import (
     TargetRepository,
 )
 from app.schemas.scan import ScanCreate
+from app.services.audit import AuditService
 from app.services.base import UnitOfWork
 from app.services.scan_grants import build_scan_grant, scan_config_record
 
@@ -31,6 +34,8 @@ class ScanService:
         targets: TargetRepository,
         uow: UnitOfWork,
         clock: Clock,
+        *,
+        audit: AuditService | None = None,
     ) -> None:
         self.scans = scans
         self.results = results
@@ -38,6 +43,7 @@ class ScanService:
         self.targets = targets
         self.uow = uow
         self.clock = clock
+        self.audit = audit or AuditService(scans.session)
 
     def create(self, assessment_id: uuid.UUID, data: ScanCreate, *, actor: UserActor) -> Scan:
         actor = require_user_actor(actor)
@@ -52,11 +58,21 @@ class ScanService:
 
         # Same rules the worker applies at claim time; refusing here gives the
         # caller an immediate answer. The grant itself is built again at claim.
-        build_scan_grant(assessment, target, target.current_authorization, self.clock())
-        if self.scans.has_active(assessment.id):
-            raise ScanNotAllowedError(
-                "active_scan_exists", "this assessment already has a queued or running scan"
+        try:
+            build_scan_grant(assessment, target, target.current_authorization, self.clock())
+            if self.scans.has_active(assessment.id):
+                raise ScanNotAllowedError(
+                    "active_scan_exists", "this assessment already has a queued or running scan"
+                )
+        except ScanNotAllowedError as exc:
+            # A refused attempt to start testing is security history.
+            self.audit.denial(
+                AuditAction.SCAN_REQUEST_REFUSED,
+                actor,
+                resource=(ResourceType.ASSESSMENT, assessment_id),
+                metadata={"reason": exc.reason[:64]},
             )
+            raise
 
         scan = Scan(
             assessment_id=assessment.id,
@@ -69,6 +85,7 @@ class ScanService:
             requested_by_user_id=actor.user_id,
         )
         self.scans.add(scan)
+        self.audit.user(AuditAction.SCAN_REQUESTED, actor, resource=(ResourceType.SCAN, scan.id))
         self.uow.commit()
         return scan
 
@@ -85,7 +102,7 @@ class ScanService:
             raise NotFoundError("assessment not found")
         return self.scans.list_for_assessment(assessment_id, limit=limit, offset=offset)
 
-    def cancel(self, scan_id: uuid.UUID) -> Scan:
+    def cancel(self, scan_id: uuid.UUID, *, actor: UserActor) -> Scan:
         """Queued: cancelled at once. Running: cancellation is requested and the
         worker stops the scanner at its next check. Terminal: refused."""
         scan = self.scans.get_for_update(scan_id)  # scan lock only
@@ -106,6 +123,12 @@ class ScanService:
                 f"a {scan.status} scan cannot be cancelled", field="status"
             )
         self.scans.flush()
+        self.audit.user(
+            AuditAction.SCAN_CANCEL_REQUESTED,
+            actor,
+            resource=(ResourceType.SCAN, scan.id),
+            metadata={"status": str(scan.status)},
+        )
         self.uow.commit()
         return scan
 

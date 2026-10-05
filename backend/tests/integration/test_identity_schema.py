@@ -88,7 +88,8 @@ def insert_audit(session: Session, **overrides: Any) -> uuid.UUID:
         "id": uuid.uuid4(),
         "actor_type": "system",
         "actor_user_id": None,
-        "action": "scan.launched",
+        "actor_label": "test-system",  # system events name their actor (M6)
+        "action": "scan.requested",  # one of the closed vocabulary (M6)
         "outcome": "success",
         "project_id": None,
         "resource_type": None,
@@ -99,9 +100,10 @@ def insert_audit(session: Session, **overrides: Any) -> uuid.UUID:
     values.update(overrides)
     session.execute(
         text(
-            "INSERT INTO audit_events (id, actor_type, actor_user_id, action, outcome, project_id, "
-            "resource_type, resource_id, metadata, occurred_at) VALUES (:id, :actor_type, "
-            ":actor_user_id, :action, :outcome, :project_id, :resource_type, :resource_id, "
+            "INSERT INTO audit_events (id, actor_type, actor_user_id, actor_label, action, "
+            "outcome, project_id, resource_type, resource_id, metadata, occurred_at) VALUES "
+            "(:id, :actor_type, :actor_user_id, :actor_label, :action, :outcome, :project_id, "
+            ":resource_type, :resource_id, "
             "CAST(:metadata AS jsonb), COALESCE(CAST(:occurred_at AS timestamptz), now()))"
         ),
         values,

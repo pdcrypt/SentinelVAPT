@@ -127,12 +127,12 @@ def run_scan(env: ScanEnv, assessment_id: uuid.UUID) -> uuid.UUID:
 
 def start(env: ScanEnv, assessment_id: uuid.UUID) -> None:
     with env.factory() as s:
-        get_assessment_service(s, utc_now).start(assessment_id)
+        get_assessment_service(s, utc_now).start(assessment_id, actor=env.actor)
 
 
 def complete(env: ScanEnv, assessment_id: uuid.UUID) -> None:
     with env.factory() as s:
-        get_assessment_service(s, utc_now).complete(assessment_id)
+        get_assessment_service(s, utc_now).complete(assessment_id, actor=env.actor)
 
 
 def create_retest(env: ScanEnv, parent_id: uuid.UUID, **kw: Any) -> uuid.UUID:
@@ -143,7 +143,9 @@ def create_retest(env: ScanEnv, parent_id: uuid.UUID, **kw: Any) -> uuid.UUID:
 
 def request_comparison(env: ScanEnv, assessment_id: uuid.UUID, scan_id: uuid.UUID) -> Any:
     with env.factory() as s:
-        comparison, created = get_comparison_service(s).request(assessment_id, scan_id)
+        comparison, created = get_comparison_service(s).request(
+            assessment_id, scan_id, actor=env.actor
+        )
         s.expunge(comparison)
         return comparison, created
 
@@ -456,7 +458,7 @@ def test_one_live_retest_per_assessment(scan_env: ScanEnv, baseline: dict[str, u
         create_retest(scan_env, baseline["a"])
     assert info.value.reason == "retest_exists"
     with scan_env.factory() as s:
-        get_assessment_service(s, utc_now).cancel(first)
+        get_assessment_service(s, utc_now).cancel(first, actor=scan_env.actor)
     assert create_retest(scan_env, baseline["a"]) != first  # a cancelled retest frees the slot
 
 

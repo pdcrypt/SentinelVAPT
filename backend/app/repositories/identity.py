@@ -2,6 +2,7 @@
 audit-backed login-attempt counters (ADR 0014, Phase 9 M2)."""
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -108,6 +109,32 @@ class AuditRepository:
         self.session.add(event)
         self.session.flush()
 
+    def list_events(
+        self, filters: "AuditFilters", *, project_id: uuid.UUID | None, limit: int, offset: int
+    ) -> Sequence[AuditEvent]:
+        """Newest first (time, then id: a total order). `project_id` scopes the
+        query to one project when given; filters are closed and typed."""
+        stmt = select(AuditEvent)
+        if project_id is not None:
+            stmt = stmt.where(AuditEvent.project_id == project_id)
+        for column, value in (
+            (AuditEvent.action, filters.action),
+            (AuditEvent.outcome, filters.outcome),
+            (AuditEvent.actor_type, filters.actor_type),
+            (AuditEvent.actor_user_id, filters.actor_user_id),
+            (AuditEvent.resource_type, filters.resource_type),
+            (AuditEvent.resource_id, filters.resource_id),
+        ):
+            if value is not None:
+                stmt = stmt.where(column == value)
+        if filters.occurred_from is not None:
+            stmt = stmt.where(AuditEvent.occurred_at >= filters.occurred_from)
+        if filters.occurred_to is not None:
+            stmt = stmt.where(AuditEvent.occurred_at < filters.occurred_to)
+        stmt = stmt.order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
+        events: Sequence[AuditEvent] = self.session.scalars(stmt.limit(limit).offset(offset)).all()
+        return events
+
     def account_failures(self, user_id: uuid.UUID, window_seconds: float) -> FailureWindow:
         """Failures for the account since its last successful login or
         password change, within the window (database time)."""
@@ -147,3 +174,15 @@ class AuditRepository:
             {"source": source, "window": window_seconds},
         )
         return int(count or 0)
+
+
+@dataclass(frozen=True)
+class AuditFilters:
+    action: str | None = None
+    outcome: str | None = None
+    actor_type: str | None = None
+    actor_user_id: uuid.UUID | None = None
+    resource_type: str | None = None
+    resource_id: uuid.UUID | None = None
+    occurred_from: datetime | None = None
+    occurred_to: datetime | None = None

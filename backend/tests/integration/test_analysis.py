@@ -30,7 +30,7 @@ from sentinel_scanner import CancellationToken, DiscoveryConfig, DiscoveryResult
 from sentinel_scanner import run_discovery as real_run_discovery
 from sentinel_scanner.grant import ScanGrant
 from sentinel_scanner.models import ScanEvent
-from tests.integration.conftest import principal_for
+from tests.integration.conftest import principal_for, session_row
 from tests.integration.lab_site import LabSite
 from tests.integration.scan_support import RESOLVER, ScanEnv
 from tests.integration.tls_support import self_signed_server_context
@@ -111,10 +111,11 @@ def committed_api(settings: Settings, scan_env: ScanEnv) -> Iterator[TestClient]
         s.add(
             ProjectMember(project_id=scan_env.project_id, user_id=user.id, role=ProjectRole.OWNER)
         )
+        session_id = session_row(s, user.id)
         s.commit()
         s.expunge(user)
     app = create_app(settings)
-    app.dependency_overrides[get_principal] = lambda: principal_for(user)
+    app.dependency_overrides[get_principal] = lambda: principal_for(user, session_id)
 
     def session() -> Iterator[Session]:
         with scan_env.factory() as s:
@@ -129,8 +130,13 @@ def committed_api(settings: Settings, scan_env: ScanEnv) -> Iterator[TestClient]
             # Test cleanup only: users cannot be deleted normally and the
             # project would otherwise be left without an owner.
             s.execute(text("SET LOCAL session_replication_role = replica"))
-            s.execute(text("DELETE FROM project_members WHERE user_id = :u"), {"u": user.id})
-            s.execute(text("DELETE FROM users WHERE id = :u"), {"u": user.id})
+            for table, column in (
+                ("project_members", "user_id"),
+                ("audit_events", "actor_user_id"),
+                ("sessions", "user_id"),
+                ("users", "id"),
+            ):
+                s.execute(text(f"DELETE FROM {table} WHERE {column} = :u"), {"u": user.id})  # noqa: S608
             s.commit()
 
 
