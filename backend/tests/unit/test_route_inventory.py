@@ -52,6 +52,25 @@ EXPECTED: dict[tuple[str, str], AccessDescriptor] = {
     ("GET", "/api/v1/report-templates"): GlobalAccess(P.CATALOG_READ),
     ("GET", "/api/v1/retest-report-templates"): GlobalAccess(P.CATALOG_READ),
     ("GET", "/api/v1/audit-events"): GlobalAccess(P.AUDIT_READ_GLOBAL),  # M6: global admins
+    # M7 account administration: global admins; users are global resources
+    ("POST", "/api/v1/users"): GlobalAccess(P.USER_ADMIN),
+    ("GET", "/api/v1/users"): GlobalAccess(P.USER_ADMIN),
+    ("GET", "/api/v1/users/{user_id}"): GlobalAccess(P.USER_ADMIN),
+    ("POST", "/api/v1/users/{user_id}/disable"): GlobalAccess(P.USER_ADMIN),
+    ("POST", "/api/v1/users/{user_id}/password-reset"): GlobalAccess(P.USER_ADMIN),
+    # M7 membership: project owners
+    ("GET", "/api/v1/projects/{project_id}/members"): project(
+        P.MEMBERSHIP_MANAGE, R.PROJECT, "project_id"
+    ),
+    ("POST", "/api/v1/projects/{project_id}/members"): project(
+        P.MEMBERSHIP_MANAGE, R.PROJECT, "project_id"
+    ),
+    ("PATCH", "/api/v1/projects/{project_id}/members/{user_id}"): ProjectAccess(
+        P.MEMBERSHIP_MANAGE, R.PROJECT_MEMBER, {"project_id": "project_id", "user_id": "user_id"}
+    ),
+    ("DELETE", "/api/v1/projects/{project_id}/members/{user_id}"): ProjectAccess(
+        P.MEMBERSHIP_MANAGE, R.PROJECT_MEMBER, {"project_id": "project_id", "user_id": "user_id"}
+    ),
     # projects
     ("GET", "/api/v1/projects/{project_id}"): project(READ, R.PROJECT, "project_id"),
     ("PATCH", "/api/v1/projects/{project_id}"): project(P.PROJECT_UPDATE, R.PROJECT, "project_id"),
@@ -198,7 +217,7 @@ def test_every_route_is_classified_exactly_once(production_app: FastAPI) -> None
     assert seen == set(EXPECTED), (
         f"unclassified: {sorted(seen - set(EXPECTED))}; gone: {sorted(set(EXPECTED) - seen)}"
     )
-    assert len(seen) == 68
+    assert len(seen) == 77
     for method, path, context in routes(production_app):
         descriptors = route_descriptors(context)
         assert descriptors == [EXPECTED[(method, path)]], (method, path, descriptors)
@@ -227,6 +246,9 @@ def test_every_path_resource_parameter_is_covered(production_app: FastAPI) -> No
             covered = set(descriptor.key.values())
             assert covered <= params, (method, path)
             assert params - covered <= NON_RESOURCE_PARAMS, (method, path, params - covered)
+        elif path.startswith("/api/v1/users/"):
+            # Accounts are global resources of a global permission (M7).
+            assert descriptor == GlobalAccess(P.USER_ADMIN) and params == {"user_id"}, path
         else:
             assert not params, (method, path)
 
@@ -236,7 +258,9 @@ def test_project_routes_never_use_global_admin_permissions() -> None:
         if isinstance(descriptor, GlobalAccess):
             allowed = {P.PROJECT_CREATE, P.CATALOG_READ}
             if key == ("GET", "/api/v1/audit-events"):
-                allowed = {P.AUDIT_READ_GLOBAL}  # the one global admin route
+                allowed = {P.AUDIT_READ_GLOBAL}  # the global audit
+            if key[1].startswith("/api/v1/users"):
+                allowed = {P.USER_ADMIN}  # account administration (M7)
             assert descriptor.permission in allowed, key
         if key[1].startswith(("/api/v1/projects/", "/api/v1/targets/")):
             assert isinstance(descriptor, ProjectAccess), key

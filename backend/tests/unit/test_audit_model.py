@@ -21,28 +21,31 @@ from app.core.audit import (
 from app.models.enums import AuditActorType, AuditOutcome
 from app.services.audit import INTERNAL, AuditRecorder, AuditService
 
-MIGRATION = (
-    Path(app.__file__).parent.parent
-    / "alembic"
-    / "versions"
-    / "20261006_c4f7a2e9d1b6_audit_integrity.py"
-)
+VERSIONS = Path(app.__file__).parent.parent / "alembic" / "versions"
+MIGRATIONS = [
+    VERSIONS / "20261006_c4f7a2e9d1b6_audit_integrity.py",
+    VERSIONS / "20261007_d2b8e6f3a5c7_user_and_membership_administration.py",
+]
 # The database's own list of keys it refuses (M1 check_audit_event_insert).
 SECRET_LIKE = re.compile(
     r"(password|passwd|secret|token|cookie|authorization|credential|private_key|api_key|body|header)"
 )
 
 
-def _migration() -> Any:
-    spec = importlib.util.spec_from_file_location("m6_migration", MIGRATION)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def _actions() -> dict[str, str]:
+    """The vocabulary the migrations write, in order."""
+    out: dict[str, str] = {}
+    for path in MIGRATIONS:
+        spec = importlib.util.spec_from_file_location(path.stem, path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        out.update(dict(module.ACTIONS))
+    return out
 
 
 def test_vocabulary_matches_the_database() -> None:
-    assert dict(_migration().ACTIONS) == {a.value: DESCRIPTIONS[a] for a in AuditAction}
+    assert _actions() == {a.value: DESCRIPTIONS[a] for a in AuditAction}
     for action in AuditAction:
         assert re.fullmatch(r"[a-z_]{1,32}\.[a-z_]{1,32}", action.value), action
 

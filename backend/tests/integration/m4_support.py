@@ -258,6 +258,14 @@ def world(engine: Engine) -> Iterator[World]:
                 MEMBERS.items(), key=lambda kv: kv[1][1] != ProjectRole.OWNER
             ):
                 w.add_member(side, w.users[name].id, project_role)
+            # M7 membership routes: a member to address (the viewer) and a
+            # spare viewer the matrix may remove (and puts back).
+            for side in ("a", "b"):
+                spare = live.user(f"m4spare{side}{uuid.uuid4().hex[:6]}")
+                w.add_member(side, spare.id, ProjectRole.VIEWER)
+                w.ids[side]["spare_user"] = str(spare.id)
+                w.ids[side]["member_user"] = str(w.users[f"viewer_{side}"].id)
+                w.ids[side]["member_username"] = w.users[f"viewer_{side}"].username
             for name, user in w.users.items():
                 resp = login(client, user.username)
                 assert resp.status_code == 200, resp.text

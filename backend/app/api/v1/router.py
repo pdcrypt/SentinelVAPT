@@ -7,12 +7,14 @@ from app.api.v1.routers import (
     auth,
     findings,
     health,
+    members,
     projects,
     reports,
     retest_reports,
     retests,
     scans,
     targets,
+    users,
 )
 
 # Default deny (ADR 0014): every route must declare exactly one access
@@ -30,3 +32,5 @@ api_router.include_router(reports.router)
 api_router.include_router(retests.router)
 api_router.include_router(retest_reports.router)
 api_router.include_router(audit.router)
+api_router.include_router(users.router)
+api_router.include_router(members.router)

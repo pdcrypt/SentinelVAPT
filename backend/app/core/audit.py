@@ -1,7 +1,8 @@
 """The audit vocabulary (ADR 0014, Phase 9 M6): every action the platform
 records, what it means, and the only metadata keys it may carry.
 
-The same list is the `audit_actions` table (migration c4f7a2e9d1b6), and
+The same list is the `audit_actions` table (migrations c4f7a2e9d1b6 and
+d2b8e6f3a5c7 for M7), and
 audit_events.action is a foreign key to it: an action outside this list
 cannot be stored, whatever code tries. tests/unit/test_audit_model.py keeps
 the two in step.
@@ -30,6 +31,8 @@ class AuditAction(StrEnum):
     # Accounts and the platform (server-side commands)
     USER_CREATED = "user.created"
     USER_DISABLED = "user.disabled"
+    USER_PASSWORD_RESET = "user.password_reset"  # noqa: S105  # an action name
+    USER_CHANGE_REFUSED = "user.change_refused"
     PLATFORM_AUTH_ENFORCED = "platform.auth_enforced"
     # Authorization decisions (denials only)
     AUTHZ_DENIED = "authz.denied"
@@ -38,6 +41,11 @@ class AuditAction(StrEnum):
     PROJECT_UPDATED = "project.updated"
     PROJECT_DELETED = "project.deleted"
     PROJECT_CLAIMED = "project.claim"  # M4 name, kept
+    # Project membership (M7)
+    MEMBERSHIP_ADDED = "membership.added"
+    MEMBERSHIP_ROLE_CHANGED = "membership.role_changed"
+    MEMBERSHIP_REMOVED = "membership.removed"
+    MEMBERSHIP_CHANGE_REFUSED = "membership.change_refused"
     # Targets and their authorization records
     TARGET_CREATED = "target.created"
     TARGET_UPDATED = "target.updated"
@@ -88,12 +96,19 @@ DESCRIPTIONS: Mapping[AuditAction, str] = {
     A.AUTH_PASSWORD_CHANGE_REQUIRED: "A request was refused until the user changes their password.",
     A.USER_CREATED: "An account was created by a server-side command.",
     A.USER_DISABLED: "An account was disabled and its sessions revoked.",
+    A.USER_PASSWORD_RESET: "An administrator reset an account's password (sessions revoked, "
+    "change required).",
+    A.USER_CHANGE_REFUSED: "An account administration request was refused.",
     A.PLATFORM_AUTH_ENFORCED: "The authentication cutover was recorded.",
     A.AUTHZ_DENIED: "A user was refused a permission (project or global).",
     A.PROJECT_CREATED: "A project was created; its creator became its owner.",
     A.PROJECT_UPDATED: "A project was renamed or described.",
     A.PROJECT_DELETED: "A project was deleted.",
     A.PROJECT_CLAIMED: "A legacy project was given its first owner by a server-side command.",
+    A.MEMBERSHIP_ADDED: "A user was added to a project.",
+    A.MEMBERSHIP_ROLE_CHANGED: "A project member's role changed.",
+    A.MEMBERSHIP_REMOVED: "A user was removed from a project.",
+    A.MEMBERSHIP_CHANGE_REFUSED: "A membership change was refused (e.g. the last owner).",
     A.TARGET_CREATED: "A target was created.",
     A.TARGET_UPDATED: "A target was renamed or re-scoped.",
     A.TARGET_DELETED: "A target was deleted.",
@@ -137,6 +152,12 @@ METADATA_KEYS: Mapping[AuditAction, frozenset[str]] = {
     A.AUTH_SESSION_REJECTED: frozenset({"reason", "user_id"}),
     A.USER_CREATED: frozenset({"global_role", "bootstrap"}),
     A.USER_DISABLED: frozenset({"sessions_revoked"}),
+    A.USER_PASSWORD_RESET: frozenset({"sessions_revoked"}),
+    A.USER_CHANGE_REFUSED: frozenset({"operation", "reason", "user_id"}),
+    A.MEMBERSHIP_ADDED: frozenset({"user_id", "role"}),
+    A.MEMBERSHIP_ROLE_CHANGED: frozenset({"user_id", "from_role", "to_role"}),
+    A.MEMBERSHIP_REMOVED: frozenset({"user_id", "role"}),
+    A.MEMBERSHIP_CHANGE_REFUSED: frozenset({"operation", "reason", "user_id"}),
     A.PROJECT_CLAIMED: frozenset({"owner_user_id"}),
     A.AUTHZ_DENIED: frozenset({"permission", "reason", "role"}),
     A.PROJECT_UPDATED: frozenset({"renamed"}),

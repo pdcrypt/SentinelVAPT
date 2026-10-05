@@ -468,6 +468,7 @@ def resource_keys(env: ScanEnv, c: Mapping[str, Any]) -> dict[ResourceType, dict
         R.REPORT: {"id": report},
         R.COMPARISON: {"id": c["cmp_b"]},
         R.ASSESSMENT_COMPARISON: {"assessment_id": c["b"], "comparison_id": c["cmp_b"]},
+        R.PROJECT_MEMBER: {"project_id": env.project_id, "user_id": c["member"]},
         R.RETEST_REPORT: {"id": rr},
     }
     for resource, table in (

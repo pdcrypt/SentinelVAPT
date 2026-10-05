@@ -118,6 +118,8 @@ class ResourceType(StrEnum):
     rows (app/repositories/authz.py), never through a client-supplied id."""
 
     PROJECT = "project"
+    # A membership row, named by (project_id, user_id) (M7).
+    PROJECT_MEMBER = "project_member"
     TARGET = "target"
     TARGET_AUTHORIZATION = "target_authorization"
     ASSESSMENT = "assessment"

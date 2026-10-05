@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity) and M6 (audit logging) are implemented; M7–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging) and M7 (user and membership administration) are implemented; M8–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -106,9 +106,9 @@ There are no other values and no hidden superuser.
 
 The global `admin` role grants **no** implicit project, target, scan,
 finding, evidence or report access. An admin who needs project access must
-explicitly add themselves as a member through one centralized, audited
-operation (`membership.self_grant`, M7). There is no code path where "is
-admin" substitutes for membership. A test enumerates every project-scoped
+be added as a member by one of the project's owners, like anyone else
+(M7 decided against a separate administrator self-grant). There is no code
+path where "is admin" substitutes for membership. A test enumerates every project-scoped
 route as an admin who is not a member and expects 404.
 
 ### Project roles and ownership
@@ -909,6 +909,115 @@ Existing events are never rewritten, and no actor or session is invented for
 them. The migration only adds the vocabulary, constraints and a trigger. An
 upgrade, downgrade and upgrade leaves every row identical.
 
+### User and membership administration (implemented in M7)
+
+M7 adds the administration APIs on top of M1–M6. It introduces no new
+authorization, actor or audit mechanism.
+
+#### Account administration (global admins: `user.admin`)
+
+| Route | Behavior |
+|---|---|
+| `POST /users` | Create an account (username, display name, temporary password, global role `user` or `admin`). The password is checked by the M2 policy and hashed with Argon2id; the account must change it at first sign-in. |
+| `GET /users` | List accounts by username, filtered by `active` and `global_role`, at most 100 per page. |
+| `GET /users/{user_id}` | One account. A malformed or unknown id is `404 user not found`. |
+| `POST /users/{user_id}/disable` | Disable the account and revoke all its sessions (`user_disabled`) in one transaction. Accounts are never deleted. |
+| `POST /users/{user_id}/password-reset` | Replace the credential with a temporary password, revoke all sessions (`revoked_by_admin`) and require a change at the next sign-in. |
+
+Responses carry identity only: id, username, display name, global role,
+active and disabled time, password-change flag, last sign-in and creation
+time. They never include a password, hash or token, and 422 responses never
+echo a password.
+
+**Refusals (409, recorded):**
+
+- an already disabled account;
+- disabling or resetting oneself (administrators change their own password
+  through `/auth/password`);
+- resetting a disabled account;
+- a username already taken (case-insensitive);
+- disabling the last active administrator.
+
+**The last active administrator.** The platform keeps at least one active
+administrator. The service checks under the advisory lock `platform:admins`.
+A deferred constraint trigger (`users_keep_admin`, migration `d2b8e6f3a5c7`)
+refuses any transaction that disables or demotes the last one, whoever writes
+it, including concurrent disables of two administrators.
+
+**Not in M7:**
+
+- enabling a disabled account;
+- changing an account's global role;
+- an administrator self-grant to projects.
+
+#### Membership administration (project owners: `membership.manage`)
+
+| Route | Behavior |
+|---|---|
+| `GET /projects/{id}/members` | The project's members (user, display name, role, active, added by, added at). |
+| `POST /projects/{id}/members` | Add an active user by username, with role `owner`, `operator` or `viewer`. |
+| `PATCH /projects/{id}/members/{user_id}` | Change a member's role. Setting the same role changes and records nothing. |
+| `DELETE /projects/{id}/members/{user_id}` | Remove a member. |
+
+- **Resolution.** Member routes resolve the new resource type
+  `project_member` from its own row `(project_id, user_id)`. A user of
+  another project, or a malformed id, is therefore an ordinary 404.
+- **Request bodies.** A body can never name the project, the actor or who
+  added the member; such fields are refused as unknown.
+- **Access.** Operators and viewers get 403. Non-members, and global admins
+  who are not members, get 404.
+- **Admin access.** There is no administrator shortcut. A global admin joins
+  a project only when one of its owners adds them, which this ADR earlier
+  planned as `membership.self_grant` and M7 decided against.
+
+**Ownership invariants.**
+
+- A project with members always keeps an owner. Every change takes the
+  per-project advisory lock of M1's deferred last-owner trigger (and of the
+  M4 claim command) and then locks the membership row, so a demotion or
+  removal of the last owner is refused with a recorded 409, even when
+  requests race.
+- The trigger remains the backstop for any writer.
+- An owner may demote or remove themselves while another owner remains.
+  Operators and viewers cannot leave a project by themselves; an owner
+  removes them.
+- **Refusals (recorded):**
+  - an unknown username (404);
+  - a disabled user (409);
+  - an existing member (409);
+  - the last owner (409).
+
+#### Disabled users
+
+A disabled account cannot sign in, and its sessions are revoked. Its
+memberships remain and are shown as inactive. It remains the actor of its
+history and cannot become the actor of anything new, as enforced by the M6
+audit rules.
+
+#### Audit
+
+Actions added to the closed vocabulary:
+
+- `user.password_reset`;
+- `user.change_refused` (operation, reason);
+- `membership.added` (user, role);
+- `membership.role_changed` (user, from, to);
+- `membership.removed` (user, role);
+- `membership.change_refused` (operation, reason, user).
+
+Account creation and disabling reuse `user.created` (`bootstrap: false`) and
+`user.disabled`, now with the administrator as the user actor and their
+session. Membership events are filed under the project, so its owners see
+them in the project audit log.
+
+As in M6:
+
+- a change and its event commit together, and a failed event rolls the change
+  back;
+- refusals are committed before the error is raised;
+- the migration's vocabulary insert is idempotent, and a downgrade keeps
+  every action that an event already uses.
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -934,7 +1043,7 @@ Phase 9 does not change:
 | M4 | Enforcement on all 66 routes, route inventory meta-tests, 404/403, membership-filtered lists, IDOR and role-matrix suites, legacy claim and cutover commands, per-member project names (implemented) |
 | M5 | Server-owned actor identity: `*_user_id` columns with write-once triggers, actor fields refused, workers as system actors (implemented) |
 | M6 | Audit emission for state changes, denials and worker transitions; closed vocabulary; database-enforced integrity; owner/admin read endpoints (implemented) |
-| M7 | Membership and user administration APIs; admin self-grant; legacy claim command |
+| M7 | Account administration (create, list, disable, password reset) and owner-managed membership with the last-owner and last-admin invariants; legacy claim command since M4 (implemented) |
 | M8 | Frontend login and logout, account, members, admin, audit; 401/403 handling |
 | M9 | Mutation suite, full regression, live Compose as owner, operator and viewer, documentation |
 

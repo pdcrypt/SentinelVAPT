@@ -337,6 +337,12 @@ Events come from a closed vocabulary and are append-only in the database.
 Each event commits with the change it records. Project owners read their
 project's events, and global admins read all of them.
 
+M7 adds administration on the same machinery. Global admins create, list
+and disable accounts and reset passwords; accounts are never deleted, and
+the last active admin is kept. Project owners add members, change their
+roles and remove them; a project always keeps an owner. Every change and
+every refusal is audited.
+
 The console cannot sign in until M8. The API remains localhost-only
 (ADR 0005).
 

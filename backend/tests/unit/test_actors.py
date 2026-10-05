@@ -46,6 +46,9 @@ HUMAN_OPERATIONS = [
 DESCRIPTIVE_PEOPLE = {"authorized_by", "reviewed_by"}
 # The login credential names the account being authenticated, not an actor.
 CREDENTIALS = {("LoginRequest", "username")}
+# M7 administration names the *subject* of the operation, never who performs
+# it: the account being created, and the user being added to a project.
+CREDENTIALS |= {("UserCreate", "username"), ("MemberAdd", "username")}
 ACTOR_LIKE = re.compile(r"(_by|_by_user_id|actor\w*|user_id|username|owner\w*|creator)$")
 
 

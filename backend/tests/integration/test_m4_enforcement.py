@@ -51,6 +51,7 @@ RETEST_REPORT_CREATE = (
     "POST",
     "/api/v1/assessments/{assessment_id}/comparisons/{comparison_id}/reports",
 )
+DELETE_MEMBER = ("DELETE", "/api/v1/projects/{project_id}/members/{user_id}")
 RETEST_REPORT_BODY = {
     "title": "Retest report",
     "formats": ["json", "html"],
@@ -107,6 +108,17 @@ PROBES: dict[tuple[str, str], tuple[Body | None, int]] = {
     ),
     # A new report per requester: the report is prepared by the authenticated user (M5).
     RETEST_REPORT_CREATE: (lambda w, i: RETEST_REPORT_BODY, 202),
+    # M7 membership: adding an existing member is refused, a same-role change
+    # changes nothing, and the removed spare member is put back by the matrix.
+    ("POST", "/api/v1/projects/{project_id}/members"): (
+        lambda w, i: {"username": i["member_username"], "role": "viewer"},
+        409,
+    ),
+    ("PATCH", "/api/v1/projects/{project_id}/members/{user_id}"): (
+        lambda w, i: {"role": "viewer"},
+        200,
+    ),
+    DELETE_MEMBER: (None, 204),
     ("POST", "/api/v1/scans/{scan_id}/cancel"): (None, 409),  # completed
     ("POST", "/api/v1/findings/{finding_id}/triage"): (
         lambda w, i: {"status": "open"},
@@ -171,6 +183,7 @@ def fill(key: tuple[str, str], ids: Mapping[str, str]) -> str:
     values["fmt"] = "json"
     if key == RETEST_REPORT_CREATE:
         values["assessment_id"] = ids["retest"]
+    values["user_id"] = ids["spare_user" if key == DELETE_MEMBER else "member_user"]
     return path.format(**values)
 
 
@@ -191,6 +204,8 @@ def random_ids() -> dict[str, str]:
         )
     }
     ids["fingerprint"] = uuid.uuid4().hex * 2
+    ids["member_user"] = ids["spare_user"] = str(uuid.uuid4())
+    ids["member_username"] = "m4-nobody"
     return ids
 
 
@@ -240,6 +255,8 @@ def test_route_authorization_matrix(world: World, key: tuple[str, str]) -> None:
             assert_lifecycle(key, resp)
         if status == 401:
             assert resp.headers["WWW-Authenticate"] == "Bearer"
+        if key == DELETE_MEMBER and resp.status_code == 204:
+            world.add_member("a", uuid.UUID(world.ids["a"]["spare_user"]), ProjectRole.VIEWER)
 
 
 @pytest.mark.parametrize(
@@ -253,6 +270,8 @@ def test_public_authenticated_and_global_routes(world: World, key: tuple[str, st
         return  # login, logout and password change are covered by the M2 suite
     if key[1] == "/api/v1/health/ready":
         return  # pings the configured database; public access is covered by the unit tests
+    if key[1].startswith("/api/v1/users") and (key[0] != "GET" or "{" in key[1]):
+        return  # account changes and single accounts: tests/integration/test_m7_admin.py
     for actor in ALL_ACTORS:
         resp = world.request(actor, key[0], key[1])
         if isinstance(descriptor, Authenticated | GlobalAccess) and actor is None:
@@ -492,7 +511,13 @@ def test_project_list_contains_only_member_projects(world: World) -> None:
 def test_no_list_or_detail_leaks_another_projects_resources(world: World) -> None:
     """Every readable route of project A, for every member of A: no id of
     project B appears anywhere in the response."""
-    b_ids = {v for k, v in world.ids["b"].items() if "fingerprint" not in k and "role" not in k}
+    # Project B's resources (users are not project resources: a B user who
+    # probes project A is rightly named in A's audit trail).
+    b_ids = {
+        v
+        for k, v in world.ids["b"].items()
+        if "fingerprint" not in k and "role" not in k and "user" not in k
+    }
     for key in PROJECT_ROUTES:
         if key[0] != "GET":
             continue
@@ -588,13 +613,18 @@ def test_operator_cannot_perform_owner_operations(world: World) -> None:
         "operator_a", "PATCH", f"{API}/targets/{world.ids['a']['target']}", reauthorize
     )
     assert (resp.status_code, resp.json()) == (403, FORBIDDEN)
-    # There is no membership API before M7; the role table already refuses it.
+    # Membership management (M7) is owner-only, on every membership route.
     assert not project_role_grants(ProjectRole.OPERATOR, P.MEMBERSHIP_MANAGE)
     assert not project_role_grants(ProjectRole.OPERATOR, P.TARGET_AUTHORIZE)
-    assert not any(
-        isinstance(d, ProjectAccess) and d.permission is P.MEMBERSHIP_MANAGE
-        for d in EXPECTED.values()
-    )
+    member_routes = [
+        k
+        for k, d in EXPECTED.items()
+        if isinstance(d, ProjectAccess) and d.permission is P.MEMBERSHIP_MANAGE
+    ]
+    assert len(member_routes) == 4
+    for key in member_routes:
+        resp = probe(world, "operator_a", key, world.ids["a"])
+        assert (resp.status_code, resp.json()) == (403, FORBIDDEN), key
 
 
 def test_admin_without_membership_cannot_access_project_resources(world: World) -> None:

@@ -52,6 +52,15 @@ _UUID_ID = frozenset({"id"})
 
 RESOLVERS: Mapping[ResourceType, ResolverSpec] = {
     ResourceType.PROJECT: ResolverSpec("projects p", _ID, _UUID_ID, project_column="p.id"),
+    # A membership exists only as a row of its project; the caller's own
+    # membership is joined separately (alias m) by resolve().
+    ResourceType.PROJECT_MEMBER: ResolverSpec(
+        "project_members r JOIN projects p ON p.id = r.project_id",
+        ("project_id", "user_id"),
+        frozenset({"project_id", "user_id"}),
+        project_column="p.id",
+        columns={"project_id": "r.project_id", "user_id": "r.user_id"},
+    ),
     ResourceType.TARGET: ResolverSpec("targets t", _ID, _UUID_ID),
     ResourceType.TARGET_AUTHORIZATION: ResolverSpec(
         "target_authorizations r JOIN targets t ON t.id = r.target_id", _ID, _UUID_ID

@@ -594,6 +594,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Members */
+        get: operations["list_members_api_v1_projects__project_id__members_get"];
+        put?: never;
+        /** Add Member */
+        post: operations["add_member_api_v1_projects__project_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_api_v1_projects__project_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change Member Role */
+        patch: operations["change_member_role_api_v1_projects__project_id__members__user_id__patch"];
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/targets": {
         parameters: {
             query?: never;
@@ -1015,6 +1051,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_api_v1_users_get"];
+        put?: never;
+        /**
+         * Create User
+         * @description Create an account with a temporary password (changed at first sign-in).
+         */
+        post: operations["create_user_api_v1_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get User */
+        get: operations["get_user_api_v1_users__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable User
+         * @description Disable the account and revoke all its sessions. Users are never deleted.
+         */
+        post: operations["disable_user_api_v1_users__user_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Set a temporary password, revoke all sessions, require a change.
+         */
+        post: operations["reset_password_api_v1_users__user_id__password_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1162,7 +1276,7 @@ export interface components {
          * AuditAction
          * @enum {string}
          */
-        AuditAction: "auth.login" | "auth.login_failed" | "auth.logout" | "auth.password_changed" | "auth.password_change_failed" | "auth.session_rejected" | "auth.password_change_required" | "user.created" | "user.disabled" | "platform.auth_enforced" | "authz.denied" | "project.created" | "project.updated" | "project.deleted" | "project.claim" | "target.created" | "target.updated" | "target.deleted" | "target_authorization.created" | "assessment.created" | "assessment.updated" | "assessment.deleted" | "assessment.started" | "assessment.start_refused" | "assessment.completed" | "assessment.cancelled" | "retest.created" | "scan.requested" | "scan.request_refused" | "scan.cancel_requested" | "scan.refused" | "scan.started" | "scan.completed" | "scan.cancelled" | "scan.failed" | "analysis.completed" | "analysis.failed" | "finding.triaged" | "comparison.requested" | "comparison.completed" | "comparison.failed" | "report.requested" | "report.completed" | "report.failed" | "retest_report.requested" | "retest_report.completed" | "retest_report.failed";
+        AuditAction: "auth.login" | "auth.login_failed" | "auth.logout" | "auth.password_changed" | "auth.password_change_failed" | "auth.session_rejected" | "auth.password_change_required" | "user.created" | "user.disabled" | "user.password_reset" | "user.change_refused" | "platform.auth_enforced" | "authz.denied" | "project.created" | "project.updated" | "project.deleted" | "project.claim" | "membership.added" | "membership.role_changed" | "membership.removed" | "membership.change_refused" | "target.created" | "target.updated" | "target.deleted" | "target_authorization.created" | "assessment.created" | "assessment.updated" | "assessment.deleted" | "assessment.started" | "assessment.start_refused" | "assessment.completed" | "assessment.cancelled" | "retest.created" | "scan.requested" | "scan.request_refused" | "scan.cancel_requested" | "scan.refused" | "scan.started" | "scan.completed" | "scan.cancelled" | "scan.failed" | "analysis.completed" | "analysis.failed" | "finding.triaged" | "comparison.requested" | "comparison.completed" | "comparison.failed" | "report.requested" | "report.completed" | "report.failed" | "retest_report.requested" | "retest_report.completed" | "retest_report.failed";
         /**
          * AuditActorType
          * @enum {string}
@@ -1786,11 +1900,51 @@ export interface components {
             session: components["schemas"]["SessionInfo"];
             user: components["schemas"]["CurrentUser"];
         };
+        /** MemberAdd */
+        MemberAdd: {
+            role: components["schemas"]["ProjectRole"];
+            /** Username */
+            username: string;
+        };
+        /** MemberRead */
+        MemberRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By User Id */
+            created_by_user_id: string | null;
+            /** Display Name */
+            display_name: string;
+            /** Is Active */
+            is_active: boolean;
+            role: components["schemas"]["ProjectRole"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
+        };
+        /** MemberUpdate */
+        MemberUpdate: {
+            role: components["schemas"]["ProjectRole"];
+        };
         /** PasswordChangeRequest */
         PasswordChangeRequest: {
             /** Current Password */
             current_password: string;
             /** New Password */
+            new_password: string;
+        };
+        /** PasswordReset */
+        PasswordReset: {
+            /**
+             * New Password
+             * @description A temporary password; the user must change it at next sign-in.
+             */
             new_password: string;
         };
         /**
@@ -1860,6 +2014,12 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * ProjectRole
+         * @description A member's role within one project.
+         * @enum {string}
+         */
+        ProjectRole: "owner" | "operator" | "viewer";
         /** ProjectUpdate */
         ProjectUpdate: {
             /** Description */
@@ -2512,6 +2672,46 @@ export interface components {
             in_scope_path_prefixes?: string[] | null;
             /** Name */
             name?: string | null;
+        };
+        /** UserCreate */
+        UserCreate: {
+            /** Display Name */
+            display_name: string;
+            /** @default user */
+            global_role: components["schemas"]["GlobalRole"];
+            /**
+             * Password
+             * @description A temporary password; the user must change it at first sign-in.
+             */
+            password: string;
+            /** Username */
+            username: string;
+        };
+        /** UserRead */
+        UserRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Disabled At */
+            disabled_at: string | null;
+            /** Display Name */
+            display_name: string;
+            global_role: components["schemas"]["GlobalRole"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Last Login At */
+            last_login_at: string | null;
+            /** Must Change Password */
+            must_change_password: boolean;
+            /** Username */
+            username: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3832,6 +4032,138 @@ export interface operations {
             };
         };
     };
+    list_members_api_v1_projects__project_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_member_api_v1_projects__project_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberAdd"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_api_v1_projects__project_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_member_role_api_v1_projects__project_id__members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_targets_api_v1_projects__project_id__targets_get: {
         parameters: {
             query?: {
@@ -4700,6 +5032,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TargetAuthorizationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_users_get: {
+        parameters: {
+            query?: {
+                active?: boolean | null;
+                global_role?: components["schemas"]["GlobalRole"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_user_api_v1_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_api_v1_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_user_api_v1_users__user_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_api_v1_users__user_id__password_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordReset"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description Validation Error */

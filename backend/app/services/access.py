@@ -36,6 +36,7 @@ from app.services.auth import Principal
 
 # The resource an audit event names for a composite key: its parent.
 _AUDIT_PARENT: Mapping[ResourceType, tuple[ResourceType, str]] = {
+    ResourceType.PROJECT_MEMBER: (ResourceType.PROJECT, "project_id"),
     ResourceType.ASSESSMENT_COMPARISON: (ResourceType.ASSESSMENT, "assessment_id"),
     ResourceType.COMPARISON_RECORD: (ResourceType.COMPARISON, "comparison_id"),
     ResourceType.COMPARISON_COVERAGE_EVIDENCE: (ResourceType.COMPARISON, "comparison_id"),

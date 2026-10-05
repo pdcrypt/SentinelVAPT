@@ -379,12 +379,18 @@
      "auth.password_change_required",
      "user.created",
      "user.disabled",
+     "user.password_reset",
+     "user.change_refused",
      "platform.auth_enforced",
      "authz.denied",
      "project.created",
      "project.updated",
      "project.deleted",
      "project.claim",
+     "membership.added",
+     "membership.role_changed",
+     "membership.removed",
+     "membership.change_refused",
      "target.created",
      "target.updated",
      "target.deleted",
@@ -2031,6 +2037,91 @@
     "title": "MeResponse",
     "type": "object"
    },
+   "MemberAdd": {
+    "additionalProperties": false,
+    "properties": {
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole"
+     },
+     "username": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "username",
+     "role"
+    ],
+    "title": "MemberAdd",
+    "type": "object"
+   },
+   "MemberRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by_user_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By User Id"
+     },
+     "display_name": {
+      "title": "Display Name",
+      "type": "string"
+     },
+     "is_active": {
+      "title": "Is Active",
+      "type": "boolean"
+     },
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole"
+     },
+     "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+     },
+     "username": {
+      "title": "Username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "user_id",
+     "username",
+     "display_name",
+     "role",
+     "is_active",
+     "created_by_user_id",
+     "created_at"
+    ],
+    "title": "MemberRead",
+    "type": "object"
+   },
+   "MemberUpdate": {
+    "additionalProperties": false,
+    "properties": {
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole"
+     }
+    },
+    "required": [
+     "role"
+    ],
+    "title": "MemberUpdate",
+    "type": "object"
+   },
    "PasswordChangeRequest": {
     "additionalProperties": false,
     "properties": {
@@ -2052,6 +2143,23 @@
      "new_password"
     ],
     "title": "PasswordChangeRequest",
+    "type": "object"
+   },
+   "PasswordReset": {
+    "additionalProperties": false,
+    "properties": {
+     "new_password": {
+      "description": "A temporary password; the user must change it at next sign-in.",
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "New Password",
+      "type": "string"
+     }
+    },
+    "required": [
+     "new_password"
+    ],
+    "title": "PasswordReset",
     "type": "object"
    },
    "ProjectAuditEventRead": {
@@ -2240,6 +2348,16 @@
     ],
     "title": "ProjectRead",
     "type": "object"
+   },
+   "ProjectRole": {
+    "description": "A member's role within one project.",
+    "enum": [
+     "owner",
+     "operator",
+     "viewer"
+    ],
+    "title": "ProjectRole",
+    "type": "string"
    },
    "ProjectUpdate": {
     "additionalProperties": false,
@@ -3855,6 +3973,112 @@
      }
     },
     "title": "TargetUpdate",
+    "type": "object"
+   },
+   "UserCreate": {
+    "additionalProperties": false,
+    "properties": {
+     "display_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+     },
+     "global_role": {
+      "$ref": "#/components/schemas/GlobalRole",
+      "default": "user"
+     },
+     "password": {
+      "description": "A temporary password; the user must change it at first sign-in.",
+      "maxLength": 1024,
+      "minLength": 1,
+      "title": "Password",
+      "type": "string"
+     },
+     "username": {
+      "maxLength": 64,
+      "minLength": 3,
+      "pattern": "^[A-Za-z0-9._-]{3,64}$",
+      "title": "Username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "username",
+     "display_name",
+     "password"
+    ],
+    "title": "UserCreate",
+    "type": "object"
+   },
+   "UserRead": {
+    "properties": {
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "disabled_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Disabled At"
+     },
+     "display_name": {
+      "title": "Display Name",
+      "type": "string"
+     },
+     "global_role": {
+      "$ref": "#/components/schemas/GlobalRole"
+     },
+     "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+     },
+     "is_active": {
+      "title": "Is Active",
+      "type": "boolean"
+     },
+     "last_login_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Login At"
+     },
+     "must_change_password": {
+      "title": "Must Change Password",
+      "type": "boolean"
+     },
+     "username": {
+      "title": "Username",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "username",
+     "display_name",
+     "global_role",
+     "is_active",
+     "disabled_at",
+     "must_change_password",
+     "last_login_at",
+     "created_at"
+    ],
+    "title": "UserRead",
     "type": "object"
    },
    "ValidationError": {
@@ -6350,6 +6574,231 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/members": {
+   "get": {
+    "operationId": "list_members_api_v1_projects__project_id__members_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/MemberRead"
+         },
+         "title": "Response List Members Api V1 Projects  Project Id  Members Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Members",
+    "tags": [
+     "members"
+    ]
+   },
+   "post": {
+    "operationId": "add_member_api_v1_projects__project_id__members_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MemberAdd"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MemberRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Add Member",
+    "tags": [
+     "members"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/members/{user_id}": {
+   "delete": {
+    "operationId": "remove_member_api_v1_projects__project_id__members__user_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Remove Member",
+    "tags": [
+     "members"
+    ]
+   },
+   "patch": {
+    "operationId": "change_member_role_api_v1_projects__project_id__members__user_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MemberUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MemberRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Change Member Role",
+    "tags": [
+     "members"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/targets": {
    "get": {
     "operationId": "list_targets_api_v1_projects__project_id__targets_get",
@@ -8075,6 +8524,301 @@
     "summary": "List Target Authorizations",
     "tags": [
      "targets"
+    ]
+   }
+  },
+  "/api/v1/users": {
+   "get": {
+    "operationId": "list_users_api_v1_users_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "active",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Active"
+      }
+     },
+     {
+      "in": "query",
+      "name": "global_role",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/GlobalRole"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Global Role"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/UserRead"
+         },
+         "title": "Response List Users Api V1 Users Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "List Users",
+    "tags": [
+     "users"
+    ]
+   },
+   "post": {
+    "description": "Create an account with a temporary password (changed at first sign-in).",
+    "operationId": "create_user_api_v1_users_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Create User",
+    "tags": [
+     "users"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}": {
+   "get": {
+    "operationId": "get_user_api_v1_users__user_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Get User",
+    "tags": [
+     "users"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/disable": {
+   "post": {
+    "description": "Disable the account and revoke all its sessions. Users are never deleted.",
+    "operationId": "disable_user_api_v1_users__user_id__disable_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Disable User",
+    "tags": [
+     "users"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/password-reset": {
+   "post": {
+    "description": "Set a temporary password, revoke all sessions, require a change.",
+    "operationId": "reset_password_api_v1_users__user_id__password_reset_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordReset"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Reset Password",
+    "tags": [
+     "users"
     ]
    }
   }
