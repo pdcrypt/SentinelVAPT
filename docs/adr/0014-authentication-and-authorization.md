@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation) and M2 (authentication core) are implemented; M3–M9 follow.
+- Status: accepted. M1 (schema foundation), M2 (authentication core) and M3 (authorization machinery) are implemented; M4–M9 follow.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -406,6 +406,113 @@ python -m app.cli create-admin --username <name> --display-name "<name>"
 | Browser cookie handling | M8 |
 | Pruning expired sessions | Later (expired and revoked rows can already be deleted) |
 
+### Authorization machinery (implemented in M3)
+
+M3 adds the machinery only. **No existing route uses it yet**: every route
+still behaves as before, and the OpenAPI document is unchanged. M4 attaches it.
+
+#### Modules
+
+| Module | Contents |
+|---|---|
+| `app/core/authz.py` | `Permission`, the role tables, `ResourceType`, `AccessDecision`, the route descriptors, `AuthorizationConfigError` |
+| `app/repositories/authz.py` | `ProjectResolver`: one resolver spec per resource type, the membership filter for lists |
+| `app/services/access.py` | `AccessService.authorize_project` / `authorize_global` |
+| `app/api/authz.py` | Dependency factories, the default-deny guard, route inventory helpers |
+| `app/core/errors.py` | `ForbiddenError` (403 `forbidden`), `PasswordChangeRequiredError` (403 `password_change_required`), the 500 handler for configuration defects |
+
+#### Permissions
+
+Seventeen permissions in two disjoint sets. Unknown or wrong-kind values raise;
+they never answer "allowed".
+
+| Permission | viewer | operator | owner |
+|---|:-:|:-:|:-:|
+| `project.read` | ✓ | ✓ | ✓ |
+| `assessment.write` | | ✓ | ✓ |
+| `scan.run` | | ✓ | ✓ |
+| `finding.triage` | | ✓ | ✓ |
+| `report.request` | | ✓ | ✓ |
+| `retest.write` | | ✓ | ✓ |
+| `project.update`, `project.delete` | | | ✓ |
+| `target.manage`, `target.authorize` | | | ✓ |
+| `assessment.delete` | | | ✓ |
+| `membership.manage`, `audit.read_project` | | | ✓ |
+
+| Global permission | user | admin |
+|---|:-:|:-:|
+| `project.create`, `catalog.read` | ✓ | ✓ |
+| `user.admin`, `audit.read_global` | | ✓ |
+
+The global role grants no project permission, and nothing in project
+authorization reads the global role. `scan.run` lets a member request a scan.
+It does not authorize the target: the Phase 1 target authorization and the
+worker's grant re-validation still decide that.
+
+#### Resolution
+
+Each `ResourceType` has a fixed resolver spec. The spec joins the resource's
+own rows to `targets.project_id`, and the same query LEFT JOINs
+`project_members` for the caller. Composite resources, such as report
+artifacts, comparison records and retest report evidence, are matched on
+their full key through their parent, so a child named under the wrong parent
+does not exist. A retest assessment resolves only if
+`retest_of_assessment_id` is set. Ids come from path parameters only. A
+project id in a query string, header or body is never consulted. A malformed
+id is "not found", not a 422. More than one row for a key is a defect, and
+fails closed.
+
+#### Decision order
+
+1. **No valid session:** 401 with `WWW-Authenticate: Bearer` (M2).
+2. **`must_change_password`:** 403 `password_change_required`. This is
+   checked before any lookup, so a gated principal learns nothing about
+   resources. Only descriptors declared `authenticated(allow_password_change_pending=True)`
+   are exempt; M4 gives that to `GET /auth/me`, `POST /auth/logout` and
+   `POST /auth/password`.
+3. **Missing resource, resource in another project, or caller not a member:**
+   404 with the existing body (`"scan not found"`). These three cases are
+   indistinguishable.
+4. **Member whose role lacks the permission:** 403 `forbidden`.
+5. **Lifecycle and target-authorization rules:** the existing 409/422 from
+   the services, unchanged.
+
+#### Declaring access (default deny)
+
+Each route declares exactly one descriptor, through `public()`,
+`authenticated(...)`, `require_global(permission)` or
+`authorize(permission, resource_type, "path_param")`. Composite resources use
+`key={...}`. Factories validate their arguments when the route is declared.
+
+The guard `require_access_descriptor` is attached to protected routers. When a
+route has no descriptor, more than one, or one of an unknown kind, the guard
+raises `AuthorizationConfigError`. That error is logged and answered with a
+500 `authorization_error`, never with the endpoint's response.
+
+Descriptors must be declared on the route itself. FastAPI exposes the
+declared route at request time, so a descriptor passed to `include_router`
+is not seen and the request fails closed.
+
+#### Lists
+
+`ProjectResolver.member_projects(user_id)` and `visible_projects(user_id)`
+are the membership filter that M4 applies to `GET /projects`. They have no
+global-role branch.
+
+#### Not in M3
+
+The following are deferred to later milestones:
+
+- attaching descriptors and the guard to the existing routes, and route
+  meta-tests over the product app (M4);
+- auditing denials (M6), as this ADR's "Denials are audited" is not
+  implemented yet;
+- membership and user administration (M7);
+- browser plumbing (M8).
+
+No migration was needed. Composite foreign keys already keep every chain on
+one target.
+
 ### Security boundaries preserved
 
 Phase 9 does not change:
@@ -427,8 +534,8 @@ Phase 9 does not change:
 |---|---|
 | M1 | This ADR and the schema foundation (implemented) |
 | M2 | Identity core: Argon2id, admin CLI, login, logout, `me`, password change, sessions, throttling (implemented) |
-| M3 | Authorization core: `Principal`, `Permission`, resolver, access service, default-deny router, route meta-tests |
-| M4 | Apply to all existing routes: 404/403, membership-filtered lists, IDOR and matrix suites; record `authentication_enforced_at`; decide project-name scope |
+| M3 | Authorization machinery: `Permission`, role tables, `ResourceType`, resolver, access service, dependencies, password-change gate, default-deny guard (implemented; attached to no route) |
+| M4 | Apply to all existing routes: descriptors on every route, protected/public routers, route meta-tests, 404/403, membership-filtered lists, IDOR and matrix suites; record `authentication_enforced_at`; decide project-name scope |
 | M5 | Actor identity columns and server-set actors (snapshots unchanged) |
 | M6 | Audit emission and read endpoints |
 | M7 | Membership and user administration APIs; admin self-grant; legacy claim command |

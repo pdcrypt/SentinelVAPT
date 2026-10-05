@@ -292,7 +292,22 @@ schema foundation. M2 adds the authentication core:
 - throttling counted from audit events;
 - the `python -m app.cli create-admin` bootstrap.
 
-Existing routes are **not** protected yet (M3/M4), and the API remains
+M3 adds the authorization machinery, but no route uses it yet:
+
+- a closed `Permission` enum and the role tables;
+- a `ProjectResolver` that derives each resource's project from its own rows,
+  with the caller's membership in the same query;
+- `AccessService`;
+- the dependencies `public()`, `authenticated()`, `require_global()` and
+  `authorize()`;
+- the `must_change_password` gate;
+- a default-deny guard that answers a route without exactly one access
+  descriptor with a 500.
+
+Missing, cross-project and non-member requests all get the same 404. A member
+without the permission gets a 403.
+
+Existing routes are **not** protected yet (M4), and the API remains
 localhost-only (ADR 0005).
 
 - **Three separate concepts.** Platform identity (`users`,

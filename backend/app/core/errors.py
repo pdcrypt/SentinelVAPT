@@ -12,6 +12,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
+from app.core.authz import AuthorizationConfigError
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,6 +144,27 @@ class InvalidCurrentPasswordError(DomainError):
         super().__init__("The current password is incorrect.", field="current_password")
 
 
+class ForbiddenError(DomainError):
+    """A project member whose role lacks the required permission (or a
+    principal lacking a global permission). Non-members get 404 instead."""
+
+    status_code = 403
+    code = "forbidden"
+
+    def __init__(self) -> None:
+        super().__init__("You do not have permission to do this.")
+
+
+class PasswordChangeRequiredError(DomainError):
+    """The principal must change their password before anything else."""
+
+    status_code = 403
+    code = "password_change_required"
+
+    def __init__(self) -> None:
+        super().__init__("Change your password to continue.")
+
+
 def _body(detail: str, code: str, field: str | None = None) -> dict[str, str | None]:
     return {"detail": detail, "code": code, "field": field}
 
@@ -187,6 +210,16 @@ async def _request_validation_handler(_: Request, exc: Exception) -> JSONRespons
     return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 
+async def _authorization_config_handler(_: Request, exc: Exception) -> JSONResponse:
+    """An authorization declaration that cannot be evaluated is a defect: log
+    it and fail closed. The details stay in the log."""
+    logger.error("Authorization configuration error: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content=_body("The request could not be authorized.", "authorization_error"),
+    )
+
+
 async def _integrity_error_handler(_: Request, exc: Exception) -> JSONResponse:
     # Backstop for races the service-level checks cannot rule out. The raw
     # database message is logged, never returned.
@@ -200,4 +233,5 @@ async def _integrity_error_handler(_: Request, exc: Exception) -> JSONResponse:
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, _domain_error_handler)
     app.add_exception_handler(RequestValidationError, _request_validation_handler)
+    app.add_exception_handler(AuthorizationConfigError, _authorization_config_handler)
     app.add_exception_handler(IntegrityError, _integrity_error_handler)
