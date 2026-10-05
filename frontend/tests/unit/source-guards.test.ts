@@ -76,6 +76,25 @@ describe("source tree", () => {
     expect(bearer).toEqual(["lib/api/client.ts"]);
   });
 
+  it("renders the administration pages on the server only (Phase 9 M9)", () => {
+    const admin = SOURCES.filter((f) =>
+      /^(app\/\(console\)\/(admin|account)\/|app\/\(console\)\/projects\/\[projectId\]\/(members|audit|settings)\/|components\/(admin|project-nav)\.tsx|lib\/admin\/)/.test(
+        rel(f),
+      ),
+    );
+    expect(admin.length).toBeGreaterThanOrEqual(10);
+    for (const file of admin) {
+      expect(read(file), rel(file)).not.toMatch(/^["']use client["'];/m);
+    }
+    expect(read(join(SRC, "lib/actions/admin.ts"))).toMatch(/^"use server";/);
+  });
+
+  it("never logs (no passwords or tokens can end up in a log)", () => {
+    for (const file of SOURCES) {
+      expect(read(file), rel(file)).not.toMatch(/\bconsole\.(log|info|debug|warn|error|trace)\(/);
+    }
+  });
+
   it("never keeps anything in browser storage or script-readable cookies", () => {
     for (const file of SOURCES) {
       expect(read(file), rel(file)).not.toMatch(

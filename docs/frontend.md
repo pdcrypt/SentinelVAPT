@@ -195,3 +195,52 @@ browser ──(opaque HttpOnly cookie)──▶ Next.js server ──(Authorizat
 - **Restarting the console** signs everyone out (the store is in memory); the
   orphaned API sessions expire on their idle timeout and no one holds their
   tokens.
+
+## Administration (Phase 9 M9)
+
+The console exposes the M6/M7 administration API. The API decides every
+permission; the console only shows what the API returns, or its refusal.
+
+| Page | API | Who the API allows |
+|---|---|---|
+| `/account`: your account and this session; link to the password change | `GET /auth/me` | anyone signed in |
+| `/admin/users`: accounts (status and role filters, pages of 50), create an account | `GET`/`POST /users` | global administrators (`user.admin`) |
+| `/admin/users/{id}`: an account; reset its password; disable it | `GET /users/{id}`, `POST …/password-reset`, `POST …/disable` | global administrators |
+| `/admin/audit`: the platform audit log, with the API's filters and pages | `GET /audit-events` | global administrators (`audit.read_global`) |
+| `/projects/{id}/members`: members; add, change role, remove | `GET`/`POST /projects/{id}/members`, `PATCH`/`DELETE …/{user_id}` | project owners (`membership.manage`) |
+| `/projects/{id}/audit`: the project's audit log | `GET /projects/{id}/audit-events` | project owners (`audit.read_project`) |
+| `/projects/{id}/settings`: rename, delete | `PATCH`/`DELETE /projects/{id}` | project owners (`project.update`, `project.delete`) |
+
+- **Data first, controls second.** Each page asks the API for its data on the
+  server. Controls are rendered only when that data loads: a member who is
+  not an owner sees "Not permitted" (the API's 403) and no forms, and a
+  non-member sees "Not found" (404), including a global administrator, who is
+  not a member of every project. A 401 ends the session (M8).
+- **Navigation is display only.** "Accounts" and "Platform audit log" appear
+  for global administrators (from `/auth/me`). Every project shows the same
+  tabs to every member: the console does not know a user's role in a
+  project, and asking an owner-only endpoint just to hide a tab would record
+  a refused request in the audit log on every visit. The pages behind the
+  tabs show the API's answer.
+- **Changes** go through Server Actions with the Host/Origin guard. The API
+  enforces every rule and its refusals are shown as given: no self-disable,
+  an active administrator always remains, a project always keeps an owner,
+  unknown or disabled users cannot be added. After a change the page reloads
+  from the API; nothing is shown as done that the API did not confirm.
+  Identifiers are path parameters validated as UUIDs; requests carry no
+  actor, owner or project fields, and no identity headers.
+- **Passwords.** Temporary passwords (new accounts, resets) are typed by the
+  administrator, sent once to the API and never shown, stored or logged; the
+  password policy is the API's. Disabling and removing need a confirmation
+  tick.
+- **Audit logs are read-only.** Filters (action, outcome, actor type, actor,
+  resource, time range, and project on the platform log) are a GET form whose
+  values are checked against the API's vocabulary before they are sent; the
+  project log is always scoped by its path. Actor labels are the names the
+  API stored at the time. Metadata, usernames and project names are shown as
+  inert text with control and bidi characters made visible. Links are built
+  only from validated UUIDs. Session identifiers are not shown.
+- **Not available because the API has no such operation:** enabling a
+  disabled account, changing an account's global role, deleting accounts,
+  editing or deleting audit events, and showing a user their own role in a
+  project unless they are its owner.

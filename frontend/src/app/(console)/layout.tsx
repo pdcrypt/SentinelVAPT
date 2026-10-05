@@ -38,7 +38,7 @@ export default async function ConsoleLayout({ children }: Readonly<{ children: R
             <span className="brand-sub">Operator console</span>
           </span>
         </div>
-        <Nav />
+        <Nav admin={user.global_role === "admin"} />
         <p className="sidebar-note">Localhost-only · you see the projects you are a member of.</p>
       </aside>
       <div className="main">

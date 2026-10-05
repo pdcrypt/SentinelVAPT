@@ -7,6 +7,7 @@ import { ErrorPanel, KeyValues, Mono, PageHeader, Section } from "@/components/u
 import { getProject, listProjectAssessments, listTargets } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
 import { PageError } from "@/components/page-error";
+import { ProjectNav } from "@/components/project-nav";
 import { formatTime } from "@/lib/text";
 
 export const metadata: Metadata = { title: "Project" };
@@ -23,6 +24,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   return (
     <>
       <PageHeader kicker="Project" title={<SafeText value={p.name} />} />
+      <ProjectNav projectId={p.id} current="" />
       <Section title="Details">
         <KeyValues
           rows={[

@@ -11,6 +11,7 @@ import { createTargetAction } from "@/lib/actions/projects";
 import { getProject, listTargets } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
 import { PageError } from "@/components/page-error";
+import { ProjectNav } from "@/components/project-nav";
 
 export const metadata: Metadata = { title: "Targets" };
 
@@ -31,6 +32,7 @@ export default async function TargetsPage({ params }: { params: Promise<{ projec
       >
         <Link href={`/projects/${project.data.id}`}>Back to project</Link>
       </PageHeader>
+      <ProjectNav projectId={project.data.id} current="/targets" />
       <Section title="Targets">
         {targets.ok ? (
           <TargetsTable targets={targets.data} />

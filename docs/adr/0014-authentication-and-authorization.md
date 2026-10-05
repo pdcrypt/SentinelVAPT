@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging), M7 (user and membership administration) and M8 (browser sessions and frontend login) are implemented; M9 follows.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging), M7 (user and membership administration), M8 (browser sessions and frontend login) and M9 (administration console) are implemented.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -1118,12 +1118,57 @@ second, competing mechanism without closing a gap.
 
 | Deferred | Why |
 |---|---|
-| Account, member and audit pages in the console | The APIs exist (M6/M7) and are the authority; the console pages are UI work for a later milestone. |
+| Account, member and audit pages in the console | Implemented in M9. |
 | Trusted client-address forwarding to the API | All browser logins reach the API from the console's address, so the per-source login throttle (50 failures in 15 minutes) applies to the console as a whole. Forwarding the browser's address needs a backend trust setting; M8 makes no backend change. The per-account throttle is unaffected. |
 | A shared session store | Single local instance (ADR 0005). |
 | A return-to URL after sign-in | Avoids an open redirect; sign-in always lands on the overview. |
 
 No backend, database or OpenAPI change was needed.
+
+### Administration console (implemented in M9)
+
+The console exposes the existing administration API (M6 audit reads, M7
+accounts and members, the M4 project update and delete) with no backend
+change. FastAPI keeps every decision; the console adds none of its own.
+
+- **Pages:** `/account`; `/admin/users` and `/admin/users/{id}` (create,
+  reset a password, disable); `/admin/audit`; and per project `/members`,
+  `/audit` and `/settings`.
+- **Server-side, data first.** Each page loads its data with the
+  server-only client and renders controls only if the API returned it.
+  Otherwise it shows the API's refusal: 403 "Not permitted" for a member
+  without the permission, 404 "Not found" for a non-member (a global
+  administrator included), and a 401 ends the session.
+- **No role probing.** The API tells the console a user's global role
+  (`/auth/me`) but not their role in a project. The console does not learn
+  it by calling an owner-only endpoint, which would record an `authz.denied`
+  event on every page view of every non-owner. Project tabs are therefore the
+  same for all members, and the pages behind them show the API's answer.
+  Global navigation shows the administration links to global administrators
+  only, as a convenience.
+- **Writes** are Server Actions behind the Host/Origin guard. Ids are path
+  parameters validated as UUIDs and bound to the page. Bodies contain only
+  the fields the API defines (no actor, owner or project fields). Roles are
+  checked against the API's enums before sending, and the API checks them
+  again. Refusals (self-disable, last active administrator, last owner,
+  unknown or disabled user, project with targets) are shown as returned.
+  Success is shown only after the API confirms it, and the page then reloads
+  from the API.
+- **Secrets.** Temporary passwords are typed by the administrator and sent
+  once. They are never echoed, stored, logged or put in a URL.
+- **Audit logs** are read-only. Filters are allowlisted against the API's
+  vocabulary and formats. The project log is scoped by its path, never by a
+  parameter. Values are rendered as inert text, and links are built only from
+  validated UUIDs. Session row ids are not displayed.
+
+#### Not in M9
+
+| Not available | Why |
+|---|---|
+| Showing a non-owner their role in a project | No API exposes it; probing would pollute the audit log. |
+| Enabling accounts, changing global roles, deleting accounts | No such API operation (M7 decision). |
+| Editing or deleting audit events | The audit log is append-only by design (M6). |
+| Trusted client-address forwarding, shared session store | As in M8. |
 
 ### Security boundaries preserved
 
@@ -1152,7 +1197,7 @@ Phase 9 does not change:
 | M6 | Audit emission for state changes, denials and worker transitions; closed vocabulary; database-enforced integrity; owner/admin read endpoints (implemented) |
 | M7 | Account administration (create, list, disable, password reset) and owner-managed membership with the last-owner and last-admin invariants; legacy claim command since M4 (implemented) |
 | M8 | Browser sessions (opaque cookie, server-held token), login, logout, current user, required password change, route protection, 401/403 handling, CSRF review (implemented; account, member and audit pages deferred) |
-| M9 | Mutation suite, full regression, live Compose as owner, operator and viewer, documentation |
+| M9 | Administration console: account page, account administration, members, project and platform audit logs, project settings; role-aware navigation; mutation suite, full regression, live Compose as administrator, owner, viewer and non-member (implemented) |
 
 ## Non-goals (Phase 9)
 

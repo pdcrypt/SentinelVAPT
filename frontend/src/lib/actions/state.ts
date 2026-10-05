@@ -56,7 +56,11 @@ export function list(form: FormData, name: string): string[] {
 /** A <input type="datetime-local"> value, interpreted as UTC (the form says
  *  so), as an ISO-8601 string; null if it is not a valid date. */
 export function utcDateTime(form: FormData, name: string): string | null {
-  const value = text(form, name);
+  return utcDateTimeValue(text(form, name));
+}
+
+/** The same for a value from elsewhere (e.g. a search parameter). */
+export function utcDateTimeValue(value: string): string | null {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(value)) return null;
   const date = new Date(`${value.length === 16 ? `${value}:00` : value}Z`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();

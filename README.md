@@ -78,8 +78,10 @@ All ports bind to `127.0.0.1` only (see [ADR 0005](docs/adr/0005-localhost-only-
 
 Create the first administrator once (it is refused when one exists), then
 sign in at http://localhost:3000. The administrator creates the other
-accounts (API `POST /api/v1/users`); each new user sets their own password at
-first sign-in. There is no self-registration.
+accounts under **Accounts** in the console; each new user sets their own
+password at first sign-in. There is no self-registration. Project owners add
+members under the project's **Members** tab, and read its **Audit log**;
+administrators read the **Platform audit log**.
 
 ```powershell
 docker compose exec backend python -m app.cli create-admin --username admin --display-name "Administrator"

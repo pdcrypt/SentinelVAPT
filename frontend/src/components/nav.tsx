@@ -11,14 +11,23 @@ const LINKS = [
   { href: "/retests", label: "Retests" },
   { href: "/retest-reports", label: "Retest reports" },
   { href: "/rules", label: "Rule catalog" },
+  { href: "/account", label: "Account" },
 ];
 
-export function Nav() {
+/** Shown to global administrators. Navigation only: the API refuses these
+ *  pages' data to anyone else, whatever the menu shows. */
+const ADMIN_LINKS = [
+  { href: "/admin/users", label: "Accounts" },
+  { href: "/admin/audit", label: "Platform audit log" },
+];
+
+export function Nav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
+  const links = admin ? [...LINKS, ...ADMIN_LINKS] : LINKS;
   return (
     <nav aria-label="Main" className="nav">
       <ul>
-        {LINKS.map((link) => {
+        {links.map((link) => {
           const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
           return (
             <li key={link.href}>

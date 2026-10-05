@@ -12,9 +12,9 @@ export function UserMenu({ user }: { user: SessionUser }) {
     <span className="user-menu" data-testid="current-user">
       <span>
         Signed in as{" "}
-        <strong data-testid="current-username">
+        <Link href="/account" data-testid="current-username">
           <SafeText value={user.username} />
-        </strong>
+        </Link>
         {user.global_role === "admin" && <span className="role-label">administrator</span>}
       </span>
       <Link href={PASSWORD_PATH} className="small">

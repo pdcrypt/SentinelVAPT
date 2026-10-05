@@ -351,6 +351,13 @@ the password page, and a 401 from the API ends the browser session. FastAPI
 remains the authority for authentication and authorization. The API remains
 localhost-only (ADR 0005).
 
+M9 adds the administration pages to the console: the account page, account
+administration and the platform audit log for global administrators, and
+members, the audit log and settings for project owners. Each page loads its
+data through the server-only client and renders controls only when the API
+returns it; otherwise it shows the API's 403 or 404. Navigation is display
+only. No backend change was needed.
+
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:
   owner / operator / viewer) and target authorization

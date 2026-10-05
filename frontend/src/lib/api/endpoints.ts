@@ -32,6 +32,39 @@ export const getMe = () => apiGet<T.MeResponse>("/auth/me");
 export const changePassword = (body: T.PasswordChangeRequest) =>
   apiWrite<T.SessionResponse>("POST", "/auth/password", body);
 
+// --- administration (ADR 0014, Phase 9 M7 API; M9 console) ----------------------------
+// Who may do what is decided by the API on every call (user.admin for
+// accounts, membership.manage for members, audit.read_* for the logs); these
+// functions only build the request. Identity comes from the session alone.
+
+export type Query = Record<string, string | number | boolean | undefined | null>;
+
+export const listUsers = (query: Query) => apiGet<T.UserRead[]>("/users", query);
+export const getUser = (userId: string) => apiGet<T.UserRead>(`/users/${id(userId)}`);
+export const createUser = (body: T.UserCreate) => apiWrite<T.UserRead>("POST", "/users", body);
+export const disableUser = (userId: string) =>
+  apiWrite<T.UserRead>("POST", `/users/${id(userId)}/disable`);
+export const resetUserPassword = (userId: string, body: T.PasswordReset) =>
+  apiWrite<T.UserRead>("POST", `/users/${id(userId)}/password-reset`, body);
+
+export const listMembers = (projectId: string) =>
+  apiGet<T.Member[]>(`/projects/${id(projectId)}/members`);
+export const addMember = (projectId: string, body: T.MemberAdd) =>
+  apiWrite<T.Member>("POST", `/projects/${id(projectId)}/members`, body);
+export const changeMemberRole = (projectId: string, userId: string, body: T.MemberUpdate) =>
+  apiWrite<T.Member>("PATCH", `/projects/${id(projectId)}/members/${id(userId)}`, body);
+export const removeMember = (projectId: string, userId: string) =>
+  apiWrite<null>("DELETE", `/projects/${id(projectId)}/members/${id(userId)}`);
+
+export const listProjectAuditEvents = (projectId: string, query: Query) =>
+  apiGet<T.ProjectAuditEvent[]>(`/projects/${id(projectId)}/audit-events`, query);
+export const listAuditEvents = (query: Query) => apiGet<T.AuditEvent[]>("/audit-events", query);
+
+export const updateProject = (projectId: string, body: T.ProjectUpdate) =>
+  apiWrite<T.Project>("PATCH", `/projects/${id(projectId)}`, body);
+export const deleteProject = (projectId: string) =>
+  apiWrite<null>("DELETE", `/projects/${id(projectId)}`);
+
 // --- health ----------------------------------------------------------------------------
 
 export const getReadiness = () => apiGet<T.HealthResponse>("/health/ready");

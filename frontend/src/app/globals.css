@@ -800,3 +800,59 @@ textarea {
     gap: 2px;
   }
 }
+
+/* --- administration (Phase 9 M9) -------------------------------------------------- */
+
+.project-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.project-nav a {
+  padding: 6px 10px;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.project-nav a:hover {
+  color: var(--fg);
+}
+.project-nav a[aria-current="page"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.pager {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 10px;
+}
+.metadata {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.metadata div {
+  display: flex;
+  gap: 6px;
+}
+.metadata dt {
+  color: var(--muted);
+}
+.metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.outcome {
+  font-weight: 600;
+}
+.outcome-success {
+  color: var(--ok);
+}
+.outcome-denied,
+.outcome-failure {
+  color: var(--bad);
+}

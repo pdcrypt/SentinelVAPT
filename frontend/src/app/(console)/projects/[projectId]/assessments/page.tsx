@@ -7,6 +7,7 @@ import { ErrorPanel, Notice, PageHeader, Section } from "@/components/ui";
 import { getProject, listProjectAssessments } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
 import { PageError } from "@/components/page-error";
+import { ProjectNav } from "@/components/project-nav";
 
 export const metadata: Metadata = { title: "Assessments" };
 
@@ -31,6 +32,7 @@ export default async function ProjectAssessmentsPage({
       >
         <Link href={`/projects/${project.data.id}`}>Back to project</Link>
       </PageHeader>
+      <ProjectNav projectId={project.data.id} current="/assessments" />
       <Notice>
         Assessments are created from a target, under that target&apos;s current authorization.
       </Notice>
