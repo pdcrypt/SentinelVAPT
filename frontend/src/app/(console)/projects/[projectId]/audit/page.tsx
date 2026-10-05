@@ -8,6 +8,7 @@ import { ErrorPanel, PageHeader, Section } from "@/components/ui";
 import { auditFilters } from "@/lib/admin/filters";
 import { getProject, listProjectAuditEvents } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
+import { myProjectRole } from "@/lib/project-role";
 
 export const metadata: Metadata = { title: "Project audit log" };
 
@@ -24,6 +25,7 @@ export default async function ProjectAuditPage({
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
+  const role = await myProjectRole(project.data.id);
   const p = project.data;
   const { filters, query, offset } = auditFilters(await searchParams, false);
   const events = await load(() => listProjectAuditEvents(p.id, query));
@@ -31,7 +33,7 @@ export default async function ProjectAuditPage({
   return (
     <>
       <PageHeader kicker="Project audit log" title={<SafeText value={p.name} />} />
-      <ProjectNav projectId={p.id} current="/audit" />
+      <ProjectNav projectId={p.id} current="/audit" role={role} />
       {!events.ok ? (
         <ErrorPanel error={events.error} />
       ) : (

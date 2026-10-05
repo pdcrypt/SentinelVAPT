@@ -52,6 +52,15 @@ class MembershipService:
         )
         return [(m, u) for m, u in self.session.execute(stmt).all()]
 
+    def mine(self, project_id: uuid.UUID, user_id: uuid.UUID) -> ProjectMember:
+        """The caller's own membership (M10). user_id is the authenticated
+        user's, never a request value; the route has already established
+        that the caller can read the project."""
+        member = self.session.get(ProjectMember, (project_id, user_id))
+        if member is None:  # pragma: no cover  # project.read implies membership
+            raise NotFoundError("project not found")
+        return member
+
     # --- changes -------------------------------------------------------------------------------
 
     def _lock_project(self, project_id: uuid.UUID) -> None:

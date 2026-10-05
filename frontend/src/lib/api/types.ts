@@ -54,6 +54,8 @@ export type PasswordReset = S["PasswordReset"];
 export type Member = S["MemberRead"];
 export type MemberAdd = S["MemberAdd"];
 export type MemberUpdate = S["MemberUpdate"];
+export type MembershipSelf = S["MembershipSelfRead"];
+export type GlobalRoleUpdate = S["GlobalRoleUpdate"];
 export type AuditEvent = S["AuditEventRead"];
 export type ProjectAuditEvent = S["ProjectAuditEventRead"];
 export type AuditAction = S["AuditAction"];
@@ -78,6 +80,8 @@ export const AUDIT_ACTIONS = [
   "user.disabled",
   "user.password_reset",
   "user.change_refused",
+  "user.enabled",
+  "user.global_role_changed",
   "platform.auth_enforced",
   "authz.denied",
   "project.created",

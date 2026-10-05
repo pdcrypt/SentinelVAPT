@@ -10,6 +10,7 @@ import { ErrorPanel, Notice, PageHeader, Section } from "@/components/ui";
 import { createTargetAction } from "@/lib/actions/projects";
 import { getProject, listTargets } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
+import { myProjectRole } from "@/lib/project-role";
 import { PageError } from "@/components/page-error";
 import { ProjectNav } from "@/components/project-nav";
 
@@ -19,6 +20,7 @@ export default async function TargetsPage({ params }: { params: Promise<{ projec
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
+  const role = await myProjectRole(project.data.id);
   const targets = await load(() => listTargets(projectId));
   return (
     <>
@@ -32,7 +34,7 @@ export default async function TargetsPage({ params }: { params: Promise<{ projec
       >
         <Link href={`/projects/${project.data.id}`}>Back to project</Link>
       </PageHeader>
-      <ProjectNav projectId={project.data.id} current="/targets" />
+      <ProjectNav projectId={project.data.id} current="/targets" role={role} />
       <Section title="Targets">
         {targets.ok ? (
           <TargetsTable targets={targets.data} />

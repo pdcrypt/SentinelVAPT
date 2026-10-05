@@ -6,6 +6,7 @@ import { AssessmentsTable, TargetsTable } from "@/components/tables";
 import { ErrorPanel, KeyValues, Mono, PageHeader, Section } from "@/components/ui";
 import { getProject, listProjectAssessments, listTargets } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
+import { myProjectRole } from "@/lib/project-role";
 import { PageError } from "@/components/page-error";
 import { ProjectNav } from "@/components/project-nav";
 import { formatTime } from "@/lib/text";
@@ -16,6 +17,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
+  const role = await myProjectRole(project.data.id);
   const [targets, assessments] = await Promise.all([
     load(() => listTargets(projectId)),
     load(() => listProjectAssessments(projectId)),
@@ -24,7 +26,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   return (
     <>
       <PageHeader kicker="Project" title={<SafeText value={p.name} />} />
-      <ProjectNav projectId={p.id} current="" />
+      <ProjectNav projectId={p.id} current="" role={role} />
       <Section title="Details">
         <KeyValues
           rows={[

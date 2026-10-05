@@ -58,6 +58,11 @@ EXPECTED: dict[tuple[str, str], AccessDescriptor] = {
     ("GET", "/api/v1/users/{user_id}"): GlobalAccess(P.USER_ADMIN),
     ("POST", "/api/v1/users/{user_id}/disable"): GlobalAccess(P.USER_ADMIN),
     ("POST", "/api/v1/users/{user_id}/password-reset"): GlobalAccess(P.USER_ADMIN),
+    # M10: enabling accounts and global roles (global admins); one's own
+    # membership (any member, about themselves)
+    ("POST", "/api/v1/users/{user_id}/enable"): GlobalAccess(P.USER_ADMIN),
+    ("PATCH", "/api/v1/users/{user_id}/global-role"): GlobalAccess(P.USER_ADMIN),
+    ("GET", "/api/v1/projects/{project_id}/membership/me"): project(READ, R.PROJECT, "project_id"),
     # M7 membership: project owners
     ("GET", "/api/v1/projects/{project_id}/members"): project(
         P.MEMBERSHIP_MANAGE, R.PROJECT, "project_id"
@@ -217,7 +222,7 @@ def test_every_route_is_classified_exactly_once(production_app: FastAPI) -> None
     assert seen == set(EXPECTED), (
         f"unclassified: {sorted(seen - set(EXPECTED))}; gone: {sorted(set(EXPECTED) - seen)}"
     )
-    assert len(seen) == 77
+    assert len(seen) == 80
     for method, path, context in routes(production_app):
         descriptors = route_descriptors(context)
         assert descriptors == [EXPECTED[(method, path)]], (method, path, descriptors)

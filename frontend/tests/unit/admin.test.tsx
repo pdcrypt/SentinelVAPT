@@ -70,6 +70,9 @@ const ProjectAuditPage = (await import("@/app/(console)/projects/[projectId]/aud
 const SettingsPage = (await import("@/app/(console)/projects/[projectId]/settings/page")).default;
 const AccountPage = (await import("@/app/(console)/account/page")).default;
 const { WriteRefusedError } = await import("@/lib/security/action-guard");
+const ProjectPage = (await import("@/app/(console)/projects/[projectId]/page")).default;
+const { ProjectNav } = await import("@/components/project-nav");
+const { myProjectRole } = await import("@/lib/project-role");
 
 const TOKEN = "api-session-token-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz";
 const PROJECT = "11111111-1111-4111-8111-111111111111";
@@ -688,8 +691,10 @@ describe("pages", () => {
     );
   });
 
-  it("show the project settings forms; the API decides who may use them", async () => {
+  it("offer the project settings forms to owners; the API decides each change", async () => {
     replies[`GET /projects/${PROJECT}`] = () => json(200, project);
+    replies[`GET /projects/${PROJECT}/membership/me`] = () =>
+      json(200, { project_id: PROJECT, user_id: USER, role: "owner" });
     const out = await page(SettingsPage({ params: Promise.resolve({ projectId: PROJECT }) }));
     expect(out).toContain('data-testid="update-project"');
     expect(out).toContain('data-testid="delete-project"');
@@ -747,5 +752,251 @@ describe("audit table", () => {
     // Control and bidi characters never reach the page raw, only as markers.
     expect(out).not.toMatch(/[‮]/);
     expect(out).toContain("⟨U+202E RLO⟩");
+  });
+});
+
+// --- Phase 9 M10 ------------------------------------------------------------------------
+
+const mine = (role: unknown) => () => json(200, { project_id: PROJECT, user_id: USER, role });
+
+describe("enabling accounts and global roles (actions)", () => {
+  it("enables an account only when confirmed, through the account's own path", async () => {
+    replies[`POST /users/${USER}/enable`] = () => json(200, user());
+    expect(await actions.enableUserAction(USER, IDLE, form({}))).toMatchObject({
+      status: "error",
+    });
+    expect(calls).toEqual([]);
+    const state = await actions.enableUserAction(
+      USER,
+      IDLE,
+      form({ confirm: "true", user_id: OTHER }),
+    );
+    expect(state).toMatchObject({ status: "ok" });
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([`POST /users/${USER}/enable`]);
+    expect(calls[0]!.body).toBeUndefined();
+    expect(env.refreshes).toBe(1);
+    expectOnlySessionIdentity();
+  });
+
+  it("shows the API's refusals of enabling as they are", async () => {
+    for (const [reply, status] of [
+      [error(409, "conflict", "the user is already active"), 409],
+      [FORBIDDEN, 403],
+      [error(404, "not_found", "user not found"), 404],
+    ] as const) {
+      replies[`POST /users/${USER}/enable`] = reply;
+      expect(await actions.enableUserAction(USER, IDLE, form({ confirm: "true" }))).toMatchObject({
+        status: "error",
+        error: { status },
+      });
+    }
+    expect(env.refreshes).toBe(0);
+    replies[`POST /users/${USER}/enable`] = UNAUTHENTICATED;
+    expect(await outcome(actions.enableUserAction(USER, IDLE, form({ confirm: "true" })))).toBe(
+      `redirect ${SESSION_END_PATH}`,
+    );
+  });
+
+  it("changes a global role only to a known role, when confirmed", async () => {
+    replies[`PATCH /users/${USER}/global-role`] = () => json(200, user({ global_role: "admin" }));
+    const attempts: Record<string, string>[] = [
+      { global_role: "root", confirm: "true" },
+      { global_role: "standard", confirm: "true" },
+      { global_role: "", confirm: "true" },
+      { global_role: "admin" },
+    ];
+    for (const values of attempts) {
+      const state = await actions.changeGlobalRoleAction(USER, IDLE, form(values));
+      expect(state.status).toBe("error");
+    }
+    expect(calls).toEqual([]);
+    const state = await actions.changeGlobalRoleAction(
+      USER,
+      IDLE,
+      form({ global_role: "admin", confirm: "true", user_id: OTHER, is_admin: "true" }),
+    );
+    expect(state).toMatchObject({ status: "ok" });
+    // The account is the bound one; the body says only which role.
+    expect(calls[0]!.path).toBe(`/users/${USER}/global-role`);
+    expect(calls[0]!.body).toEqual({ global_role: "admin" });
+    expectOnlySessionIdentity();
+  });
+
+  it("shows self, last-administrator and disabled refusals without reloading", async () => {
+    for (const detail of [
+      "administrators cannot change their own global role",
+      "the platform must keep an active administrator",
+      "a disabled account cannot become an administrator",
+    ]) {
+      replies[`PATCH /users/${USER}/global-role`] = error(409, "conflict", detail);
+      const state = await actions.changeGlobalRoleAction(
+        USER,
+        IDLE,
+        form({ global_role: "user", confirm: "true" }),
+      );
+      expect(state).toMatchObject({ status: "error", error: { status: 409, message: detail } });
+    }
+    replies[`PATCH /users/${USER}/global-role`] = FORBIDDEN;
+    const refused = await actions.changeGlobalRoleAction(
+      USER,
+      IDLE,
+      form({ global_role: "admin", confirm: "true" }),
+    );
+    expect(refused).toMatchObject({ error: { status: 403, title: "Not permitted" } });
+    expect(env.refreshes).toBe(0);
+  });
+
+  it("never calls the API with a tampered account id", async () => {
+    for (const bad of ["../../users", `${USER}/enable`, "me"]) {
+      await actions.enableUserAction(bad, IDLE, form({ confirm: "true" }));
+      await actions.changeGlobalRoleAction(
+        bad,
+        IDLE,
+        form({ global_role: "admin", confirm: "true" }),
+      );
+    }
+    expect(calls).toEqual([]);
+  });
+});
+
+describe("account page controls (M10)", () => {
+  const me = (id: string) => () =>
+    json(200, {
+      user: {
+        id,
+        username: "root",
+        display_name: "Root",
+        global_role: "admin",
+        must_change_password: false,
+      },
+      session: { created_at: NOW, idle_expires_at: NOW, expires_at: NOW },
+    });
+  const render = () =>
+    page(
+      UserPage({ params: Promise.resolve({ userId: USER }), searchParams: Promise.resolve({}) }),
+    );
+
+  it("offers re-enabling for a disabled account, and disabling for an active one", async () => {
+    replies["GET /auth/me"] = me(OTHER);
+    replies[`GET /users/${USER}`] = () =>
+      json(
+        200,
+        user({ is_active: false, disabled_at: NOW, global_role: "admin", username: HOSTILE }),
+      );
+    let out = await render();
+    expect(out).toContain('data-testid="enable-user"');
+    expect(out).toContain('data-testid="change-global-role"'); // demoting is allowed
+    expect(out).not.toContain('data-testid="disable-user"');
+    expect(out).not.toContain('data-testid="reset-password"');
+    expect(out).not.toContain("<img");
+    replies[`GET /users/${USER}`] = () => json(200, user({ is_active: false, disabled_at: NOW }));
+    out = await render();
+    expect(out).toContain("A disabled account cannot become an administrator.");
+    expect(out).not.toContain('data-testid="change-global-role"');
+    replies[`GET /users/${USER}`] = () => json(200, user());
+    out = await render();
+    for (const id of ["disable-user", "reset-password", "change-global-role"]) {
+      expect(out).toContain(`data-testid="${id}"`);
+    }
+    expect(out).not.toContain('data-testid="enable-user"');
+    // Both privileged forms need an explicit tick.
+    expect(out.match(/<input type="checkbox"[^>]*name="confirm"/g)?.length).toBe(2);
+    expect(out.match(/<input type="checkbox"[^>]*required=""[^>]*name="confirm"/g)?.length).toBe(2);
+  });
+
+  it("offers no self-administration (the API refuses it anyway)", async () => {
+    replies["GET /auth/me"] = me(USER);
+    replies[`GET /users/${USER}`] = () => json(200, user({ global_role: "admin" }));
+    const out = await render();
+    expect(out).toContain("This is your own account.");
+    for (const id of ["disable-user", "reset-password", "change-global-role", "enable-user"]) {
+      expect(out).not.toContain(`data-testid="${id}"`);
+    }
+  });
+});
+
+describe("project role (M10)", () => {
+  it("is read from the caller's own membership and only trusted when known", async () => {
+    const cases: [() => Response, string | null][] = [
+      [mine("owner"), "owner"],
+      [mine("operator"), "operator"],
+      [mine("viewer"), "viewer"],
+      [mine("admin"), null],
+      [mine(undefined), null],
+      [() => json(200, {}), null],
+      [NOT_FOUND, null],
+      [FORBIDDEN, null],
+    ];
+    for (const [reply, expected] of cases) {
+      replies[`GET /projects/${PROJECT}/membership/me`] = reply;
+      expect(await myProjectRole(PROJECT)).toBe(expected);
+    }
+    expect(new Set(calls.map((c) => c.path))).toEqual(
+      new Set([`/projects/${PROJECT}/membership/me`]),
+    );
+    expect(calls.every((c) => c.query === "")).toBe(true); // no user id is ever sent
+  });
+
+  it("decides the project tabs: owners get administration, others do not", () => {
+    const owner = html(<ProjectNav projectId={PROJECT} current="" role="owner" />);
+    for (const suffix of ["/members", "/audit", "/settings"]) {
+      expect(owner).toContain(`href="/projects/${PROJECT}${suffix}"`);
+    }
+    expect(owner).toContain("Your role: Owner");
+    for (const role of ["operator", "viewer", null] as const) {
+      const out = html(<ProjectNav projectId={PROJECT} current="" role={role} />);
+      for (const suffix of ["/members", "/audit", "/settings"]) {
+        expect(out).not.toContain(`href="/projects/${PROJECT}${suffix}"`);
+      }
+      expect(out).toContain(`href="/projects/${PROJECT}/targets"`);
+    }
+    expect(html(<ProjectNav projectId={PROJECT} current="" role="viewer" />)).toContain(
+      "Your role: Viewer",
+    );
+    expect(html(<ProjectNav projectId={PROJECT} current="" role={null} />)).toContain(
+      "Your role: unknown",
+    );
+  });
+
+  it("never asks an owner-only endpoint to find the role", async () => {
+    replies[`GET /projects/${PROJECT}`] = () => json(200, { ...project, name: HOSTILE });
+    replies[`GET /projects/${PROJECT}/membership/me`] = mine("operator");
+    replies[`GET /projects/${PROJECT}/targets`] = () => json(200, []);
+    replies[`GET /projects/${PROJECT}/assessments`] = () => json(200, []);
+    const out = await page(ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) }));
+    expect(out).toContain("Your role: Operator");
+    expect(out).not.toContain(`href="/projects/${PROJECT}/members"`);
+    expect(out).not.toContain("<img");
+    expect(calls.some((c) => c.path.endsWith("/members") || c.path.endsWith("/audit-events"))).toBe(
+      false,
+    );
+  });
+
+  it("hides the settings forms from non-owners and from an unknown role", async () => {
+    replies[`GET /projects/${PROJECT}`] = () => json(200, project);
+    for (const reply of [mine("viewer"), mine("operator"), () => json(200, {}), NOT_FOUND]) {
+      replies[`GET /projects/${PROJECT}/membership/me`] = reply;
+      const out = await page(SettingsPage({ params: Promise.resolve({ projectId: PROJECT }) }));
+      expect(out).toContain("Only project owners can change these settings.");
+      expect(out).not.toContain('data-testid="update-project"');
+      expect(out).not.toContain('data-testid="delete-project"');
+    }
+  });
+
+  it("still lets the API decide when the console believes the user is an owner", async () => {
+    replies[`PATCH /projects/${PROJECT}`] = FORBIDDEN;
+    replies[`GET /projects/${PROJECT}/membership/me`] = mine("owner");
+    const state = await actions.updateProjectAction(
+      PROJECT,
+      IDLE,
+      form({ name: "x", role: "owner" }),
+    );
+    expect(state).toMatchObject({
+      status: "error",
+      error: { status: 403, title: "Not permitted" },
+    });
+    // The action asks nothing about roles: it sends the change and shows the answer.
+    expect(calls.map((c) => c.path)).toEqual([`/projects/${PROJECT}`]);
+    expect(env.refreshes).toBe(0);
   });
 });

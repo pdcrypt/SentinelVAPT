@@ -117,18 +117,15 @@ test("a global administrator manages accounts through the console", async ({ bro
   await expect(alertIn(user.page, "login-form")).toContainText("Invalid username or password.");
   await user.context.close();
 
-  // The API keeps an administrator from disabling themselves.
+  // Your own account offers no self-administration (M10); the API refuses
+  // it anyway (backend tests and m10.spec.ts).
   await page.goto(`/admin/users?global_role=admin`);
   await page
     .getByTestId("users-table")
     .getByRole("link", { name: adminAccount().username, exact: true })
     .click();
-  const self = page.getByTestId("disable-user");
-  await self.locator('[name="confirm"]').check();
-  await self.getByRole("button", { name: "Disable account" }).click();
-  await expect(alertIn(page, "disable-user")).toContainText(
-    "administrators cannot disable themselves",
-  );
+  await expect(page.getByText("This is your own account.")).toBeVisible();
+  await expect(page.getByTestId("disable-user")).toHaveCount(0);
 
   // The platform audit log shows what happened, filtered through the form.
   await page
@@ -141,7 +138,7 @@ test("a global administrator manages accounts through the console", async ({ bro
   await expect(page).toHaveURL(/action=user\.disabled/);
   const rows = page.getByTestId("audit-table").locator("tbody tr");
   await expect(rows.first()).toHaveAttribute("data-action", "user.disabled");
-  for (const action of ["user.created", "user.password_reset", "user.change_refused"]) {
+  for (const action of ["user.created", "user.password_reset", "user.disabled"]) {
     await page.goto(`/admin/audit?action=${action}`);
     await expect(
       page.getByTestId("audit-table").locator(`tr[data-action="${action}"]`).first(),
@@ -275,13 +272,17 @@ test("a viewer sees the project but none of its administration", async ({ browse
       await expect(page.getByTestId(control), `${path} ${control}`).toHaveCount(0);
     }
   }
-  // Owner-only settings: the form is there, the API refuses it.
+  // Owner-only settings: not offered to a viewer (M10 role), and the project
+  // tabs show only what a viewer may use.
   await page.goto(`/projects/${state.project}/settings`);
-  const update = page.getByTestId("update-project");
-  await update.locator('[name="name"]').fill("renamed by a viewer");
-  await update.getByRole("button", { name: "Save" }).click();
-  await expect(alertIn(page, "update-project")).toContainText("Not permitted");
+  await expect(page.getByText("Only project owners can change these settings.")).toBeVisible();
+  await expect(page.getByTestId("update-project")).toHaveCount(0);
   await page.goto(`/projects/${state.project}`);
+  await expect(page.getByTestId("project-role")).toHaveText("Your role: Viewer");
+  const tabs = page.getByRole("navigation", { name: "Project" });
+  for (const tab of ["Members", "Audit log", "Settings"]) {
+    await expect(tabs.getByRole("link", { name: tab })).toHaveCount(0);
+  }
   await expect(page.locator("h1")).toContainText(`M9 project ${RUN}`);
   await context.close();
 });

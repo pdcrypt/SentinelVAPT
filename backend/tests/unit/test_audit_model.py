@@ -25,6 +25,7 @@ VERSIONS = Path(app.__file__).parent.parent / "alembic" / "versions"
 MIGRATIONS = [
     VERSIONS / "20261006_c4f7a2e9d1b6_audit_integrity.py",
     VERSIONS / "20261007_d2b8e6f3a5c7_user_and_membership_administration.py",
+    VERSIONS / "20261008_e5c9a7b1d3f2_platform_administration_hardening.py",
 ]
 # The database's own list of keys it refuses (M1 check_audit_event_insert).
 SECRET_LIKE = re.compile(

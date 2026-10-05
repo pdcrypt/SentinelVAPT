@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 
 import {
   addMember,
+  changeGlobalRole,
   changeMemberRole,
   createUser,
   deleteProject,
   disableUser,
+  enableUser,
   removeMember,
   resetUserPassword,
   updateProject,
@@ -109,6 +111,52 @@ export async function resetPasswordAction(
     "Password reset. All of the user's sessions have ended, and they must choose a new " +
       "password at their next sign-in. Give them the temporary password yourself.",
   );
+}
+
+export async function enableUserAction(
+  userId: string,
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  await assertWriteAllowed();
+  if (form.get("confirm") !== "true") {
+    return invalid("confirm", "Tick the box to confirm enabling this account.");
+  }
+  try {
+    await enableUser(userId);
+  } catch (error) {
+    return failed(error);
+  }
+  refresh();
+  return ok(
+    "Account enabled. It signs in with its existing password; its old sessions stay ended.",
+  );
+}
+
+/** A global-role change (M10). The account is the one bound into the action
+ *  (the page's path); the form only says which role, from the API's enum. The
+ *  API refuses your own account, promoting a disabled one and removing the
+ *  last active administrator. */
+export async function changeGlobalRoleAction(
+  userId: string,
+  _: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  await assertWriteAllowed();
+  const role = text(form, "global_role");
+  if (!(GLOBAL_ROLES as readonly string[]).includes(role)) {
+    return invalid("global_role", "Choose a global role.");
+  }
+  if (form.get("confirm") !== "true") {
+    return invalid("confirm", "Tick the box to confirm changing this account's global role.");
+  }
+  try {
+    await changeGlobalRole(userId, { global_role: role as GlobalRole });
+  } catch (error) {
+    return failed(error);
+  }
+  refresh();
+  return ok("Global role updated. The account's sessions have ended; it signs in again.");
 }
 
 // --- project members (project owners) ------------------------------------------------

@@ -37,7 +37,7 @@ export default async function AccountPage() {
         />
         <Notice tone="info">
           Project access comes from project membership only: an administrator is not a member of
-          every project. Your role in each project is shown to project owners on its Members page.
+          every project. Your role in each project is shown on the project&apos;s pages.
         </Notice>
       </Section>
       <Section title="This session">

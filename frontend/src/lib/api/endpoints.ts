@@ -46,6 +46,15 @@ export const disableUser = (userId: string) =>
   apiWrite<T.UserRead>("POST", `/users/${id(userId)}/disable`);
 export const resetUserPassword = (userId: string, body: T.PasswordReset) =>
   apiWrite<T.UserRead>("POST", `/users/${id(userId)}/password-reset`, body);
+export const enableUser = (userId: string) =>
+  apiWrite<T.UserRead>("POST", `/users/${id(userId)}/enable`);
+export const changeGlobalRole = (userId: string, body: T.GlobalRoleUpdate) =>
+  apiWrite<T.UserRead>("PATCH", `/users/${id(userId)}/global-role`, body);
+
+/** The signed-in user's own role in a project (M10): any member, about
+ *  themselves only. For display; it authorizes nothing. */
+export const getMyMembership = (projectId: string) =>
+  apiGet<T.MembershipSelf>(`/projects/${id(projectId)}/membership/me`);
 
 export const listMembers = (projectId: string) =>
   apiGet<T.Member[]>(`/projects/${id(projectId)}/members`);

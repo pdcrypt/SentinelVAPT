@@ -15,6 +15,18 @@ Rules:
   themselves here (they change their own password with /auth/password).
 - A password reset replaces the credential, revokes every session and
   requires a change at next sign-in.
+- Enabling (M10) makes a disabled account able to sign in again. Nothing else
+  changes: the credential and must_change_password stay as they were, and
+  every session revoked when it was disabled stays revoked (revocation is
+  final in the database), so the user signs in afresh.
+- A global-role change (M10) revokes every session of the account (reason
+  role_changed), so the new role starts with a fresh sign-in. Administrators
+  cannot change their own role: promoting oneself is meaningless and stepping
+  down is done by another administrator, so an administrator can never lock
+  the platform out by accident. A disabled account cannot be promoted (also
+  refused by a database trigger), and demoting the last active administrator
+  is refused (M7's deferred trigger is the backstop). Global roles never touch
+  project membership.
 - Every change, and every refusal of one, is audited in the same transaction
   as the change (refusals are committed before the error is raised).
 """
@@ -244,6 +256,88 @@ class UserAdministrationService:
             actor,
             resource=("user", user.id),
             metadata={"sessions_revoked": revoked},
+        )
+        self.session.commit()
+        return user
+
+    def enable(self, user_id: uuid.UUID, *, actor: UserActor) -> User:
+        actor = require_user_actor(actor)
+        if user_id == actor.user_id:  # pragma: no cover  # a disabled account has no session
+            raise self._refuse(
+                actor, "enable", "self", user_id, ConflictError("the account is already active")
+            )
+        user = self.users.get_for_update(user_id)
+        if user is None:
+            raise NotFoundError("user not found")
+        if user.is_active:
+            raise self._refuse(
+                actor,
+                "enable",
+                "already_active",
+                user_id,
+                ConflictError("the user is already active"),
+            )
+        user.is_active = True
+        user.disabled_at = None
+        self.session.flush()
+        self.audit.user(AuditAction.USER_ENABLED, actor, resource=("user", user.id))
+        self.session.commit()
+        return user
+
+    def change_global_role(self, user_id: uuid.UUID, role: GlobalRole, *, actor: UserActor) -> User:
+        actor = require_user_actor(actor)
+        if user_id == actor.user_id:
+            raise self._refuse(
+                actor,
+                "change_global_role",
+                "self",
+                user_id,
+                ConflictError("administrators cannot change their own global role"),
+            )
+        # Lock order as in disable(): the admins lock, then the user row.
+        self.users.lock(ADMINS_LOCK)
+        user = self.users.get_for_update(user_id)
+        if user is None:
+            raise NotFoundError("user not found")
+        previous = GlobalRole(user.global_role)
+        if previous is role:
+            return user  # nothing changes, nothing to record
+        if role is GlobalRole.ADMIN and not user.is_active:
+            raise self._refuse(
+                actor,
+                "change_global_role",
+                "disabled",
+                user_id,
+                ConflictError("a disabled account cannot become an administrator"),
+            )
+        if (
+            previous is GlobalRole.ADMIN
+            and user.is_active
+            and not self._another_active_admin(user.id)
+        ):
+            # Reachable when two administrators demote each other at once: the
+            # second, serialized behind the admins lock, finds no other.
+            raise self._refuse(
+                actor,
+                "change_global_role",
+                "last_admin",
+                user_id,
+                ConflictError("the platform must keep an active administrator"),
+            )
+        user.global_role = role
+        revoked = self.sessions.revoke_all(
+            user.id, SessionRevocationReason.ROLE_CHANGED, self.clock()
+        )
+        self.session.flush()
+        self.audit.user(
+            AuditAction.USER_GLOBAL_ROLE_CHANGED,
+            actor,
+            resource=("user", user.id),
+            metadata={
+                "from_role": previous.value,
+                "to_role": role.value,
+                "sessions_revoked": revoked,
+            },
         )
         self.session.commit()
         return user

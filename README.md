@@ -81,7 +81,9 @@ sign in at http://localhost:3000. The administrator creates the other
 accounts under **Accounts** in the console; each new user sets their own
 password at first sign-in. There is no self-registration. Project owners add
 members under the project's **Members** tab, and read its **Audit log**;
-administrators read the **Platform audit log**.
+administrators read the **Platform audit log**, enable disabled accounts again
+and change an account's global role (never their own; the platform always
+keeps an active administrator). Every project page shows your own role in it.
 
 ```powershell
 docker compose exec backend python -m app.cli create-admin --username admin --display-name "Administrator"

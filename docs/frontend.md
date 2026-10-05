@@ -205,7 +205,7 @@ permission; the console only shows what the API returns, or its refusal.
 |---|---|---|
 | `/account`: your account and this session; link to the password change | `GET /auth/me` | anyone signed in |
 | `/admin/users`: accounts (status and role filters, pages of 50), create an account | `GET`/`POST /users` | global administrators (`user.admin`) |
-| `/admin/users/{id}`: an account; reset its password; disable it | `GET /users/{id}`, `POST …/password-reset`, `POST …/disable` | global administrators |
+| `/admin/users/{id}`: an account; reset its password; disable it or enable it again; change its global role | `GET /users/{id}`, `POST …/password-reset`, `POST …/disable`, `POST …/enable`, `PATCH …/global-role` | global administrators |
 | `/admin/audit`: the platform audit log, with the API's filters and pages | `GET /audit-events` | global administrators (`audit.read_global`) |
 | `/projects/{id}/members`: members; add, change role, remove | `GET`/`POST /projects/{id}/members`, `PATCH`/`DELETE …/{user_id}` | project owners (`membership.manage`) |
 | `/projects/{id}/audit`: the project's audit log | `GET /projects/{id}/audit-events` | project owners (`audit.read_project`) |
@@ -217,11 +217,15 @@ permission; the console only shows what the API returns, or its refusal.
   non-member sees "Not found" (404), including a global administrator, who is
   not a member of every project. A 401 ends the session (M8).
 - **Navigation is display only.** "Accounts" and "Platform audit log" appear
-  for global administrators (from `/auth/me`). Every project shows the same
-  tabs to every member: the console does not know a user's role in a
-  project, and asking an owner-only endpoint just to hide a tab would record
-  a refused request in the audit log on every visit. The pages behind the
-  tabs show the API's answer.
+  for global administrators (from `/auth/me`). Each project page asks
+  `GET /projects/{id}/membership/me` (M10) for the signed-in user's own role,
+  shows it ("Your role: Owner"), and offers the Members, Audit log and
+  Settings tabs and the settings forms to owners only. That endpoint returns
+  only the caller's own project id, user id and role, records nothing, and
+  never asks an owner-only endpoint. An unknown role is treated as the least
+  privileged, never as an owner. None of this authorizes anything: the API
+  decides every request, and a direct visit to an owner page shows its
+  refusal.
 - **Changes** go through Server Actions with the Host/Origin guard. The API
   enforces every rule and its refusals are shown as given: no self-disable,
   an active administrator always remains, a project always keeps an owner,
@@ -231,8 +235,15 @@ permission; the console only shows what the API returns, or its refusal.
   actor, owner or project fields, and no identity headers.
 - **Passwords.** Temporary passwords (new accounts, resets) are typed by the
   administrator, sent once to the API and never shown, stored or logged; the
-  password policy is the API's. Disabling and removing need a confirmation
-  tick.
+  password policy is the API's. Disabling, enabling, changing a global role
+  and removing a member need a confirmation tick.
+- **Accounts (M10).** A disabled account offers "Enable account"; it then
+  signs in with its existing password (a pending password change stays
+  pending) and its old sessions stay ended. "Change global role" makes an
+  account an administrator or a user; its sessions end, and project
+  memberships do not change. Your own account offers no self-administration
+  (the API refuses it too), a disabled account cannot be promoted, and the
+  last active administrator cannot be demoted or disabled.
 - **Audit logs are read-only.** Filters (action, outcome, actor type, actor,
   resource, time range, and project on the platform log) are a GET form whose
   values are checked against the API's vocabulary before they are sent; the
@@ -240,7 +251,5 @@ permission; the console only shows what the API returns, or its refusal.
   API stored at the time. Metadata, usernames and project names are shown as
   inert text with control and bidi characters made visible. Links are built
   only from validated UUIDs. Session identifiers are not shown.
-- **Not available because the API has no such operation:** enabling a
-  disabled account, changing an account's global role, deleting accounts,
-  editing or deleting audit events, and showing a user their own role in a
-  project unless they are its owner.
+- **Not available because the API has no such operation:** deleting
+  accounts and editing or deleting audit events (both by design).

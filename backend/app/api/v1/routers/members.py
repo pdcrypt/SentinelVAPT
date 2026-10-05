@@ -15,12 +15,17 @@ from app.core.authz import AccessDecision
 from app.core.authz import Permission as P
 from app.core.authz import ResourceType as R
 from app.models import ProjectMember, User
-from app.schemas.administration import MemberAdd, MemberRead, MemberUpdate
+from app.schemas.administration import MemberAdd, MemberRead, MembershipSelfRead, MemberUpdate
 from app.services.audit import AuditService
 from app.services.memberships import MembershipService
 
 router = APIRouter(prefix="/projects/{project_id}/members", tags=["members"])
+# The caller's own membership (M10): any member, about themselves only.
+self_router = APIRouter(prefix="/projects/{project_id}/membership", tags=["members"])
 
+ProjectMemberSelf = Annotated[
+    AccessDecision, Depends(authorize(P.PROJECT_READ, R.PROJECT, "project_id"))
+]
 ProjectOwner = Annotated[
     AccessDecision, Depends(authorize(P.MEMBERSHIP_MANAGE, R.PROJECT, "project_id"))
 ]
@@ -91,3 +96,14 @@ def remove_member(
     project_id: uuid.UUID, user_id: uuid.UUID, service: ServiceDep, access: MemberOwner
 ) -> None:
     service.remove(project_id, user_id, actor=UserActor.of(access.principal))
+
+
+@self_router.get("/me", response_model=MembershipSelfRead)
+def my_membership(
+    project_id: uuid.UUID, service: ServiceDep, access: ProjectMemberSelf
+) -> dict[str, Any]:
+    """Your own role in the project, for display. The user is the signed-in
+    one (there is no parameter to name another); non-members get 404. Reading
+    it records nothing. It grants nothing: every request is authorized anew."""
+    member = service.mine(project_id, access.principal.user_id)
+    return {"project_id": member.project_id, "user_id": member.user_id, "role": member.role}

@@ -381,6 +381,8 @@
      "user.disabled",
      "user.password_reset",
      "user.change_refused",
+     "user.enabled",
+     "user.global_role_changed",
      "platform.auth_enforced",
      "authz.denied",
      "project.created",
@@ -1867,6 +1869,20 @@
     "title": "GlobalRole",
     "type": "string"
    },
+   "GlobalRoleUpdate": {
+    "additionalProperties": false,
+    "description": "The new global role. The account is the one in the path; nothing in the\nbody can name another (unknown fields are refused).",
+    "properties": {
+     "global_role": {
+      "$ref": "#/components/schemas/GlobalRole"
+     }
+    },
+    "required": [
+     "global_role"
+    ],
+    "title": "GlobalRoleUpdate",
+    "type": "object"
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -2120,6 +2136,31 @@
      "role"
     ],
     "title": "MemberUpdate",
+    "type": "object"
+   },
+   "MembershipSelfRead": {
+    "description": "The caller's own relationship to a project: nothing about anyone else.\nInformational for the console; every request is still authorized by the\nAPI on its own.",
+    "properties": {
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole"
+     },
+     "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "project_id",
+     "user_id",
+     "role"
+    ],
+    "title": "MembershipSelfRead",
     "type": "object"
    },
    "PasswordChangeRequest": {
@@ -6799,6 +6840,55 @@
     ]
    }
   },
+  "/api/v1/projects/{project_id}/membership/me": {
+   "get": {
+    "description": "Your own role in the project, for display. The user is the signed-in\none (there is no parameter to name another); non-members get 404. Reading\nit records nothing. It grants nothing: every request is authorized anew.",
+    "operationId": "my_membership_api_v1_projects__project_id__membership_me_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MembershipSelfRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "My Membership",
+    "tags": [
+     "members"
+    ]
+   }
+  },
   "/api/v1/projects/{project_id}/targets": {
    "get": {
     "operationId": "list_targets_api_v1_projects__project_id__targets_get",
@@ -8759,6 +8849,112 @@
      }
     ],
     "summary": "Disable User",
+    "tags": [
+     "users"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/enable": {
+   "post": {
+    "description": "Let a disabled account sign in again. Its password, its pending password\nchange and its revoked sessions are unchanged: the user signs in afresh.",
+    "operationId": "enable_user_api_v1_users__user_id__enable_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Enable User",
+    "tags": [
+     "users"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/global-role": {
+   "patch": {
+    "description": "Make the account an administrator or a user. Revokes all its sessions.\nRefused for your own account, for promoting a disabled account and for the\nlast active administrator. Project memberships are not affected.",
+    "operationId": "change_global_role_api_v1_users__user_id__global_role_patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/GlobalRoleUpdate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Change Global Role",
     "tags": [
      "users"
     ]

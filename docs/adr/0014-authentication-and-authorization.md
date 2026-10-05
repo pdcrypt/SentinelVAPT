@@ -1,6 +1,6 @@
 # 0014: Authentication and authorization
 
-- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging), M7 (user and membership administration), M8 (browser sessions and frontend login) and M9 (administration console) are implemented.
+- Status: accepted. M1 (schema foundation), M2 (authentication core), M3 (authorization machinery), M4 (authorization enforcement), M5 (trusted actor identity), M6 (audit logging), M7 (user and membership administration), M8 (browser sessions and frontend login), M9 (administration console) and M10 (platform administration hardening) are implemented.
 - Date: 2026-10-04
 - Builds on: [ADR 0005](0005-localhost-only-until-auth.md), [ADR 0006](0006-append-only-target-authorizations.md), [ADR 0013](0013-frontend-architecture-and-threat-model.md)
 
@@ -1165,10 +1165,85 @@ change. FastAPI keeps every decision; the console adds none of its own.
 
 | Not available | Why |
 |---|---|
-| Showing a non-owner their role in a project | No API exposes it; probing would pollute the audit log. |
-| Enabling accounts, changing global roles, deleting accounts | No such API operation (M7 decision). |
+| Showing a non-owner their role in a project | Implemented in M10 (`membership/me`). |
+| Enabling accounts, changing global roles | Implemented in M10. |
+| Deleting accounts | Not planned: accounts stay the historical actors of what they did (M1). |
 | Editing or deleting audit events | The audit log is append-only by design (M6). |
 | Trusted client-address forwarding, shared session store | As in M8. |
+
+### Platform administration hardening (implemented in M10)
+
+M10 closes the useful administration gaps M9 left. It changes nothing about
+how users authenticate or how projects are authorized.
+
+#### Enabling an account
+
+`POST /users/{user_id}/enable` (`user.admin`) clears `is_active = false` and
+`disabled_at`. Nothing else changes:
+
+- The credential is untouched, so the user signs in with their existing
+  password. If a password change was pending, it still is.
+- The sessions revoked by disabling stay revoked. Revocation is final in the
+  database (M1 session guard), so enabling cannot bring a session back and the
+  user signs in afresh.
+- Enabling an active account is refused (409, `user.change_refused`,
+  `already_active`).
+- Recorded as `user.enabled` (no metadata).
+
+#### Global roles
+
+`PATCH /users/{user_id}/global-role` (`user.admin`) takes a body of exactly
+`{"global_role": "admin" | "user"}`, using the existing `GlobalRole` enum. The
+account is the one in the path: unknown body fields are refused with 422, so a
+body cannot name another account.
+
+- **Self-changes are refused** (409, reason `self`), in both directions.
+  Promoting oneself is meaningless. Stepping down is done by another
+  administrator, so no administrator can lock the platform out by accident.
+  Ordinary users cannot reach the operation at all (403).
+- **Promoting a disabled account is refused** (409, `disabled`). A new trigger,
+  `users_no_disabled_admin_promotion`, refuses it in the database as well,
+  including promote-and-disable in one statement. Demoting a disabled
+  administrator is allowed.
+- **The last active administrator.** The service takes the `platform:admins`
+  advisory lock, then the user row (the same order as disabling), and refuses
+  a demotion that would leave no other active administrator (409,
+  `last_admin`). This is reachable when two administrators demote each other
+  at once: the second waits on the lock and is refused. M7's deferred trigger
+  `users_keep_admin`, which already covers disabling and demotion, remains the
+  database backstop. No competing trigger was added.
+- **Sessions.** A change revokes every session of the account (reason
+  `role_changed`, as M2 planned), so the new role begins with a new sign-in.
+  The API reads the role on every request regardless.
+- **Unchanged role.** Setting the role an account already has returns it
+  unchanged and records nothing.
+- **Membership.** Global roles never create, change or remove project
+  memberships. A promoted administrator still sees only the projects they
+  belong to.
+- **Audit.** Recorded as `user.global_role_changed`, with `from_role`,
+  `to_role` and `sessions_revoked`. Refusals are `user.change_refused` (M7).
+
+#### The caller's own project role
+
+`GET /projects/{project_id}/membership/me` (`project.read`, so any member) returns
+`{project_id, user_id, role}` for the signed-in user only.
+
+- There is no parameter to name another user, and identity comes from the
+  session.
+- Non-members, global administrators included, get 404, as do malformed ids.
+  Unauthenticated callers get 401.
+- A successful read records nothing.
+- The console uses it to show "Your role" and to offer owner tabs and forms
+  to owners only. It is display: an unknown or unexpected role counts as the
+  least privileged, and every request is still authorized by the API.
+
+#### Not in M10
+
+| Deferred | Why |
+|---|---|
+| Trusted browser-address forwarding | Infrastructure work; needs a backend trust setting (as in M8). |
+| Shared session store for several console instances | Single local instance (ADR 0005). |
+| Deleting accounts, editing or deleting audit events | Not planned (history must stay intact). |
 
 ### Security boundaries preserved
 
@@ -1198,6 +1273,7 @@ Phase 9 does not change:
 | M7 | Account administration (create, list, disable, password reset) and owner-managed membership with the last-owner and last-admin invariants; legacy claim command since M4 (implemented) |
 | M8 | Browser sessions (opaque cookie, server-held token), login, logout, current user, required password change, route protection, 401/403 handling, CSRF review (implemented; account, member and audit pages deferred) |
 | M9 | Administration console: account page, account administration, members, project and platform audit logs, project settings; role-aware navigation; mutation suite, full regression, live Compose as administrator, owner, viewer and non-member (implemented) |
+| M10 | Platform administration hardening: enabling accounts, global-role administration with the last-administrator invariant, the caller's own project role, role-aware project navigation, disabled-promotion trigger (implemented) |
 
 ## Non-goals (Phase 9)
 

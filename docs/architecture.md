@@ -358,6 +358,15 @@ data through the server-only client and renders controls only when the API
 returns it; otherwise it shows the API's 403 or 404. Navigation is display
 only. No backend change was needed.
 
+M10 completes platform administration. Global administrators enable disabled
+accounts again (`POST /users/{id}/enable`: no session or credential comes
+back) and change global roles (`PATCH /users/{id}/global-role`: sessions are
+revoked, memberships untouched, never one's own). The platform always keeps an
+active administrator: the service checks under the admins advisory lock, and
+M7's deferred trigger is the database backstop; a new trigger refuses
+promoting a disabled account. Members read their own project role
+(`GET /projects/{id}/membership/me`), which the console uses for display only.
+
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:
   owner / operator / viewer) and target authorization

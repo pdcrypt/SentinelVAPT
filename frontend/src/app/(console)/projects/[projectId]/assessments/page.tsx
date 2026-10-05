@@ -6,6 +6,7 @@ import { AssessmentsTable } from "@/components/tables";
 import { ErrorPanel, Notice, PageHeader, Section } from "@/components/ui";
 import { getProject, listProjectAssessments } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
+import { myProjectRole } from "@/lib/project-role";
 import { PageError } from "@/components/page-error";
 import { ProjectNav } from "@/components/project-nav";
 
@@ -19,6 +20,7 @@ export default async function ProjectAssessmentsPage({
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
+  const role = await myProjectRole(project.data.id);
   const assessments = await load(() => listProjectAssessments(projectId));
   return (
     <>
@@ -32,7 +34,7 @@ export default async function ProjectAssessmentsPage({
       >
         <Link href={`/projects/${project.data.id}`}>Back to project</Link>
       </PageHeader>
-      <ProjectNav projectId={project.data.id} current="/assessments" />
+      <ProjectNav projectId={project.data.id} current="/assessments" role={role} />
       <Notice>
         Assessments are created from a target, under that target&apos;s current authorization.
       </Notice>

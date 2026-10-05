@@ -33,6 +33,9 @@ class AuditAction(StrEnum):
     USER_DISABLED = "user.disabled"
     USER_PASSWORD_RESET = "user.password_reset"  # noqa: S105  # an action name
     USER_CHANGE_REFUSED = "user.change_refused"
+    # Platform administration hardening (M10)
+    USER_ENABLED = "user.enabled"
+    USER_GLOBAL_ROLE_CHANGED = "user.global_role_changed"
     PLATFORM_AUTH_ENFORCED = "platform.auth_enforced"
     # Authorization decisions (denials only)
     AUTHZ_DENIED = "authz.denied"
@@ -99,6 +102,8 @@ DESCRIPTIONS: Mapping[AuditAction, str] = {
     A.USER_PASSWORD_RESET: "An administrator reset an account's password (sessions revoked, "
     "change required).",
     A.USER_CHANGE_REFUSED: "An account administration request was refused.",
+    A.USER_ENABLED: "A disabled account was enabled again (its old sessions stay revoked).",
+    A.USER_GLOBAL_ROLE_CHANGED: "An account's global role changed (its sessions revoked).",
     A.PLATFORM_AUTH_ENFORCED: "The authentication cutover was recorded.",
     A.AUTHZ_DENIED: "A user was refused a permission (project or global).",
     A.PROJECT_CREATED: "A project was created; its creator became its owner.",
@@ -154,6 +159,7 @@ METADATA_KEYS: Mapping[AuditAction, frozenset[str]] = {
     A.USER_DISABLED: frozenset({"sessions_revoked"}),
     A.USER_PASSWORD_RESET: frozenset({"sessions_revoked"}),
     A.USER_CHANGE_REFUSED: frozenset({"operation", "reason", "user_id"}),
+    A.USER_GLOBAL_ROLE_CHANGED: frozenset({"from_role", "to_role", "sessions_revoked"}),
     A.MEMBERSHIP_ADDED: frozenset({"user_id", "role"}),
     A.MEMBERSHIP_ROLE_CHANGED: frozenset({"user_id", "from_role", "to_role"}),
     A.MEMBERSHIP_REMOVED: frozenset({"user_id", "role"}),

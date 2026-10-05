@@ -46,6 +46,23 @@ class UserRead(ReadModel):
     created_at: datetime
 
 
+class GlobalRoleUpdate(InputModel):
+    """The new global role. The account is the one in the path; nothing in the
+    body can name another (unknown fields are refused)."""
+
+    global_role: GlobalRole
+
+
+class MembershipSelfRead(ReadModel):
+    """The caller's own relationship to a project: nothing about anyone else.
+    Informational for the console; every request is still authorized by the
+    API on its own."""
+
+    project_id: uuid.UUID
+    user_id: uuid.UUID
+    role: ProjectRole
+
+
 class MemberAdd(InputModel):
     username: str = Field(min_length=1, max_length=64)
     role: ProjectRole

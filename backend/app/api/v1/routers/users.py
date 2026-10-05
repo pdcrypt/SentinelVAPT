@@ -15,7 +15,7 @@ from app.core.authz import Permission as P
 from app.core.passwords import Passwords
 from app.models import User
 from app.models.enums import GlobalRole
-from app.schemas.administration import PasswordReset, UserCreate, UserRead
+from app.schemas.administration import GlobalRoleUpdate, PasswordReset, UserCreate, UserRead
 from app.services.audit import AuditService
 from app.services.users import UserAdministrationService, parse_user_id
 
@@ -78,4 +78,23 @@ def reset_password(
     """Set a temporary password, revoke all sessions, require a change."""
     return service.reset_password(
         parse_user_id(user_id), data.new_password, actor=UserActor.of(access.principal)
+    )
+
+
+@router.post("/{user_id}/enable", response_model=UserRead)
+def enable_user(user_id: str, service: ServiceDep, access: AdminDep) -> User:
+    """Let a disabled account sign in again. Its password, its pending password
+    change and its revoked sessions are unchanged: the user signs in afresh."""
+    return service.enable(parse_user_id(user_id), actor=UserActor.of(access.principal))
+
+
+@router.patch("/{user_id}/global-role", response_model=UserRead)
+def change_global_role(
+    user_id: str, data: GlobalRoleUpdate, service: ServiceDep, access: AdminDep
+) -> User:
+    """Make the account an administrator or a user. Revokes all its sessions.
+    Refused for your own account, for promoting a disabled account and for the
+    last active administrator. Project memberships are not affected."""
+    return service.change_global_role(
+        parse_user_id(user_id), data.global_role, actor=UserActor.of(access.principal)
     )

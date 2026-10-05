@@ -10,6 +10,7 @@ import { addMemberAction, changeMemberRoleAction, removeMemberAction } from "@/l
 import { getProject, isUuid, listMembers } from "@/lib/api/endpoints";
 import { PROJECT_ROLES, type Member, type ProjectRole } from "@/lib/api/types";
 import { load } from "@/lib/load";
+import { myProjectRole } from "@/lib/project-role";
 import { formatTime } from "@/lib/text";
 
 export const metadata: Metadata = { title: "Members" };
@@ -84,12 +85,13 @@ export default async function MembersPage({ params }: { params: Promise<{ projec
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
+  const role = await myProjectRole(project.data.id);
   const p = project.data;
   const members = await load(() => listMembers(p.id));
   return (
     <>
       <PageHeader kicker="Project members" title={<SafeText value={p.name} />} />
-      <ProjectNav projectId={p.id} current="/members" />
+      <ProjectNav projectId={p.id} current="/members" role={role} />
       {!members.ok ? (
         <ErrorPanel error={members.error} />
       ) : (

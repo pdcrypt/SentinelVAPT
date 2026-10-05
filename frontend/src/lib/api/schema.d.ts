@@ -630,6 +630,28 @@ export interface paths {
         patch: operations["change_member_role_api_v1_projects__project_id__members__user_id__patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/membership/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Membership
+         * @description Your own role in the project, for display. The user is the signed-in
+         *     one (there is no parameter to name another); non-members get 404. Reading
+         *     it records nothing. It grants nothing: every request is authorized anew.
+         */
+        get: operations["my_membership_api_v1_projects__project_id__membership_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/targets": {
         parameters: {
             query?: never;
@@ -1109,6 +1131,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{user_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable User
+         * @description Let a disabled account sign in again. Its password, its pending password
+         *     change and its revoked sessions are unchanged: the user signs in afresh.
+         */
+        post: operations["enable_user_api_v1_users__user_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/global-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Global Role
+         * @description Make the account an administrator or a user. Revokes all its sessions.
+         *     Refused for your own account, for promoting a disabled account and for the
+         *     last active administrator. Project memberships are not affected.
+         */
+        patch: operations["change_global_role_api_v1_users__user_id__global_role_patch"];
+        trace?: never;
+    };
     "/api/v1/users/{user_id}/password-reset": {
         parameters: {
             query?: never;
@@ -1276,7 +1341,7 @@ export interface components {
          * AuditAction
          * @enum {string}
          */
-        AuditAction: "auth.login" | "auth.login_failed" | "auth.logout" | "auth.password_changed" | "auth.password_change_failed" | "auth.session_rejected" | "auth.password_change_required" | "user.created" | "user.disabled" | "user.password_reset" | "user.change_refused" | "platform.auth_enforced" | "authz.denied" | "project.created" | "project.updated" | "project.deleted" | "project.claim" | "membership.added" | "membership.role_changed" | "membership.removed" | "membership.change_refused" | "target.created" | "target.updated" | "target.deleted" | "target_authorization.created" | "assessment.created" | "assessment.updated" | "assessment.deleted" | "assessment.started" | "assessment.start_refused" | "assessment.completed" | "assessment.cancelled" | "retest.created" | "scan.requested" | "scan.request_refused" | "scan.cancel_requested" | "scan.refused" | "scan.started" | "scan.completed" | "scan.cancelled" | "scan.failed" | "analysis.completed" | "analysis.failed" | "finding.triaged" | "comparison.requested" | "comparison.completed" | "comparison.failed" | "report.requested" | "report.completed" | "report.failed" | "retest_report.requested" | "retest_report.completed" | "retest_report.failed";
+        AuditAction: "auth.login" | "auth.login_failed" | "auth.logout" | "auth.password_changed" | "auth.password_change_failed" | "auth.session_rejected" | "auth.password_change_required" | "user.created" | "user.disabled" | "user.password_reset" | "user.change_refused" | "user.enabled" | "user.global_role_changed" | "platform.auth_enforced" | "authz.denied" | "project.created" | "project.updated" | "project.deleted" | "project.claim" | "membership.added" | "membership.role_changed" | "membership.removed" | "membership.change_refused" | "target.created" | "target.updated" | "target.deleted" | "target_authorization.created" | "assessment.created" | "assessment.updated" | "assessment.deleted" | "assessment.started" | "assessment.start_refused" | "assessment.completed" | "assessment.cancelled" | "retest.created" | "scan.requested" | "scan.request_refused" | "scan.cancel_requested" | "scan.refused" | "scan.started" | "scan.completed" | "scan.cancelled" | "scan.failed" | "analysis.completed" | "analysis.failed" | "finding.triaged" | "comparison.requested" | "comparison.completed" | "comparison.failed" | "report.requested" | "report.completed" | "report.failed" | "retest_report.requested" | "retest_report.completed" | "retest_report.failed";
         /**
          * AuditActorType
          * @enum {string}
@@ -1827,6 +1892,14 @@ export interface components {
          * @enum {string}
          */
         GlobalRole: "admin" | "user";
+        /**
+         * GlobalRoleUpdate
+         * @description The new global role. The account is the one in the path; nothing in the
+         *     body can name another (unknown fields are refused).
+         */
+        GlobalRoleUpdate: {
+            global_role: components["schemas"]["GlobalRole"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1931,6 +2004,25 @@ export interface components {
         /** MemberUpdate */
         MemberUpdate: {
             role: components["schemas"]["ProjectRole"];
+        };
+        /**
+         * MembershipSelfRead
+         * @description The caller's own relationship to a project: nothing about anyone else.
+         *     Informational for the console; every request is still authorized by the
+         *     API on its own.
+         */
+        MembershipSelfRead: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            role: components["schemas"]["ProjectRole"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** PasswordChangeRequest */
         PasswordChangeRequest: {
@@ -4164,6 +4256,37 @@ export interface operations {
             };
         };
     };
+    my_membership_api_v1_projects__project_id__membership_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MembershipSelfRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_targets_api_v1_projects__project_id__targets_get: {
         parameters: {
             query?: {
@@ -5153,6 +5276,72 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_user_api_v1_users__user_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_global_role_api_v1_users__user_id__global_role_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlobalRoleUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
