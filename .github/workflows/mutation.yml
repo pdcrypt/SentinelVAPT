@@ -1,0 +1,60 @@
+name: Mutation tests
+
+# The Phase 9 M7–M11 mutation suites (tools/mutation/README.md). Long
+# (several hours in total), so they run on demand only, not on every push.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    # The backend suites run the integration tests against this throwaway
+    # PostgreSQL; the credentials are fixed test values, not secrets.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sentinel_vapt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://ci:ci@127.0.0.1:5432/sentinel_vapt_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # PDF rendering (WeasyPrint) needs Pango, as in the CI workflow.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
+      # The backend's local packages first, never by name from PyPI.
+      - run: pip install ./scanner ./analysis ./reports
+      - run: pip install -e ".[dev]"
+        working-directory: backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: python tools/mutation/m7_mutations.py
+      - run: python tools/mutation/m10_backend_mutations.py
+      - run: python tools/mutation/m11_backend_mutations.py
+      - run: python tools/mutation/m8_mutations.py
+      - run: python tools/mutation/m9_mutations.py
+      - run: python tools/mutation/m10_frontend_mutations.py
+      - run: python tools/mutation/m11_frontend_mutations.py

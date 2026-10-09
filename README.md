@@ -44,6 +44,7 @@ scanner/    Scanner engine and checks (no API/DB dependencies)
 analysis/   Offline rule engine: stored observations -> findings (no network/DB)
 reports/    Report generation from persisted snapshots
 tests/      Cross-component and lab fixture tests
+tools/      Mutation suites for the security tests
 docs/       Architecture, ADRs, scope and ethics, per-check docs
 ```
 
@@ -229,10 +230,22 @@ $env:E2E_BASE_URL = "http://localhost:3000"; npm run test:e2e
 Remove-Item Env:E2E_BASE_URL
 ```
 
-The CI workflow (`.github/workflows/ci.yml`) runs the Python and frontend
-checks on pushes to `main` and on pull requests. It has not run yet: this
-repository has no remote configured. In CI, the live-stack Playwright specs
-skip (no compose stack there).
+**Mutation suites** (`tools/mutation/`): scripts that break one security control
+at a time and check that a named test catches it. They need a clean working
+tree; see [tools/mutation/README.md](tools/mutation/README.md).
+
+**CI** (`.github/workflows/`): `ci.yml` runs on pushes to `main` and on pull
+requests. It has three jobs:
+
+- the Python checks for each package;
+- the frontend checks;
+- `e2e-live`: the live-stack Playwright specs, including the lab retest,
+  against a compose stack built on the runner. It uses a fresh database
+  volume and credentials generated for the run, and removes everything
+  afterwards.
+
+`mutation.yml` runs the mutation suites on demand (`workflow_dispatch`).
+Neither workflow has run yet: this repository has no remote configured.
 
 ## Configuration
 

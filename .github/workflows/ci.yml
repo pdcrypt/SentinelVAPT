@@ -79,3 +79,75 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  e2e-live:
+    # The live-stack Playwright specs (sign-in, administration, posture, the
+    # A -> B -> C workflow and the lab retest walkthrough) against the whole
+    # compose stack, built from this commit on a throwaway runner: a fresh
+    # database volume, credentials generated for this run only, and the lab
+    # target. Nothing persists after the job; the stack is removed at the end.
+    # The compose file is used unchanged (ports bound to 127.0.0.1 on the
+    # runner).
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      E2E_LAB_RETEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate a throwaway .env for this run
+        run: |
+          db_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$db_password"
+          {
+            echo "APP_ENV=development"
+            echo "LOG_LEVEL=INFO"
+            echo "POSTGRES_USER=sentinel_ci"
+            echo "POSTGRES_PASSWORD=$db_password"
+            echo "POSTGRES_DB=sentinel_vapt_ci"
+            echo "DATABASE_URL=postgresql+psycopg://sentinel_ci:$db_password@127.0.0.1:5432/sentinel_vapt_ci"
+            echo "CORS_ORIGINS=http://localhost:3000"
+            echo "API_INTERNAL_URL=http://localhost:8000"
+          } > .env
+      - name: Start the stack and the lab target
+        run: docker compose --profile lab up -d --build
+      - name: Wait for the API and the console
+        run: |
+          for _ in $(seq 1 120); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8000/api/v1/health/ready \
+              && curl -fsS -o /dev/null http://127.0.0.1:3000/login; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose --profile lab ps
+          docker compose --profile lab logs --tail 200
+          exit 1
+      - name: Bootstrap the e2e administrator (documented create-admin command)
+        run: |
+          admin_password="$(openssl rand -hex 24)"
+          echo "::add-mask::$admin_password"
+          printf '%s\n' "$admin_password" | docker compose exec -T backend \
+            python -m app.cli create-admin --username e2e-ci-admin \
+            --display-name "CI administrator" --password-stdin
+          echo "E2E_ADMIN_USERNAME=e2e-ci-admin" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose --profile lab logs --tail 300
+      - name: Remove the stack and its volumes
+        if: always()
+        run: |
+          docker rm -f sv-e2e-lab || true
+          docker compose --profile lab down -v --remove-orphans

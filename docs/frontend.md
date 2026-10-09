@@ -173,6 +173,16 @@ only) for the workflow spec.
   restores variant `a` at the end (see
   [tests/lab/README.md](../tests/lab/README.md)).
 
+**In CI.** The `e2e-live` job in `.github/workflows/ci.yml` runs every spec,
+including the lab retest. It runs against a compose stack built on the
+throwaway runner, never against a developer's database:
+
+- the `.env` and the administrator's password are generated for the run;
+- the administrator is created with the documented `create-admin` command;
+- the stack and its volumes are removed at the end (`down -v`).
+
+The compose file is used unchanged, so its ports stay bound to 127.0.0.1.
+
 Since M5 the forms no longer ask who acknowledged an authorization,
 prepared a report or made a triage. The server records the signed-in
 user, and the pages show the stored labels.
