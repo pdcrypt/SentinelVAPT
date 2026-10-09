@@ -110,6 +110,10 @@ running (`docker compose --profile lab up -d`) and sign in, then:
    - Every finding gets a stored comparison state (`FIXED`, `NOT_RETESTED`, …)
      with its reasons and coverage evidence.
    - Triage is shown separately.
+   - Against an unchanged lab every record is `UNCHANGED`. To see `FIXED`,
+     `NEW`, `DISMISSED` and `REOPENED`, switch the lab's header variant between
+     scans (lab only):
+     [tests/lab/README.md](tests/lab/README.md#retest-walkthrough-fixed-new-dismissed-reopened).
 6. From the comparison, **request a retest report**.
 7. **Overview and project pages** show the security posture computed by the
    API from those records: current findings by severity and triage status,

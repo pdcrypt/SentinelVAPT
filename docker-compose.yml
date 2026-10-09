@@ -104,8 +104,17 @@ services:
     image: nginx:1.27-alpine
     profiles: ["lab"]
     restart: unless-stopped
+    # Header variants A/B/C for retest demos (tests/lab/README.md); switched
+    # with `docker compose exec lab-target sh /lab/lab-variant.sh b`. The active
+    # variant lives in a tmpfs: recreating the container restores variant A.
+    command: ["/bin/sh", "/lab/lab-variant.sh", "start"]
     volumes:
       - ./tests/lab/site:/usr/share/nginx/html:ro
+      - ./tests/lab/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./tests/lab/variants:/etc/nginx/lab-variants:ro
+      - ./tests/lab/lab-variant.sh:/lab/lab-variant.sh:ro
+    tmpfs:
+      - /etc/nginx/lab-active
     ports:
       - "127.0.0.1:8081:80"
 
