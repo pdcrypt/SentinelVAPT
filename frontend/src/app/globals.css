@@ -862,3 +862,46 @@ textarea {
   font-size: 12.5px;
   color: var(--muted);
 }
+
+/* --- security posture (M11) ------------------------------------------------------- */
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0 0 12px;
+}
+.counts div {
+  display: grid;
+}
+.counts dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+.counts dd {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+.table-compact th,
+.table-compact td {
+  padding: 3px 8px;
+}
+.chart .bar-status {
+  fill: var(--accent);
+}
+.plain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

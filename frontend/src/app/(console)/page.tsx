@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-import { SafeText } from "@/components/safe-text";
+import { Pager } from "@/components/admin";
+import { PostureOverview } from "@/components/posture";
 import { ErrorPanel, Section } from "@/components/ui";
-import { listProjects } from "@/lib/api/endpoints";
-import { formatTime } from "@/lib/text";
+import { offsetOf } from "@/lib/admin/filters";
+import { listPosture } from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
 
 const WORKFLOW = [
@@ -18,8 +19,15 @@ const WORKFLOW = [
   ["Retest report", "Freeze the comparison into an evidence-backed retest report."],
 ] as const;
 
-export default async function HomePage() {
-  const projects = await load(() => listProjects());
+/** The cross-project security posture (ADR 0015): one row per project the API
+ *  says you are a member of, with counts it computed from persisted records. */
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const offset = offsetOf(await searchParams);
+  const posture = await load(() => listPosture(offset));
   return (
     <>
       <header className="page-header">
@@ -30,6 +38,22 @@ export default async function HomePage() {
           explicitly authorized targets only.
         </p>
       </header>
+
+      <Section title="Security posture" id="posture">
+        {!posture.ok ? (
+          <ErrorPanel error={posture.error} />
+        ) : (
+          <>
+            <PostureOverview projects={posture.data} />
+            <Pager path="/" filters={{}} offset={offset} count={posture.data.length} />
+            <p className="muted small">
+              For each of your projects: findings of the latest completed, analysed scan of each
+              target; the latest completed comparison (stored states); the latest completed reports.
+              Counts only; there is no score.
+            </p>
+          </>
+        )}
+      </Section>
 
       <div className="grid-2">
         <Section title="Workflow">
@@ -71,37 +95,6 @@ export default async function HomePage() {
           </ul>
         </Section>
       </div>
-
-      <Section title="Recent projects">
-        {!projects.ok ? (
-          <ErrorPanel error={projects.error} />
-        ) : projects.data.length === 0 ? (
-          <p className="empty">
-            No projects yet. <Link href="/projects">Create the first one.</Link>
-          </p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Project</th>
-                <th scope="col">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.data.slice(0, 8).map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <Link href={`/projects/${project.id}`}>
-                      <SafeText value={project.name} />
-                    </Link>
-                  </td>
-                  <td className="mono">{formatTime(project.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Section>
     </>
   );
 }

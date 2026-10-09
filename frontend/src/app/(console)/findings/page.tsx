@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ConfidenceBadge, SeverityBadge, StatusBadge, TriageBadge } from "@/components/badges";
+import { ConfidenceBadge, SeverityBadge, TriageBadge } from "@/components/badges";
 import { SeverityChart } from "@/components/charts";
 import { SelectField, TextField } from "@/components/fields";
 import { PageError } from "@/components/page-error";
@@ -9,14 +9,15 @@ import { SafeText } from "@/components/safe-text";
 import { EmptyState, ErrorPanel, Mono, Notice, PageHeader, Section } from "@/components/ui";
 import {
   allPages,
-  getAssessmentFindingSummary,
   getScan,
   getScanFindingSummary,
+  isUuid,
   listFindings,
-  listProjectAssessments,
-  listProjects,
+  listPosture,
   type FindingFilters,
 } from "@/lib/api/endpoints";
+import { Pager } from "@/components/admin";
+import { offsetOf } from "@/lib/admin/filters";
 import { SEVERITIES, type Finding } from "@/lib/api/types";
 import { load, param } from "@/lib/load";
 import { formatTime, humanize, shortId } from "@/lib/text";
@@ -59,59 +60,53 @@ function sortFindings(rows: Finding[], sort: Sort): Finding[] {
   return [...rows].sort(compare[sort]);
 }
 
-async function Overview() {
-  const assessments = await load(async () => {
-    const projects = await allPages((offset) => listProjects(offset), 5);
-    const lists = await Promise.all(projects.map((p) => listProjectAssessments(p.id)));
-    return lists.flat();
-  });
-  if (!assessments.ok) return <ErrorPanel error={assessments.error} />;
-  if (assessments.data.length === 0) return <EmptyState>No assessments yet.</EmptyState>;
-  const summaries = await Promise.all(
-    assessments.data.map(async (a) => ({
-      a,
-      summary: await load(() => getAssessmentFindingSummary(a.id)),
-    })),
-  );
+/** One row per project the API says you may see, from the posture summary
+ *  (ADR 0015): the findings of each target's latest analysed scan, counted by
+ *  the API. One request, instead of walking every project and assessment. */
+async function Overview({ offset }: { offset: number }) {
+  const posture = await load(() => listPosture(offset));
+  if (!posture.ok) return <ErrorPanel error={posture.error} />;
+  if (posture.data.length === 0) return <EmptyState>No projects yet.</EmptyState>;
   return (
-    <div className="table-wrap">
-      <table className="table" data-testid="findings-overview">
-        <thead>
-          <tr>
-            <th scope="col">Assessment</th>
-            <th scope="col">Status</th>
-            <th scope="col">Findings</th>
-            {SEVERITIES.map((s) => (
-              <th key={s} scope="col">
-                {humanize(s)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {summaries.map(({ a, summary }) => (
-            <tr key={a.id}>
-              <td>
-                <Link href={`/assessments/${a.id}#findings`}>
-                  <SafeText value={a.name} />
-                </Link>
-              </td>
-              <td>
-                <StatusBadge status={a.status} />
-              </td>
-              <td>{summary.ok ? summary.data.total : "—"}</td>
+    <>
+      <div className="table-wrap">
+        <table className="table" data-testid="findings-overview">
+          <thead>
+            <tr>
+              <th scope="col">Project</th>
+              <th scope="col">Active</th>
+              <th scope="col">Open</th>
               {SEVERITIES.map((s) => (
-                <td key={s}>
-                  {summary.ok && typeof summary.data.by_severity[s] === "number"
-                    ? String(summary.data.by_severity[s])
-                    : "0"}
-                </td>
+                <th key={s} scope="col">
+                  {humanize(s)}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {posture.data.map((p) => (
+              <tr key={p.project_id}>
+                <td>
+                  {isUuid(p.project_id) ? (
+                    <Link href={`/projects/${p.project_id}#posture`}>
+                      <SafeText value={p.project_name} />
+                    </Link>
+                  ) : (
+                    <SafeText value={p.project_name} />
+                  )}
+                </td>
+                <td>{p.findings.active}</td>
+                <td>{p.findings.open}</td>
+                {SEVERITIES.map((s) => (
+                  <td key={s}>{String(p.findings.by_severity[s] ?? 0)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pager path="/findings" filters={{}} offset={offset} count={posture.data.length} />
+    </>
   );
 }
 
@@ -251,17 +246,19 @@ export default async function FindingsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader kicker="Findings" title={scanId ? "Findings of a scan" : "Findings"}>
-        {scanId && <Link href="/findings">All assessments</Link>}
+        {scanId && <Link href="/findings">All projects</Link>}
         {scanId && <span className="muted small">Scan {shortId(scanId)}</span>}
       </PageHeader>
       {scanId ? (
         <ScanFindings scanId={scanId} search={search} />
       ) : (
-        <Section title="Findings by assessment" id="overview">
+        <Section title="Current findings by project" id="overview">
           <p className="muted small">
-            Findings belong to analysed scans. Open an assessment to choose a scan.
+            The findings of each target&apos;s latest completed, analysed scan, counted by the API
+            (active means every triage status except false positive). Open a project to see each
+            target&apos;s latest scan and its findings.
           </p>
-          <Overview />
+          <Overview offset={offsetOf(search)} />
         </Section>
       )}
     </>

@@ -63,7 +63,15 @@ function BarChart({
 
 /** Findings by severity, from the API's finding summary (rule-engine
  *  results). Unknown severity keys are shown after the known ones. */
-export function SeverityChart({ counts }: { counts: Record<string, unknown> }) {
+export function SeverityChart({
+  counts,
+  id = "severity",
+  title = "Findings by severity",
+}: {
+  counts: Record<string, unknown>;
+  id?: string;
+  title?: string;
+}) {
   const value = (key: string) => (typeof counts[key] === "number" ? (counts[key] as number) : 0);
   const known: readonly string[] = SEVERITIES;
   const extra = Object.keys(counts)
@@ -75,21 +83,42 @@ export function SeverityChart({ counts }: { counts: Record<string, unknown> }) {
     value: value(key),
     cls: known.includes(key) ? `bar-sev-${key}` : "bar-sev-informational",
   }));
-  return (
-    <BarChart id="severity" title="Findings by severity" bars={bars} testId="severity-chart" />
-  );
+  return <BarChart id={id} title={title} bars={bars} testId="severity-chart" />;
 }
 
 /** Records per persisted comparison state, from the comparison's stored
  *  summary. Labels are the stored state names in upper case. */
-export function StateChart({ counts }: { counts: Record<string, unknown> }) {
+export function StateChart({
+  counts,
+  id = "states",
+}: {
+  counts: Record<string, unknown>;
+  id?: string;
+}) {
   const bars: Bar[] = COMPARISON_STATES.map((state) => ({
     key: state,
     label: state.toUpperCase(),
     value: typeof counts[state] === "number" ? (counts[state] as number) : 0,
     cls: `bar-state-${state}`,
   }));
-  return <BarChart id="states" title="Comparison states" bars={bars} testId="state-chart" />;
+  return <BarChart id={id} title="Comparison states" bars={bars} testId="state-chart" />;
+}
+
+/** Findings by stored triage status, in the order the API returns them. */
+export function TriageStatusChart({
+  counts,
+  id = "triage",
+}: {
+  counts: Record<string, unknown>;
+  id?: string;
+}) {
+  const bars: Bar[] = Object.keys(counts).map((key) => ({
+    key,
+    label: visibleText(humanize(key), 16),
+    value: typeof counts[key] === "number" ? (counts[key] as number) : 0,
+    cls: "bar-status",
+  }));
+  return <BarChart id={id} title="Findings by triage status" bars={bars} testId="triage-chart" />;
 }
 
 /** The retest chain A → B → C as the API's lineage endpoint returns it. */

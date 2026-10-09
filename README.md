@@ -111,6 +111,11 @@ running (`docker compose --profile lab up -d`) and sign in, then:
      with its reasons and coverage evidence.
    - Triage is shown separately.
 6. From the comparison, **request a retest report**.
+7. **Overview and project pages** show the security posture computed by the
+   API from those records: current findings by severity and triage status,
+   the latest retest outcome (`FIXED`, `NEW`, `REOPENED`, …), the latest
+   reports and recent scans. Counts only; there is no score
+   ([ADR 0015](docs/adr/0015-security-posture-dashboard.md)).
 
 The browser talks only to the console; the API stays server-side. The
 console's design and threat model are in [docs/frontend.md](docs/frontend.md)

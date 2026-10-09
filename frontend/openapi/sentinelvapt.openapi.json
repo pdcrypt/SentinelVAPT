@@ -859,6 +859,64 @@
     "title": "ComparisonStatus",
     "type": "string"
    },
+   "ComparisonSummary": {
+    "properties": {
+     "baseline_scan_id": {
+      "format": "uuid",
+      "title": "Baseline Scan Id",
+      "type": "string"
+     },
+     "by_state": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "description": "Persisted comparison records by cmp-1 state; all eight states listed.",
+      "title": "By State",
+      "type": "object"
+     },
+     "comparison_id": {
+      "format": "uuid",
+      "title": "Comparison Id",
+      "type": "string"
+     },
+     "current_assessment_id": {
+      "format": "uuid",
+      "title": "Current Assessment Id",
+      "type": "string"
+     },
+     "current_scan_id": {
+      "format": "uuid",
+      "title": "Current Scan Id",
+      "type": "string"
+     },
+     "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "target_name": {
+      "title": "Target Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "comparison_id",
+     "target_id",
+     "target_name",
+     "baseline_scan_id",
+     "current_scan_id",
+     "current_assessment_id",
+     "finished_at",
+     "by_state"
+    ],
+    "title": "ComparisonSummary",
+    "type": "object"
+   },
    "CookieRead": {
     "properties": {
      "domain": {
@@ -1286,6 +1344,50 @@
      "created_at"
     ],
     "title": "EvidenceRead",
+    "type": "object"
+   },
+   "FindingCounts": {
+    "description": "Findings of the latest analysed scan of each target, summed.",
+    "properties": {
+     "active": {
+      "description": "Triage status is not false_positive (as in reports).",
+      "title": "Active",
+      "type": "integer"
+     },
+     "by_severity": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "description": "Active findings by severity, in analysis order (critical \u2026 informational).",
+      "title": "By Severity",
+      "type": "object"
+     },
+     "by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "description": "All findings by stored triage status (open, confirmed, accepted_risk, false_positive).",
+      "title": "By Status",
+      "type": "object"
+     },
+     "open": {
+      "description": "Triage status is exactly 'open'.",
+      "title": "Open",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total",
+     "active",
+     "open",
+     "by_severity",
+     "by_status"
+    ],
+    "title": "FindingCounts",
     "type": "object"
    },
    "FindingDetail": {
@@ -2347,6 +2449,168 @@
     "title": "ProjectCreate",
     "type": "object"
    },
+   "ProjectPostureRead": {
+    "properties": {
+     "findings": {
+      "$ref": "#/components/schemas/FindingCounts"
+     },
+     "latest_comparison": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ComparisonSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "latest_report": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReportRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "latest_retest_report": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReportRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "project_name": {
+      "title": "Project Name",
+      "type": "string"
+     },
+     "recent_scans": {
+      "description": "At most 10, newest first.",
+      "items": {
+       "$ref": "#/components/schemas/RecentScan"
+      },
+      "title": "Recent Scans",
+      "type": "array"
+     },
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole",
+      "description": "The caller's own role in the project."
+     },
+     "targets": {
+      "items": {
+       "$ref": "#/components/schemas/TargetPosture"
+      },
+      "title": "Targets",
+      "type": "array"
+     },
+     "targets_truncated": {
+      "description": "True if the project has more than 100 targets.",
+      "title": "Targets Truncated",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "project_id",
+     "project_name",
+     "role",
+     "findings",
+     "targets",
+     "targets_truncated",
+     "latest_comparison",
+     "latest_report",
+     "latest_retest_report",
+     "recent_scans"
+    ],
+    "title": "ProjectPostureRead",
+    "type": "object"
+   },
+   "ProjectPostureSummary": {
+    "properties": {
+     "findings": {
+      "$ref": "#/components/schemas/FindingCounts"
+     },
+     "latest_comparison": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ComparisonSummary"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "latest_report": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReportRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "latest_retest_report": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ReportRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "latest_scan_finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latest Scan Finished At"
+     },
+     "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+     },
+     "project_name": {
+      "title": "Project Name",
+      "type": "string"
+     },
+     "role": {
+      "$ref": "#/components/schemas/ProjectRole"
+     },
+     "targets_with_analysed_scan": {
+      "title": "Targets With Analysed Scan",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "project_id",
+     "project_name",
+     "role",
+     "findings",
+     "targets_with_analysed_scan",
+     "latest_scan_finished_at",
+     "latest_comparison",
+     "latest_report",
+     "latest_retest_report"
+    ],
+    "title": "ProjectPostureSummary",
+    "type": "object"
+   },
    "ProjectRead": {
     "properties": {
      "created_at": {
@@ -2430,6 +2694,83 @@
      }
     },
     "title": "ProjectUpdate",
+    "type": "object"
+   },
+   "RecentScan": {
+    "properties": {
+     "analysed": {
+      "title": "Analysed",
+      "type": "boolean"
+     },
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "assessment_name": {
+      "title": "Assessment Name",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "findings_total": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Null unless the analysis completed.",
+      "title": "Findings Total"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ScanStatus"
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "target_name": {
+      "title": "Target Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scan_id",
+     "assessment_id",
+     "assessment_name",
+     "target_id",
+     "target_name",
+     "status",
+     "created_at",
+     "finished_at",
+     "analysed",
+     "findings_total"
+    ],
+    "title": "RecentScan",
     "type": "object"
    },
    "ReportClassification": {
@@ -2710,6 +3051,40 @@
      "finished_at"
     ],
     "title": "ReportRead",
+    "type": "object"
+   },
+   "ReportRef": {
+    "properties": {
+     "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/ReportKind"
+     },
+     "number": {
+      "title": "Number",
+      "type": "integer"
+     },
+     "report_id": {
+      "format": "uuid",
+      "title": "Report Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "report_id",
+     "number",
+     "kind",
+     "title",
+     "finished_at"
+    ],
+    "title": "ReportRef",
     "type": "object"
    },
    "ReportStatus": {
@@ -3373,6 +3748,37 @@
     "title": "ScanRead",
     "type": "object"
    },
+   "ScanRef": {
+    "properties": {
+     "assessment_id": {
+      "format": "uuid",
+      "title": "Assessment Id",
+      "type": "string"
+     },
+     "assessment_name": {
+      "title": "Assessment Name",
+      "type": "string"
+     },
+     "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+     },
+     "scan_id": {
+      "format": "uuid",
+      "title": "Scan Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "scan_id",
+     "assessment_id",
+     "assessment_name",
+     "finished_at"
+    ],
+    "title": "ScanRef",
+    "type": "object"
+   },
    "ScanStatus": {
     "enum": [
      "queued",
@@ -3808,6 +4214,41 @@
     ],
     "title": "TargetEnvironment",
     "type": "string"
+   },
+   "TargetPosture": {
+    "properties": {
+     "findings": {
+      "$ref": "#/components/schemas/FindingCounts"
+     },
+     "latest_scan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ScanRef"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The latest completed scan with a completed analysis; null if none."
+     },
+     "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+     },
+     "target_name": {
+      "title": "Target Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "target_id",
+     "target_name",
+     "latest_scan",
+     "findings"
+    ],
+    "title": "TargetPosture",
+    "type": "object"
    },
    "TargetRead": {
     "properties": {
@@ -6077,6 +6518,72 @@
     ]
    }
   },
+  "/api/v1/posture": {
+   "get": {
+    "description": "A posture summary of each project you are a member of, in the order of\nGET /projects. Projects come from your memberships only; a global role adds\nnone, and there is no parameter to name a project.",
+    "operationId": "posture_overview_api_v1_posture_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ProjectPostureSummary"
+         },
+         "title": "Response Posture Overview Api V1 Posture Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Posture Overview",
+    "tags": [
+     "posture"
+    ]
+   }
+  },
   "/api/v1/projects": {
    "get": {
     "description": "Only the projects the caller is a member of (whatever their global role).",
@@ -6886,6 +7393,55 @@
     "summary": "My Membership",
     "tags": [
      "members"
+    ]
+   }
+  },
+  "/api/v1/projects/{project_id}/posture": {
+   "get": {
+    "description": "One project's posture: current findings (latest analysed scan of each\ntarget), the latest retest outcome, latest reports and recent scans.",
+    "operationId": "project_posture_api_v1_projects__project_id__posture_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "format": "uuid",
+       "title": "Project Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectPostureRead"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ],
+    "summary": "Project Posture",
+    "tags": [
+     "posture"
     ]
    }
   },

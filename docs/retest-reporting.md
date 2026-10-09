@@ -14,7 +14,6 @@ comparison and are never recomputed. The design is in
 POST /api/v1/assessments/{retest_id}/comparisons/{comparison_id}/reports
 {
   "title": "Retest of the shop lab",
-  "prepared_by": "A. Tester",
   "kind": "draft",                     // or "final"
   "formats": ["json", "html", "pdf"],  // must include json
   "template": "sv-retest@1",           // the default
@@ -24,6 +23,9 @@ POST /api/v1/assessments/{retest_id}/comparisons/{comparison_id}/reports
   "scope_note": null
 }
 ```
+
+`prepared_by` is not a request field: the API records the signed-in user
+(Phase 9 M5), and a request naming it is refused (422).
 
 | Response | When |
 |---|---|

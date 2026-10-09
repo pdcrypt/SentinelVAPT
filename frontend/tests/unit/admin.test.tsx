@@ -960,7 +960,21 @@ describe("project role (M10)", () => {
 
   it("never asks an owner-only endpoint to find the role", async () => {
     replies[`GET /projects/${PROJECT}`] = () => json(200, { ...project, name: HOSTILE });
-    replies[`GET /projects/${PROJECT}/membership/me`] = mine("operator");
+    // Since M11 the project page learns the role with its posture (project.read).
+    const zero = { total: 0, active: 0, open: 0, by_severity: {}, by_status: {} };
+    replies[`GET /projects/${PROJECT}/posture`] = () =>
+      json(200, {
+        project_id: PROJECT,
+        project_name: HOSTILE,
+        role: "operator",
+        findings: zero,
+        targets: [],
+        targets_truncated: false,
+        latest_comparison: null,
+        latest_report: null,
+        latest_retest_report: null,
+        recent_scans: [],
+      });
     replies[`GET /projects/${PROJECT}/targets`] = () => json(200, []);
     replies[`GET /projects/${PROJECT}/assessments`] = () => json(200, []);
     const out = await page(ProjectPage({ params: Promise.resolve({ projectId: PROJECT }) }));

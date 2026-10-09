@@ -4,10 +4,15 @@ import Link from "next/link";
 import { SafeText } from "@/components/safe-text";
 import { AssessmentsTable, TargetsTable } from "@/components/tables";
 import { ErrorPanel, KeyValues, Mono, PageHeader, Section } from "@/components/ui";
-import { getProject, listProjectAssessments, listTargets } from "@/lib/api/endpoints";
+import {
+  getProject,
+  getProjectPosture,
+  listProjectAssessments,
+  listTargets,
+} from "@/lib/api/endpoints";
 import { load } from "@/lib/load";
-import { myProjectRole } from "@/lib/project-role";
 import { PageError } from "@/components/page-error";
+import { ProjectPostureView } from "@/components/posture";
 import { ProjectNav } from "@/components/project-nav";
 import { formatTime } from "@/lib/text";
 
@@ -17,11 +22,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
   const { projectId } = await params;
   const project = await load(() => getProject(projectId));
   if (!project.ok) return <PageError error={project.error} />;
-  const role = await myProjectRole(project.data.id);
-  const [targets, assessments] = await Promise.all([
+  const [posture, targets, assessments] = await Promise.all([
+    load(() => getProjectPosture(project.data.id)),
     load(() => listTargets(projectId)),
     load(() => listProjectAssessments(projectId)),
   ]);
+  // The caller's own role, as the API reports it with the posture (display
+  // only; an unknown role is treated as the least privileged).
+  const role = posture.ok ? posture.data.role : null;
   const p = project.data;
   return (
     <>
@@ -36,6 +44,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
           ]}
         />
       </Section>
+      {posture.ok ? (
+        <ProjectPostureView posture={posture.data} />
+      ) : (
+        <Section title="Current posture">
+          <ErrorPanel error={posture.error} />
+        </Section>
+      )}
       <Section
         title="Targets"
         id="targets"

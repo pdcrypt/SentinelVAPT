@@ -12,7 +12,6 @@ POST /api/v1/assessments/{assessment_id}/reports
   "kind": "draft",                      // or "final" (requires a completed assessment)
   "formats": ["json", "html", "pdf"],   // must include json
   "title": "Lab assessment report",
-  "prepared_by": "Tester",
   "reviewed_by": "Lead",                // optional
   "classification": "confidential",     // internal | confidential | restricted
   "template": "sv-standard@1",          // optional; see GET /report-templates
@@ -20,6 +19,10 @@ POST /api/v1/assessments/{assessment_id}/reports
   "scope_note": "…"                     // optional, max 4000 characters
 }
 ```
+
+There is no `prepared_by` field: since Phase 9 M5 the API records the
+signed-in user who requested the report (`requested_by_user_id`) and stores
+their display name as `prepared_by`. A request naming it is refused (422).
 
 The response is `202` with the report in `queued` state. Its snapshot is
 frozen at this moment: triage changes made after the request do not change it.

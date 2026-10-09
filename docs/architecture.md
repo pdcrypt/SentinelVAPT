@@ -367,6 +367,22 @@ M7's deferred trigger is the database backstop; a new trigger refuses
 promoting a disabled account. Members read their own project role
 (`GET /projects/{id}/membership/me`), which the console uses for display only.
 
+## Security posture (M11)
+
+See [ADR 0015](adr/0015-security-posture-dashboard.md).
+
+- **Endpoints.** `GET /projects/{id}/posture` (`project.read`) and
+  `GET /posture` (authenticated, membership-filtered in SQL) compute posture
+  from the persisted tables.
+- **What they compute:** the latest analysed scan per target (`DISTINCT ON`),
+  finding counts by severity and triage status (`GROUP BY`), the latest
+  completed comparison's state counts from its records, the latest completed
+  reports, and the 10 most recent scans.
+- **Query shape.** A fixed number of queries per request, whatever the number
+  of projects; no migration, cache or materialized table; no score.
+- **Console.** It renders the results and replaces the per-assessment fan-out
+  of the overview and findings pages.
+
 - **Three separate concepts.** Platform identity (`users`,
   `user_credentials`, `sessions`), project membership (`project_members`:
   owner / operator / viewer) and target authorization

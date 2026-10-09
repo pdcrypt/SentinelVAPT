@@ -513,6 +513,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/posture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Posture Overview
+         * @description A posture summary of each project you are a member of, in the order of
+         *     GET /projects. Projects come from your memberships only; a global role adds
+         *     none, and there is no parameter to name a project.
+         */
+        get: operations["posture_overview_api_v1_posture_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects": {
         parameters: {
             query?: never;
@@ -644,6 +666,27 @@ export interface paths {
          *     it records nothing. It grants nothing: every request is authorized anew.
          */
         get: operations["my_membership_api_v1_projects__project_id__membership_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/posture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Posture
+         * @description One project's posture: current findings (latest analysed scan of each
+         *     target), the latest retest outcome, latest reports and recent scans.
+         */
+        get: operations["project_posture_api_v1_projects__project_id__posture_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1514,6 +1557,48 @@ export interface components {
          * @enum {string}
          */
         ComparisonStatus: "queued" | "completed" | "failed";
+        /** ComparisonSummary */
+        ComparisonSummary: {
+            /**
+             * Baseline Scan Id
+             * Format: uuid
+             */
+            baseline_scan_id: string;
+            /**
+             * By State
+             * @description Persisted comparison records by cmp-1 state; all eight states listed.
+             */
+            by_state: {
+                [key: string]: number;
+            };
+            /**
+             * Comparison Id
+             * Format: uuid
+             */
+            comparison_id: string;
+            /**
+             * Current Assessment Id
+             * Format: uuid
+             */
+            current_assessment_id: string;
+            /**
+             * Current Scan Id
+             * Format: uuid
+             */
+            current_scan_id: string;
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /** Target Name */
+            target_name: string;
+        };
         /** CookieRead */
         CookieRead: {
             /** Domain */
@@ -1639,6 +1724,38 @@ export interface components {
             truncated: boolean;
             /** Url */
             url: string;
+        };
+        /**
+         * FindingCounts
+         * @description Findings of the latest analysed scan of each target, summed.
+         */
+        FindingCounts: {
+            /**
+             * Active
+             * @description Triage status is not false_positive (as in reports).
+             */
+            active: number;
+            /**
+             * By Severity
+             * @description Active findings by severity, in analysis order (critical … informational).
+             */
+            by_severity: {
+                [key: string]: number;
+            };
+            /**
+             * By Status
+             * @description All findings by stored triage status (open, confirmed, accepted_risk, false_positive).
+             */
+            by_status: {
+                [key: string]: number;
+            };
+            /**
+             * Open
+             * @description Triage status is exactly 'open'.
+             */
+            open: number;
+            /** Total */
+            total: number;
         };
         /** FindingDetail */
         FindingDetail: {
@@ -2084,6 +2201,53 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** ProjectPostureRead */
+        ProjectPostureRead: {
+            findings: components["schemas"]["FindingCounts"];
+            latest_comparison: components["schemas"]["ComparisonSummary"] | null;
+            latest_report: components["schemas"]["ReportRef"] | null;
+            latest_retest_report: components["schemas"]["ReportRef"] | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /**
+             * Recent Scans
+             * @description At most 10, newest first.
+             */
+            recent_scans: components["schemas"]["RecentScan"][];
+            /** @description The caller's own role in the project. */
+            role: components["schemas"]["ProjectRole"];
+            /** Targets */
+            targets: components["schemas"]["TargetPosture"][];
+            /**
+             * Targets Truncated
+             * @description True if the project has more than 100 targets.
+             */
+            targets_truncated: boolean;
+        };
+        /** ProjectPostureSummary */
+        ProjectPostureSummary: {
+            findings: components["schemas"]["FindingCounts"];
+            latest_comparison: components["schemas"]["ComparisonSummary"] | null;
+            latest_report: components["schemas"]["ReportRef"] | null;
+            latest_retest_report: components["schemas"]["ReportRef"] | null;
+            /** Latest Scan Finished At */
+            latest_scan_finished_at: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            role: components["schemas"]["ProjectRole"];
+            /** Targets With Analysed Scan */
+            targets_with_analysed_scan: number;
+        };
         /** ProjectRead */
         ProjectRead: {
             /**
@@ -2118,6 +2282,43 @@ export interface components {
             description?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** RecentScan */
+        RecentScan: {
+            /** Analysed */
+            analysed: boolean;
+            /**
+             * Assessment Id
+             * Format: uuid
+             */
+            assessment_id: string;
+            /** Assessment Name */
+            assessment_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Findings Total
+             * @description Null unless the analysis completed.
+             */
+            findings_total: number | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Scan Id
+             * Format: uuid
+             */
+            scan_id: string;
+            status: components["schemas"]["ScanStatus"];
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /** Target Name */
+            target_name: string;
         };
         /**
          * ReportClassification
@@ -2240,6 +2441,24 @@ export interface components {
             template_id: string;
             /** Template Version */
             template_version: number;
+            /** Title */
+            title: string;
+        };
+        /** ReportRef */
+        ReportRef: {
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            kind: components["schemas"]["ReportKind"];
+            /** Number */
+            number: number;
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
             /** Title */
             title: string;
         };
@@ -2503,6 +2722,26 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ScanRef */
+        ScanRef: {
+            /**
+             * Assessment Id
+             * Format: uuid
+             */
+            assessment_id: string;
+            /** Assessment Name */
+            assessment_name: string;
+            /**
+             * Finished At
+             * Format: date-time
+             */
+            finished_at: string;
+            /**
+             * Scan Id
+             * Format: uuid
+             */
+            scan_id: string;
+        };
         /**
          * ScanStatus
          * @enum {string}
@@ -2707,6 +2946,19 @@ export interface components {
          * @enum {string}
          */
         TargetEnvironment: "local_lab" | "authorized_external";
+        /** TargetPosture */
+        TargetPosture: {
+            findings: components["schemas"]["FindingCounts"];
+            /** @description The latest completed scan with a completed analysis; null if none. */
+            latest_scan: components["schemas"]["ScanRef"] | null;
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /** Target Name */
+            target_name: string;
+        };
         /** TargetRead */
         TargetRead: {
             /** Allowed Ports */
@@ -3888,6 +4140,38 @@ export interface operations {
             };
         };
     };
+    posture_overview_api_v1_posture_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectPostureSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_projects_api_v1_projects_get: {
         parameters: {
             query?: {
@@ -4274,6 +4558,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MembershipSelfRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_posture_api_v1_projects__project_id__posture_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectPostureRead"];
                 };
             };
             /** @description Validation Error */

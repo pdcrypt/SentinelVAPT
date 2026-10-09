@@ -74,6 +74,17 @@ export const updateProject = (projectId: string, body: T.ProjectUpdate) =>
 export const deleteProject = (projectId: string) =>
   apiWrite<null>("DELETE", `/projects/${id(projectId)}`);
 
+// --- security posture (ADR 0015, M11) -----------------------------------------------------
+// Everything here is computed by the API from persisted records: which scan is
+// latest, what counts as open or active, comparison states, which projects the
+// user may see. The console only renders it.
+
+export const getProjectPosture = (projectId: string) =>
+  apiGet<T.ProjectPosture>(`/projects/${id(projectId)}/posture`);
+export const POSTURE_PAGE = 50;
+export const listPosture = (offset = 0) =>
+  apiGet<T.ProjectPostureSummary[]>("/posture", { limit: POSTURE_PAGE, offset });
+
 // --- health ----------------------------------------------------------------------------
 
 export const getReadiness = () => apiGet<T.HealthResponse>("/health/ready");

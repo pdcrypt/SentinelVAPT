@@ -56,6 +56,14 @@ export type MemberAdd = S["MemberAdd"];
 export type MemberUpdate = S["MemberUpdate"];
 export type MembershipSelf = S["MembershipSelfRead"];
 export type GlobalRoleUpdate = S["GlobalRoleUpdate"];
+/** Security posture (ADR 0015): counts of persisted facts, computed by the API. */
+export type ProjectPosture = S["ProjectPostureRead"];
+export type ProjectPostureSummary = S["ProjectPostureSummary"];
+export type FindingCounts = S["FindingCounts"];
+export type ComparisonSummary = S["ComparisonSummary"];
+export type ReportRef = S["ReportRef"];
+export type RecentScan = S["RecentScan"];
+export type TargetPosture = S["TargetPosture"];
 export type AuditEvent = S["AuditEventRead"];
 export type ProjectAuditEvent = S["ProjectAuditEventRead"];
 export type AuditAction = S["AuditAction"];

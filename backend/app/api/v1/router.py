@@ -8,6 +8,7 @@ from app.api.v1.routers import (
     findings,
     health,
     members,
+    posture,
     projects,
     reports,
     retest_reports,
@@ -35,3 +36,4 @@ api_router.include_router(audit.router)
 api_router.include_router(users.router)
 api_router.include_router(members.router)
 api_router.include_router(members.self_router)
+api_router.include_router(posture.router)

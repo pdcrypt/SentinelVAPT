@@ -253,3 +253,31 @@ permission; the console only shows what the API returns, or its refusal.
   only from validated UUIDs. Session identifiers are not shown.
 - **Not available because the API has no such operation:** deleting
   accounts and editing or deleting audit events (both by design).
+
+## Security posture dashboard (M11)
+
+[ADR 0015](adr/0015-security-posture-dashboard.md) defines every number.
+
+- **Overview (`/`).** One row per project you are a member of, from
+  `GET /api/v1/posture`: your role, when the latest analysed scan finished,
+  active findings by severity, open findings, the latest retest's stored
+  comparison states and the latest reports. A global administrator who is not
+  a member sees no projects here.
+- **Project page.** `GET /api/v1/projects/{id}/posture`:
+  - current findings (counts and severity and triage-status charts, each with
+    a text table);
+  - the latest analysed scan of each target, linked to its findings;
+  - the latest retest outcome (all eight comparison states as stored);
+  - the latest scan and retest reports;
+  - the 10 most recent scans.
+- **Findings overview.** It uses the same summary, so the console no longer
+  walks every project and assessment.
+- **Definitions (all computed by the API):**
+  - *latest analysed scan*: the newest completed scan with a completed analysis;
+  - *active*: every triage status except false positive, as in reports;
+  - *open*: triage status `open`;
+  - *retest outcome*: the latest completed comparison's records.
+- **No score.** The console formats counts, draws charts and shows empty
+  states. It does not decide what is open, latest or comparable, does not
+  filter projects, and computes no score. API strings are inert text, and
+  links are built only from validated UUIDs.

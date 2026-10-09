@@ -158,6 +158,66 @@ async function verifySandboxedPreview(page: Page, kind: string, reportId: string
   await page.unroute(`**${preview}`);
 }
 
+const STATES = [
+  "new",
+  "reopened",
+  "unchanged",
+  "still_open",
+  "fixed",
+  "dismissed",
+  "not_retested",
+  "not_comparable",
+] as const;
+
+/** The security posture dashboard (M11) against independent views of the same
+ *  persisted records: the comparison page's rows per state, and the findings
+ *  page of the scan the dashboard calls latest. */
+async function verifyDashboard(
+  page: Page,
+  { comparison, scan, retestReport }: { comparison: string; scan: string; retestReport: string },
+): Promise<Record<string, number>> {
+  await page.goto(`/comparisons/${comparison}`);
+  const recorded: Record<string, number> = {};
+  for (const s of STATES) {
+    recorded[s] = await page.locator(`#state-${s} tbody tr[data-rule]`).count();
+  }
+  await page.goto(`/findings?scan=${scan}`);
+  const findings = await page.getByTestId("findings-table").locator("tbody tr").count();
+
+  await page.goto(`/projects/${state.project}`);
+  const outcome = page.getByTestId("retest-outcome");
+  await expect(outcome.locator(`a[href="/comparisons/${comparison}"]`)).toBeVisible();
+  const shown: Record<string, number> = {};
+  for (const s of STATES) {
+    const cell = page.getByTestId("state-counts").locator(`tr[data-key="${s}"]`);
+    shown[s] = Number(await cell.getAttribute("data-value"));
+  }
+  expect(shown).toEqual(recorded);
+  // The latest analysed scan of the target is this retest's scan, and its
+  // finding count is what the findings page lists for it.
+  await expect(
+    page.getByTestId("posture-targets").locator(`a[href="/scans/${scan}"]`),
+  ).toBeVisible();
+  await expect(page.getByTestId("count-total")).toHaveText(String(findings));
+  await expect(
+    page.getByTestId("latest-reports").locator(`a[href="/retest-reports/${retestReport}"]`),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId("latest-reports").locator(`a[href="/reports/${state.report}"]`),
+  ).toBeVisible();
+  const recent = page.getByTestId("recent-scans").locator("tbody tr");
+  expect(await recent.count()).toBeLessThanOrEqual(10);
+  await expect(recent.first()).toHaveAttribute("data-scan", scan);
+  await expect(page.getByTestId("project-role")).toHaveText("Your role: Owner");
+
+  // The cross-project overview agrees, from the same API facts.
+  await page.goto("/");
+  const row = page.getByTestId("posture-overview").locator(`tr[data-project="${state.project}"]`);
+  await expect(row.locator(`a[href="/comparisons/${comparison}"]`)).toBeVisible();
+  await noScriptRan(page);
+  return shown;
+}
+
 test.beforeAll(() => startLab());
 test.afterAll(() => stopLab());
 
@@ -352,6 +412,17 @@ test("retest B: comparison states, dismissal, coverage and retest report", async
   await submit(page, "request-retest-report");
   await page.waitForURL(new RegExp(`/retest-reports/${state.rrB}\\?existing=1$`));
   await expect(page.getByText("already existed")).toBeVisible();
+
+  // Dashboard after B: FIXED and DISMISSED, counted from the stored records.
+  const afterB = await verifyDashboard(page, {
+    comparison: state.cmpB!,
+    scan: state.scanB!,
+    retestReport: state.rrB!,
+  });
+  expect(afterB.fixed).toBeGreaterThan(0);
+  expect(afterB.dismissed).toBeGreaterThan(0);
+  expect(afterB.reopened).toBe(0);
+  state.fixedAfterB = String(afterB.fixed);
 });
 
 test("retest C: reopened findings and the A → B → C lineage", async ({ page }) => {
@@ -389,11 +460,17 @@ test("retest C: reopened findings and the A → B → C lineage", async ({ page 
   const form = page.getByTestId("request-retest-report");
   await submit(page, "request-retest-report");
   await page.waitForURL(new RegExp(`/retest-reports/${UUID}$`));
-  await verifyDownloads(page, "retest-reports", idFrom(page, "/retest-reports"), [
-    "json",
-    "html",
-    "pdf",
-  ]);
+  const rrC = idFrom(page, "/retest-reports");
+  await verifyDownloads(page, "retest-reports", rrC, ["json", "html", "pdf"]);
+
+  // Dashboard after C: what B fixed has REOPENED, from C's stored records.
+  const afterC = await verifyDashboard(page, {
+    comparison: state.cmpC!,
+    scan: state.scanC!,
+    retestReport: rrC,
+  });
+  expect(afterC.reopened).toBeGreaterThan(0);
+  expect(afterC.reopened).toBeLessThanOrEqual(Number(state.fixedAfterB));
 });
 
 test("the browser never called the API directly", () => {
