@@ -229,15 +229,30 @@ $env:E2E_BASE_URL = "http://localhost:3000"; npm run test:e2e
 Remove-Item Env:E2E_BASE_URL
 ```
 
-CI runs the Python and frontend checks on every push to `main` and on every
-pull request (`.github/workflows/ci.yml`).
+The CI workflow (`.github/workflows/ci.yml`) runs the Python and frontend
+checks on pushes to `main` and on pull requests. It has not run yet: this
+repository has no remote configured. In CI, the live-stack Playwright specs
+skip (no compose stack there).
 
 ## Configuration
 
-All configuration and secrets come from environment variables. `.env.example`
-documents every variable; `.env` is git-ignored. Nothing secret is hard-coded,
-and required secrets have no defaults: the backend refuses to start without
-them.
+All configuration and secrets come from environment variables, and
+`.env.example` lists every variable the application and its tests read. `.env`
+is git-ignored. Nothing secret is hard-coded, and required secrets have no
+defaults: the backend refuses to start without them.
+
+- **Docker Compose** reads `.env` for the values it substitutes into
+  `docker-compose.yml`. Only the variables named there reach the containers:
+  `APP_ENV`, `LOG_LEVEL` and `DATABASE_URL` for the backend and workers,
+  `CORS_ORIGINS` for the backend, `DATABASE_URL` for the migration job, and
+  `API_INTERNAL_URL` for the frontend.
+- **The backend run natively** also reads the repo-root `.env`, including the
+  optional, bounded `AUTH_*` and `WORKER_*` settings.
+- **The frontend run natively** reads only its own environment (the shell, or
+  `frontend/.env.local`): `API_INTERNAL_URL`, `FRONTEND_ALLOWED_HOSTS` and,
+  on a development server only, `SESSION_COOKIE_INSECURE`.
+- **Test-only variables** (`TEST_DATABASE_URL`, `REQUIRE_PDF`, `E2E_*`) are
+  listed at the end of `.env.example` and are not runtime configuration.
 
 ## Roadmap
 
@@ -252,4 +267,13 @@ them.
 | 6 ✅  | Retesting: retest chains, evidence-backed scan comparison          |
 | 7 ✅  | Retest reports: comparison-based JSON / HTML / PDF reports         |
 | 8 ✅  | Operator console: localhost-only Next.js UI for the whole workflow |
-| 9     | Hardening: platform auth, more checks, PDF export, polish          |
+| 9 ✅  | Platform security (M1–M10): accounts, sessions, roles, actors, audit, administration |
+| M11 ✅ | Security posture dashboard ([ADR 0015](docs/adr/0015-security-posture-dashboard.md)) |
+
+PDF reports have been part of reporting since Phase 5. Phase 9's milestones
+are listed in [ADR 0014](docs/adr/0014-authentication-and-authorization.md).
+The manual retest walkthrough with lab header variants is in
+[tests/lab/README.md](tests/lab/README.md#retest-walkthrough-fixed-new-dismissed-reopened).
+
+Not done yet: the CI workflow has never run (no remote is configured), and
+a clean-clone smoke test of the quick start has not been carried out.

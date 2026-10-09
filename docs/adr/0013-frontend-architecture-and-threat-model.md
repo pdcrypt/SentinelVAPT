@@ -120,8 +120,14 @@ page renders per request.
   backend behaviour or data.
 - Platform authentication (a later phase) can attach a session in one
   place: the server-side API client and the Server Action guard.
+  *(Done in Phase 9 M8: the session is attached in exactly those places; see
+  ADR 0014.)*
 - **NUL in input:** text containing NUL once made the API return a plain
   500. The API now rejects it as a 422 validation error (PostgreSQL text
   cannot hold U+0000), and the console shows that field error.
 - **Index-page cost:** the index pages issue one API call per project and
-  per assessment, which is acceptable for a local lab.
+  per assessment, which is acceptable for a local lab. *(M11 replaced this for
+  the overview and findings pages with server-side posture aggregates (ADR
+  0015). The scan reports, retests and retest reports index pages still walk
+  projects and assessments, within the bounds listed in
+  [frontend.md](../frontend.md#list-bounds-known-limitation).)*

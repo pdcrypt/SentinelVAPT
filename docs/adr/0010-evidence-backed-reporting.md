@@ -203,3 +203,6 @@ There is no edit or delete endpoint: reports are records.
   production code path can delete or alter a report.
 - Reports concentrate sensitive data while the platform has no authentication.
   The localhost-only boundary (ADR 0005) still applies.
+  *(Update, Phase 9: reports are now readable only by members of their
+  project, through authenticated sessions (ADR 0014). The localhost-only
+  boundary still applies.)*

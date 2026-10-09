@@ -129,17 +129,49 @@ npm run api:check                # generated API types match openapi/sentinelvap
 E2E_BASE_URL=http://localhost:3000 npx playwright test   # needs the compose stack and Docker
 ```
 
-The live-stack specs (`E2E_BASE_URL` set) sign in with real accounts made by
-the platform's own mechanisms (`tests/e2e/support/accounts.ts`): the first
-administrator comes from `python -m app.cli create-admin` run in the backend
-container (or from `E2E_ADMIN_USERNAME` / `E2E_ADMIN_PASSWORD` when the stack
-already has one), and every other account is created by that administrator
-through the account API with a random temporary password. The generated
-administrator's credentials are kept in `frontend/.e2e/` (git- and
-docker-ignored). The `setup` project signs an operator in through the UI,
-completes the required password change and saves the browser state (the
-opaque cookie only) for the workflow spec. Without `E2E_BASE_URL`, only the
-specs that need no account run.
+### Live-stack end-to-end tests
+
+With `E2E_BASE_URL` set (for example `http://localhost:3000`), the
+live-stack specs run against the **running compose stack and its database**.
+This is the same database you use for demos; there is no separate test
+database for these specs. Without `E2E_BASE_URL`, only the specs that need no
+account run.
+
+**The administrator account.** The specs need an administrator they can sign
+in as (`tests/e2e/support/accounts.ts`), found in this order:
+
+1. `E2E_ADMIN_USERNAME` and `E2E_ADMIN_PASSWORD`, if both are set.
+2. `frontend/.e2e/admin.json`, written by an earlier bootstrap (git- and
+   docker-ignored; it holds that account's password in plain text).
+3. A bootstrap: `python -m app.cli create-admin` run in the backend
+   container, with a random password. The command refuses once any
+   administrator exists. So on a stack where you already created an admin
+   (as the quick start does), set `E2E_ADMIN_USERNAME` and
+   `E2E_ADMIN_PASSWORD` to that account, or the run stops with "Could not
+   bootstrap an e2e administrator".
+
+**What the specs write.** Each run creates accounts (`e2e-…`, with random
+temporary passwords, through the account API), projects, targets,
+assessments, scans and reports in that database, and leaves them there.
+Disabled test accounts stay disabled; nothing is deleted.
+
+**Harness access.** The harness also calls the API directly for setup, at
+`E2E_API_URL` (default `http://127.0.0.1:8000`). The browser under test never
+does.
+
+**The setup project** signs an operator in through the UI, completes the
+required password change, and saves the browser state (the opaque cookie
+only) for the workflow spec.
+
+**Specs that change shared state.**
+
+- `workflow.spec.ts` starts its own temporary nginx lab container (`sv-e2e-lab`)
+  on the compose network (`E2E_COMPOSE_NETWORK`, default
+  `sentinel-vapt_default`) and removes it afterwards.
+- `lab-retest.spec.ts` is opt-in (`E2E_LAB_RETEST=1`). It switches the shared
+  compose `lab-target` between its header variants while it runs, and
+  restores variant `a` at the end (see
+  [tests/lab/README.md](../tests/lab/README.md)).
 
 Since M5 the forms no longer ask who acknowledged an authorization,
 prepared a report or made a triage. The server records the signed-in
@@ -281,3 +313,27 @@ permission; the console only shows what the API returns, or its refusal.
   states. It does not decide what is open, latest or comparable, does not
   filter projects, and computes no score. API strings are inert text, and
   links are built only from validated UUIDs.
+
+## List bounds (known limitation)
+
+The API returns at most 100 rows per request. The posture views (overview,
+project posture, findings overview) are paginated or bounded by the API
+(ADR 0015). Other lists are bounded by the console, and some do not say so
+when they stop:
+
+| Where | What the console fetches | Shown when the bound is reached |
+|---|---|---|
+| Scan reports, retests and retest reports index pages | Up to 5 pages of projects (500), then one page (100) of assessments per project; the two report pages then fetch one page (100) of reports per assessment | Nothing |
+| Projects page | Up to 20 pages of projects (2,000) | Nothing |
+| Project page: targets, assessments | One page each (100) | Nothing |
+| Target page: authorization history, assessments | One page each (100) | Nothing |
+| Assessment page: scans, scan reports | One page each (100) | Nothing |
+| Retest page: scans, retest reports | One page each (100) | Nothing |
+| Assessment page: retests; retest page: comparisons | All rows (these API lists are not paginated) | n/a |
+| Scan page: logs, endpoints | One page each (100) | "Showing the first 100 …" |
+| Scan page: assets, evidence | One page each (100) | Nothing |
+| Findings of a scan, comparison records | Up to 20 pages (2,000) | Nothing |
+| Project posture: targets | 100 (by the API) | A notice; counts include all targets |
+
+This is ample for a local lab. Larger data sets would need real pagination on
+these pages, which is not implemented.

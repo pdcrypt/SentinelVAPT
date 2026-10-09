@@ -79,9 +79,9 @@ Assessment.retest_of_assessment_id → parent  (implemented, Phase 6; same targe
 Assessment.baseline_scan_id → parent's scan  (implemented, Phase 6; immutable)
 Assessment(retest) 1─N Comparison            (implemented, Phase 6; one per scan and policy)
 Comparison 1─N ComparisonRecord 1─N coverage evidence (current scan only)
-User 1─1 UserCredential, User 1─N Session      (schema only, Phase 9 M1)
-Project N─M User via ProjectMember(role)      (schema only, Phase 9 M1)
-AuditEvent (append-only, historical ids)      (schema only, Phase 9 M1)
+User 1─1 UserCredential, User 1─N Session      (implemented, Phase 9 M1–M2)
+Project N─M User via ProjectMember(role)      (implemented, Phase 9 M1, M4, M7)
+AuditEvent (append-only, historical ids)      (implemented, Phase 9 M1, M6)
 ```
 
 An assessment reaches its project through its target; there is no separate
@@ -275,12 +275,16 @@ See [ADR 0013](adr/0013-frontend-architecture-and-threat-model.md) and
   attachments.
 - **Comparisons and triage.** Comparison states are shown exactly as stored;
   triage is always a separately labelled status.
-- **No backend changes.** No backend, database or migration changes, and no
-  authentication (names are self-asserted).
+- **No backend changes in Phase 8.** Phase 8 itself changed no backend,
+  database or migration, and had no authentication: names were self-asserted.
+  Sign-in, server-recorded actors and roles came with Phase 9 (below).
 
-## Identity and authorization (Phase 9, in progress)
+## Identity and authorization (Phase 9, complete)
 
-See [ADR 0014](adr/0014-authentication-and-authorization.md). M1 adds the
+See [ADR 0014](adr/0014-authentication-and-authorization.md). Phase 9 was
+delivered in milestones M1–M10, summarized below in the order they were
+built. Today all 82 API routes declare exactly one access descriptor
+(default deny), and only health, readiness and login are public. M1 adds the
 schema foundation. M2 adds the authentication core:
 
 - `POST /api/v1/auth/login`, `POST /auth/logout`, `GET /auth/me` and
@@ -421,9 +425,9 @@ See [ADR 0015](adr/0015-security-posture-dashboard.md).
 | `GET` | `/api/v1/scans/{id}/findings` (filters: `severity`, `confidence`, `detection_type`, `category`, `rule_id`, `status`), `/findings/summary`, `/analysis` |
 | `GET` | `/api/v1/assessments/{id}/findings/summary` |
 | `GET` | `/api/v1/findings/{id}`, `/evidence`, `/history` |
-| `POST` | `/api/v1/findings/{id}/triage` (body: `status`, `reason`, `triaged_by`) |
+| `POST` | `/api/v1/findings/{id}/triage` (body: `status`, `reason`; the actor is the signed-in user) |
 | `GET` | `/api/v1/rules` (the rule catalog this deployment evaluates) |
-| `POST`, `GET` | `/api/v1/assessments/{id}/reports` (body: `scan_id`, `kind`, `formats`, `title`, `prepared_by`, …) |
+| `POST`, `GET` | `/api/v1/assessments/{id}/reports` (body: `scan_id`, `kind`, `formats`, `title`, …; `prepared_by` is set from the signed-in user) |
 | `GET` | `/api/v1/reports/{id}`, `/artifacts`, `/artifacts/{json,html,pdf}`, `/preview` |
 | `GET` | `/api/v1/report-templates` |
 | `POST`, `GET` | `/api/v1/assessments/{id}/retests` |
@@ -434,6 +438,14 @@ See [ADR 0015](adr/0015-security-posture-dashboard.md).
 | `GET` | `/api/v1/assessments/{id}/retest-reports` |
 | `GET` | `/api/v1/retest-reports/{id}`, `/artifacts`, `/artifacts/{json,html,pdf}`, `/preview` |
 | `GET` | `/api/v1/retest-report-templates` |
+| `GET` | `/api/v1/projects/{id}/audit-events`, `/api/v1/audit-events` (filters: `action`, `outcome`, `actor_type`, `actor_user_id`, `resource_type`, `resource_id`, `occurred_from`, `occurred_to`; `project_id` on the platform log) |
+| `POST`, `GET` | `/api/v1/users`; `GET` `/api/v1/users/{id}`; `POST` `/users/{id}/disable`, `/enable`, `/password-reset`; `PATCH` `/users/{id}/global-role` (global administrators) |
+| `GET`, `POST` | `/api/v1/projects/{id}/members`; `PATCH`, `DELETE` `/projects/{id}/members/{user_id}` (project owners) |
+| `GET` | `/api/v1/projects/{id}/membership/me` (the caller's own role) |
+| `GET` | `/api/v1/projects/{id}/posture`, `/api/v1/posture` (security posture, ADR 0015) |
+
+Every route except health, readiness and login requires a session; project
+routes also require membership with the right role (ADR 0014).
 
 Errors from business rules return `{"detail", "code", "field"}` with 404
 (`not_found`), 409 (`conflict`, `invalid_state_transition`,

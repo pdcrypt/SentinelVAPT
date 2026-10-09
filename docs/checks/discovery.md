@@ -70,6 +70,7 @@ SHA-256 of the captured body).
 
 ## Findings
 
-None. Discovery results do not have a `detection_type`; findings
-(`automated_detection` / `manual_verification_required`) come from detection
-rules in a later phase, which will run on these results.
+None. Discovery results do not have a `detection_type`. Findings
+(`automated_detection` / `manual_verification_required`) come from the offline
+rule engine (Phase 4, [rules.md](../rules.md)), which runs on these stored
+results after the scan.

@@ -1,6 +1,7 @@
 # SentinelVAPT local stack.
-# All ports are bound to 127.0.0.1 only: this platform is not meant to be
-# exposed to a network until platform authentication exists (see docs/adr/0005).
+# All ports are bound to 127.0.0.1 only. Localhost-only is the policy even
+# with platform authentication in place: network exposure is a non-goal
+# (docs/adr/0005, docs/adr/0014). Do not bind to 0.0.0.0.
 
 name: sentinel-vapt
 
