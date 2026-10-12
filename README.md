@@ -8,7 +8,8 @@ findings with evidence, supports manual triage and retesting, and generates
 reports. It does not perform exploitation. See
 [docs/scope-and-ethics.md](docs/scope-and-ethics.md).
 
-> **Status:** Phase 8 (operator console). Projects, targets with scope and
+> **Status:** Phase 9 (platform security, M1–M10) and M11 (security posture
+> dashboard) are complete. Projects, targets with scope and
 > authorization, assessments and passive discovery scans of `local_lab`
 > targets are available through the REST API. A worker runs the scans, stores
 > their redacted results, and analyses them offline with 14 passive rules into
@@ -18,9 +19,12 @@ reports. It does not perform exploitation. See
 > compared finding by finding ([retesting](docs/retesting.md)), with
 > evidence-backed retest reports ([retest reports](docs/retest-reporting.md)).
 > A localhost-only Next.js operator console drives the whole workflow
-> ([operator console](docs/frontend.md)) behind a platform sign-in, with
-> project membership and roles enforced by the API
-> ([ADR 0014](docs/adr/0014-authentication-and-authorization.md)). There are no
+> ([operator console](docs/frontend.md)) behind a platform sign-in. Accounts,
+> sessions, project membership and roles are enforced by the API, with audit
+> logs and an administration console
+> ([ADR 0014](docs/adr/0014-authentication-and-authorization.md)). Overview and
+> project pages show a counts-only security posture
+> ([ADR 0015](docs/adr/0015-security-posture-dashboard.md)). There are no
 > active checks.
 
 ## Stack
@@ -245,7 +249,7 @@ requests. It has three jobs:
   afterwards.
 
 `mutation.yml` runs the mutation suites on demand (`workflow_dispatch`).
-Neither workflow has run yet: this repository has no remote configured.
+Neither workflow has run on GitHub yet, so there is no CI result for either.
 
 ## Configuration
 
@@ -288,5 +292,6 @@ are listed in [ADR 0014](docs/adr/0014-authentication-and-authorization.md).
 The manual retest walkthrough with lab header variants is in
 [tests/lab/README.md](tests/lab/README.md#retest-walkthrough-fixed-new-dismissed-reopened).
 
-Not done yet: the CI workflow has never run (no remote is configured), and
-a clean-clone smoke test of the quick start has not been carried out.
+Not done yet: neither GitHub Actions workflow (`ci.yml`, `mutation.yml`) has
+run on GitHub, and a clean-clone smoke test of the quick start has not been
+carried out.
